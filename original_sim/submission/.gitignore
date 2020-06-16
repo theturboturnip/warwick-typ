@@ -1,0 +1,6 @@
+*.o
+bin2ppm
+cfd
+output.bin
+
+build
