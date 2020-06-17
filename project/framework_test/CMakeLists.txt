@@ -31,3 +31,4 @@ target_link_libraries(framework_test PRIVATE ${SDL2_LIBRARIES})
 # This project uses a local installation of GLM so find_package isn't necessary
 target_link_libraries(framework_test PRIVATE glm)
 
+target_link_libraries(framework_test PRIVATE imgui)
