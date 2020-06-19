@@ -20,10 +20,10 @@ target_include_directories(framework_test PRIVATE ./src/)
 
 target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Werror -Wno-deprecated-declarations>)
 
-target_include_directories(framework_test PRIVATE ${Vulkan_INCLUDE_DIRS})
+target_include_directories(framework_test SYSTEM PRIVATE ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(framework_test PRIVATE ${Vulkan_LIBRARIES})
 
-target_include_directories(framework_test PRIVATE ${SDL2_INCLUDE_DIRS})
+target_include_directories(framework_test SYSTEM PRIVATE ${SDL2_INCLUDE_DIRS})
 target_link_libraries(framework_test PRIVATE ${SDL2_LIBRARIES})
 
 # This project uses a local installation of GLM so find_package isn't necessary
