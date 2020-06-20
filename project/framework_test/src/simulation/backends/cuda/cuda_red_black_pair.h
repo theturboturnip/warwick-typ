@@ -6,7 +6,7 @@
 
 #include <cuda_runtime_api.h>
 
-#include "cuda_memory_wrappers.h"
+#include "cuda_memory_wrappers.cuh"
 
 template<typename T>
 class CUDAUnifiedRedBlackArraySet {

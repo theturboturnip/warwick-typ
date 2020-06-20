@@ -8,7 +8,7 @@
 #include <cuda_runtime_api.h>
 #include <vulkan/vulkan.hpp>
 
-#include "cuda_memory_wrappers.h"
+#include "cuda_memory_wrappers.cuh"
 
 template<typename T>
 class CUDAVulkanSharedBuffer : CUDAUnified1DArray<T> {

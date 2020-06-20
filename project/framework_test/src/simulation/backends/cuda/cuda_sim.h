@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "cuda_memory_wrappers.h"
+#include "cuda_memory_wrappers.cuh"
 
-class Simulation {
+class CUDASimulation {
 public:
-    Simulation();
-    ~Simulation();
+    CUDASimulation();
+    ~CUDASimulation();
 
     struct TickData {
 

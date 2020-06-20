@@ -7,6 +7,9 @@
 #include <cstdlib>
 #include <vector>
 #include <cstring>
+#include <stdexcept>
+
+#include "util/host_visible_array.h"
 
 /**
  * Managed pointer for CUDA allocated arrays of T.
@@ -17,35 +20,15 @@
  * @tparam T The type of elements in the array.
  */
 template<typename T>
-class CUDAUnified1DArray {
+class CUDAUnified1DArray : HostVisibleArray<T> {
 public:
-    explicit CUDAUnified1DArray(size_t elemCount);
-    ~CUDAUnified1DArray();
-
-    // Delete the copy constructor to prevent accidental data copying using "x = y;"
-    CUDAUnified1DArray(const CUDAUnified1DArray&) = delete;
-    // Allow the array to be std::move-d if, for example, it needs to be returned from a function.
-    CUDAUnified1DArray(CUDAUnified1DArray&&) noexcept = default;
-
-    const size_t elemCount;
-
-    explicit operator T*() {
-        return pointer;
+    explicit CUDAUnified1DArray(size_t elem_count) : HostVisibleArray<T>(doCudaMalloc(elem_count), elem_count) {
     }
-    T* get() {
-        return pointer;
+    ~CUDAUnified1DArray() {
+        // TODO: why is this-> required here?
+        // is it because this isn't a virtual class?
+        cudaFree(this->pointer);
     }
-
-    // begin() and end() to allow for std:: algorithms and fromContainer to work.
-    // Enable only if necessary, as that's really a bad idea.
-    /*
-    T* begin() {
-        return pointer;
-    }
-    T* end() {
-        return pointer + elemCount;
-    }
-     */
 
     // Use an arbitrary Iter type to allow any Iterator to be used
     // This means iterators from std::vector, std::list, or just raw pointers could be used.
@@ -63,8 +46,15 @@ public:
         return std::move(array);
     }
 
-protected:
-    T* pointer;
+private:
+    static T* doCudaMalloc(size_t elem_count) {
+        T* pointer = nullptr;
+        cudaError_t err = cudaMallocManaged(&pointer, elem_count * sizeof(T));
+        if (err) {
+            throw std::runtime_error("CUDA allocation failure");
+        }
+        return pointer;
+    }
 };
 
 /**
