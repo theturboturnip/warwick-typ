@@ -28,7 +28,8 @@ if (CMAKE_CUDA_COMPILER)
     target_sources(framework_test PRIVATE ${CUDA_SOURCES})
 endif()
 
-target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-std=c++14 -Wall -Werror -Wno-deprecated-declarations>)
+# TODO: -O2 on debug
+target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-fast-math -std=c++14 -Wall -Werror -Wno-deprecated-declarations -Wno-error-unused>)
 if (CMAKE_CUDA_COMPILER)
     target_compile_options(framework_test PRIVATE -DCUDA_ENABLED)
 endif()

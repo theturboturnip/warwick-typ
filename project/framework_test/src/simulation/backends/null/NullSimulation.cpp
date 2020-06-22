@@ -14,5 +14,6 @@ LegacySimDump NullSimulation::dumpStateAsLegacy() {
 }
 
 void NullSimulation::tick(float expectedTimestep) {
-    m_currentTime += expectedTimestep;
+    if (this->m_started)
+        m_currentTime += expectedTimestep;
 }

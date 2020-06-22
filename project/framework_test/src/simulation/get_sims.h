@@ -11,6 +11,7 @@
 enum SimulationBackend {
     Null,
     CUDA,
+    CpuSimple,
 };
 
 std::unique_ptr<ISimulation> getSimulation(SimulationBackend backend);
