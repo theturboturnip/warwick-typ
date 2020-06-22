@@ -1,6 +1,7 @@
 *.o
 bin2ppm
 cfd
+diffbin
 output.bin
 
 build

@@ -2,5 +2,6 @@
 bin2ppm
 cfd
 output.bin
+diffbin
 
 build
