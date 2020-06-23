@@ -10,7 +10,7 @@
 // TODO: Rename, CpuSimpleSimulation is already a backend itself
 class CpuSimpleSimulationBackend {
 public:
-    CpuSimpleSimulationBackend(const LegacySimDump& dump);
+    explicit CpuSimpleSimulationBackend(const LegacySimDump& dump);
 
     float tick();
 

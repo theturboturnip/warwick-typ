@@ -39,8 +39,8 @@ CpuSimpleSimulationBackend::CpuSimpleSimulationBackend(const LegacySimDump &dump
     jmax(dump.params.jmax),
     xlength(dump.params.xlength),
     ylength(dump.params.ylength),
-    delx(1.0f/dump.params.xlength),
-    dely(1.0f/dump.params.ylength),
+    delx(xlength/imax),
+    dely(ylength/jmax),
     ibound(0), // Number of boundary squares? TODO This isn't right
     ui(1.0), // Initial X Velocity
     vi(0.0), // Initial Y Velocity
@@ -51,13 +51,13 @@ CpuSimpleSimulationBackend::CpuSimpleSimulationBackend(const LegacySimDump &dump
     omega(1.7), // Relaxation parameter for SOR
     gamma(0.9), // Upwind differencing factor in PDE discretisation
     del_t(0.003),
-    u(dump.u, dump.params.imax+2, dump.params.jmax+2),
-    v(dump.v, dump.params.imax+2, dump.params.jmax+2),
-    f(dump.params.imax+2, dump.params.jmax+2, 0.0f),
-    g(dump.params.imax+2, dump.params.jmax+2, 0.0f),
-    p(dump.p, dump.params.imax+2, dump.params.jmax+2),
-    rhs(dump.params.imax+2, dump.params.jmax+2, 0.0f),
-    flag(dump.flag, dump.params.imax+2, dump.params.jmax+2)
+    u(dump.u, imax+2, jmax+2),
+    v(dump.v, imax+2, jmax+2),
+    f(imax+2, jmax+2, 0.0f),
+    g(imax+2, jmax+2, 0.0f),
+    p(dump.p, imax+2, jmax+2),
+    rhs(imax+2, jmax+2, 0.0f),
+    flag(dump.flag, imax+2, jmax+2)
      {}
 
 float CpuSimpleSimulationBackend::tick() {
