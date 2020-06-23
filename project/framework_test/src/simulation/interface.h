@@ -24,7 +24,7 @@ public:
         return m_currentTime;
     }
 
-    virtual void tick(float expectedTimestep) = 0;
+    virtual float tick(float expectedTimestep) = 0;
 
     virtual void loadFromLegacy(const LegacySimDump& dump) = 0;
     virtual LegacySimDump dumpStateAsLegacy() = 0;

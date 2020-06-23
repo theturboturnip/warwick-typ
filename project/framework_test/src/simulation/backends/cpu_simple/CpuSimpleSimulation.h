@@ -21,7 +21,7 @@ public:
     void loadFromLegacy(const LegacySimDump& dump) override;
     LegacySimDump dumpStateAsLegacy() override;
 
-    void tick(float expectedTimestep) override;
+    float tick(float expectedTimestep) override;
 
 private:
     std::unique_ptr<CpuSimpleSimulationBackend> backendData = nullptr;

@@ -18,7 +18,7 @@ public:
     void loadFromLegacy(const LegacySimDump& dump) override;
     LegacySimDump dumpStateAsLegacy() override;
 
-    void tick(float expectedTimestep) override;
+    float tick(float expectedTimestep) override;
 
 private:
     LegacySimDump m_state;

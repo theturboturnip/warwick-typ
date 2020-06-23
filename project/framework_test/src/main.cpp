@@ -26,10 +26,11 @@ int main() {
     const float targetTime = 10.0f;
     const float timestep = 0.01f;//1.0/120.0;
     while(sim->currentTime() < targetTime) {
-        fprintf(stderr, "\rb: %5g", sim->currentTime());
-        sim->tick(timestep);
+        float realstep = sim->tick(timestep);
+        fprintf(stderr, "\rt: %5g dt: %5g", sim->currentTime(), realstep);
         //fprintf(stderr, "\re: %5g", sim->currentTime());
     }
+    fprintf(stderr, "\n");
 
     LegacySimDump endDump = sim->dumpStateAsLegacy();
     fprintf(stderr, "enddump: %s", endDump.debugString().c_str());

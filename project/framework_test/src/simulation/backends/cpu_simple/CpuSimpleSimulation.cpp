@@ -20,13 +20,14 @@ LegacySimDump CpuSimpleSimulation::dumpStateAsLegacy() {
     state.v = backendData->v.getBacking();
     state.p = backendData->p.getBacking();
     state.flag = backendData->flag.getBacking();
-    // TODO: Implement actual state dump
     return state;
 }
 
-void CpuSimpleSimulation::tick(float expectedTimestep) {
-    if (!this->m_started) return;
+float CpuSimpleSimulation::tick(float expectedTimestep) {
+    if (!this->m_started) return 0;
 
     float timestep = backendData->tick();
     m_currentTime += timestep;
+
+    return timestep;
 }
