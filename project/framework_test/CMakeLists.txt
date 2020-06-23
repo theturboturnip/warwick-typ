@@ -45,6 +45,8 @@ target_link_libraries(framework_test PRIVATE glm)
 
 target_link_libraries(framework_test PRIVATE imgui)
 
+target_link_libraries(framework_test PRIVATE GSL)
+
 # Set up resource copying
 add_custom_target(copy_assets ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory
