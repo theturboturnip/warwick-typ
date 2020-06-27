@@ -1,0 +1,103 @@
+NAST2D
+http://people.math.sc.edu/Burkardt/cpp_src/nast2d/nast2d.html
+
+http://people.math.sc.edu/Burkardt/cpp_src/nast2d/uvp.cpp
+
+//****************************************************************************80
+
+void COMP_FG(REAL **U,REAL **V,REAL **TEMP,REAL **F,REAL **G,int **FLAG,
+	     int imax,int jmax,REAL delt,REAL delx,REAL dely,
+	     REAL GX,REAL GY,REAL gamma,REAL Re,REAL beta)
+
+//****************************************************************************80
+//  
+//  Purpose:
+//
+//    COMP_FG computes the tentative velocity field (F,G).
+//
+//  Author:
+//
+//    Michael Griebel, Thomas Dornseifer, Tilman Neunhoeffer
+//
+//  Reference:
+//
+//    Michael Griebel, Thomas Dornseifer, Tilman Neunhoeffer,
+//    Numerical Simulation in Fluid Dynamics,
+//    SIAM, 1998.
+//
+{
+ int  i,j;
+ REAL DU2DX,DUVDY,DUVDX,DV2DY,LAPLU,LAPLV;
+
+ for (i=1;i<=imax-1;i++)
+    for (j=1;j<=jmax;j++)
+      {
+//  
+//  only if both adjacent cells are fluid cells.
+//  
+       if( ((FLAG[i][j] & C_F) && (FLAG[i][j] < C_E)) &&
+           ((FLAG[i+1][j] & C_F) && (FLAG[i+1][j] < C_E)) )
+         {
+          DU2DX = ((U[i][j]+U[i+1][j])*(U[i][j]+U[i+1][j])+
+	                 gamma*fabs(U[i][j]+U[i+1][j])*(U[i][j]-U[i+1][j])-
+	           (U[i-1][j]+U[i][j])*(U[i-1][j]+U[i][j])-
+	   	      gamma*fabs(U[i-1][j]+U[i][j])*(U[i-1][j]-U[i][j]))
+                  /(4.0*delx);
+          DUVDY = ((V[i][j]+V[i+1][j])*(U[i][j]+U[i][j+1])+
+                         gamma*fabs(V[i][j]+V[i+1][j])*(U[i][j]-U[i][j+1])-
+	           (V[i][j-1]+V[i+1][j-1])*(U[i][j-1]+U[i][j])-
+	                 gamma*fabs(V[i][j-1]+V[i+1][j-1])*(U[i][j-1]-U[i][j]))
+                  /(4.0*dely);
+          LAPLU = (U[i+1][j]-2.0*U[i][j]+U[i-1][j])/delx/delx+
+	          (U[i][j+1]-2.0*U[i][j]+U[i][j-1])/dely/dely;
+   
+          F[i][j] = U[i][j]+delt*(LAPLU/Re-DU2DX-DUVDY+GX)
+		           -delt*beta*GX*(TEMP[i][j]+TEMP[i+1][j])/2;
+         }
+       else
+          F[i][j] = U[i][j];
+      }
+
+ for (i=1;i<=imax;i++)
+    for (j=1;j<=jmax-1;j++)
+      {
+//  
+//  only if both adjacent cells are fluid cells.
+//  
+       if( ((FLAG[i][j] & C_F) && (FLAG[i][j] < C_E)) &&
+           ((FLAG[i][j+1] & C_F) && (FLAG[i][j+1] < C_E)) )
+         {
+          DUVDX = ((U[i][j]+U[i][j+1])*(V[i][j]+V[i+1][j])+
+	   	      gamma*fabs(U[i][j]+U[i][j+1])*(V[i][j]-V[i+1][j])-
+	   	(U[i-1][j]+U[i-1][j+1])*(V[i-1][j]+V[i][j])-
+	   	      gamma*fabs(U[i-1][j]+U[i-1][j+1])*(V[i-1][j]-V[i][j]))
+	          /(4.0*delx);
+          DV2DY = ((V[i][j]+V[i][j+1])*(V[i][j]+V[i][j+1])+
+	   	      gamma*fabs(V[i][j]+V[i][j+1])*(V[i][j]-V[i][j+1])-
+	           (V[i][j-1]+V[i][j])*(V[i][j-1]+V[i][j])-
+	   	      gamma*fabs(V[i][j-1]+V[i][j])*(V[i][j-1]-V[i][j]))
+	          /(4.0*dely);
+
+          LAPLV = (V[i+1][j]-2.0*V[i][j]+V[i-1][j])/delx/delx+
+	          (V[i][j+1]-2.0*V[i][j]+V[i][j-1])/dely/dely;
+
+          G[i][j] = V[i][j]+delt*(LAPLV/Re-DUVDX-DV2DY+GY)
+		           -delt*beta*GY*(TEMP[i][j]+TEMP[i][j+1])/2;;		      
+         }
+       else
+          G[i][j] = V[i][j];
+      }
+//  
+//  F und G at external boundary.
+//  
+ for (j=1;j<=jmax;j++)
+   {
+    F[0][j]    = U[0][j];
+    F[imax][j] = U[imax][j];
+   }
+ for (i=1;i<=imax;i++)
+   {
+    G[i][0]    = V[i][0];
+    G[i][jmax] = V[i][jmax];
+   }
+}
