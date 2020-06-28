@@ -20,7 +20,7 @@ find_package(SDL2 REQUIRED)
 
 add_executable(framework_test)
 
-file(GLOB_RECURSE CXX_SOURCES ./src/*.cpp ./src/*.h)
+file(GLOB_RECURSE CXX_SOURCES ./src/*.cpp ./src/*.h ./src/*.inl)
 target_sources(framework_test PRIVATE ${CXX_SOURCES})
 target_include_directories(framework_test PRIVATE ./src/)
 if (CMAKE_CUDA_COMPILER)

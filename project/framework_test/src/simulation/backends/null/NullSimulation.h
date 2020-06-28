@@ -4,21 +4,19 @@
 
 #pragma once
 
+#include <memory>
 #include "simulation/file_format/legacy.h"
-#include "simulation/interface.h"
 
 /**
  * ISimulation that does not actually do any simulation. Used for testing legacy state stuff etc.
  */
-class NullSimulation : public ISimulation {
+class NullSimulation {
 public:
-    NullSimulation() = default;
-    ~NullSimulation() override = default;
+    explicit NullSimulation(const LegacySimDump& dump);
 
-    void loadFromLegacy(const LegacySimDump& dump) override;
-    LegacySimDump dumpStateAsLegacy() override;
-
-    float tick(float expectedTimestep) override;
+    static std::unique_ptr<NullSimulation> makeUniquePtrFromLegacy(const LegacySimDump& dump);
+    float tick();
+    LegacySimDump dumpStateAsLegacy();
 
 private:
     LegacySimDump m_state;

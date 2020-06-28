@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "interface.h"
+#include "simulation/runners/ISimTickedRunner.h"
 
 enum SimulationBackend {
     Null,
@@ -14,4 +14,4 @@ enum SimulationBackend {
     CpuSimple,
 };
 
-std::unique_ptr<ISimulation> getSimulation(SimulationBackend backend);
+std::unique_ptr<ISimTickedRunner> getSimulation(SimulationBackend backend);

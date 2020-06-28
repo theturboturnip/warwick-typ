@@ -21,9 +21,9 @@ SimulationBackend selectBackend() {
 
 int main() {
     auto backend = selectBackend();
-    std::unique_ptr<ISimulation> sim = getSimulation(backend);
+    std::unique_ptr<ISimTickedRunner> sim = getSimulation(backend);
 
-    ISimulation& actualSim = *sim;
+    ISimTickedRunner& actualSim = *sim;
     fprintf(stderr, "acquired simulation %s\n", typeid(actualSim).name());
 
     LegacySimDump dump = LegacySimDump::fromFile("initial.bin");

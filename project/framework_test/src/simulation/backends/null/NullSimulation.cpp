@@ -4,19 +4,17 @@
 
 #include "NullSimulation.h"
 
-void NullSimulation::loadFromLegacy(const LegacySimDump &dump) {
-    this->m_started = true;
-    this->m_state = dump;
-}
+NullSimulation::NullSimulation(const LegacySimDump& dump) : m_state(dump) {}
 
 LegacySimDump NullSimulation::dumpStateAsLegacy() {
     return m_state;
 }
 
-float NullSimulation::tick(float expectedTimestep) {
-    if (!this->m_started)
-        return 0;
+float NullSimulation::tick() {
+    // TODO: This is bad behaviour, we should establish a base timestep
+    return 1;
+}
 
-    m_currentTime += expectedTimestep;
-    return expectedTimestep;
+std::unique_ptr<NullSimulation> NullSimulation::makeUniquePtrFromLegacy(const LegacySimDump& dump) {
+    return std::make_unique<NullSimulation>(dump);
 }

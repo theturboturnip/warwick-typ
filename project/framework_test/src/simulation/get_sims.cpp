@@ -4,16 +4,19 @@
 
 #include "get_sims.h"
 
-#include "simulation/backends/cpu_simple/CpuSimpleSimulation.h"
+#include "simulation/runners/ISimTickedRunner.h"
+#include "simulation/backends/cpu_simple/CpuSimpleSimBackend.h"
 #include "simulation/backends/null/NullSimulation.h"
 #include "util/fatal_error.h"
 
-std::unique_ptr<ISimulation> getSimulation(SimulationBackend backend) {
+#include "simulation/runners/SimTickedRunner.inl"
+
+std::unique_ptr<ISimTickedRunner> getSimulation(SimulationBackend backend) {
     switch(backend) {
         case Null:
-            return std::make_unique<NullSimulation>();
+            return std::make_unique<SimTickedRunner<NullSimulation>>();
         case CpuSimple:
-            return std::make_unique<CpuSimpleSimulation>();
+            return std::make_unique<SimTickedRunner<CpuSimpleSimBackend>>();
         default:
             FATAL_ERROR("CUDA (enum val %d) isn't defined yet!\n", backend);
     }

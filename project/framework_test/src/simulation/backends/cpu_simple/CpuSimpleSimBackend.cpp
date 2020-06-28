@@ -2,7 +2,7 @@
 // Created by samuel on 22/06/2020.
 //
 
-#include "CpuSimpleSimulationBackend.h"
+#include "CpuSimpleSimBackend.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -33,34 +33,13 @@
 #define eps_N ((flag[i][j+1] & C_F)?1:0)
 #define eps_S ((flag[i][j-1] & C_F)?1:0)
 
-CpuSimpleSimulationBackend::CpuSimpleSimulationBackend(const LegacySimDump &dump) :
-    params(dump.params),
-    imax(dump.params.imax),
-    jmax(dump.params.jmax),
-    xlength(dump.params.xlength),
-    ylength(dump.params.ylength),
-    delx(xlength/imax),
-    dely(ylength/jmax),
-    ibound(0), // Number of boundary squares? TODO This isn't right
-    ui(1.0), // Initial X Velocity
-    vi(0.0), // Initial Y Velocity
-    Re(150.0), // Reynolds Number
-    tau(0.5), // Safety factor for timestep control
-    itermax(100), // Maximum number of iterations in SOR
-    eps(0.001), // Stopping error threshold for SOR
-    omega(1.7), // Relaxation parameter for SOR
-    gamma(0.9), // Upwind differencing factor in PDE discretisation
-    del_t(0.003),
-    u(dump.u, imax+2, jmax+2),
-    v(dump.v, imax+2, jmax+2),
-    f(imax+2, jmax+2, 0.0f),
-    g(imax+2, jmax+2, 0.0f),
-    p(dump.p, imax+2, jmax+2),
-    rhs(imax+2, jmax+2, 0.0f),
-    flag(dump.flag, imax+2, jmax+2)
-     {}
+CpuSimpleSimBackend::CpuSimpleSimBackend(const LegacySimDump &dump) : CpuSimBackendBase(dump) {}
 
-float CpuSimpleSimulationBackend::tick() {
+std::unique_ptr<CpuSimpleSimBackend> CpuSimpleSimBackend::makeUniquePtrFromLegacy(const LegacySimDump &dump) {
+    return std::make_unique<CpuSimpleSimBackend>(dump);
+}
+
+float CpuSimpleSimBackend::tick() {
     setTimestepInterval();
 
     int ifluid = (imax * jmax) - ibound;
@@ -101,7 +80,7 @@ float CpuSimpleSimulationBackend::tick() {
 }
 
 /* Computation of tentative velocity field (f, g) */
-void CpuSimpleSimulationBackend::computeTentativeVelocity()
+void CpuSimpleSimBackend::computeTentativeVelocity()
 {
     int  i, j;
     float du2dx, duvdy, duvdx, dv2dy, laplu, laplv;
@@ -168,7 +147,7 @@ void CpuSimpleSimulationBackend::computeTentativeVelocity()
 
 
 /* Calculate the right hand side of the pressure equation */
-void CpuSimpleSimulationBackend::computeRhs()
+void CpuSimpleSimBackend::computeRhs()
 {
     int i, j;
 
@@ -187,7 +166,7 @@ void CpuSimpleSimulationBackend::computeRhs()
 
 
 /* Red/Black SOR to solve the poisson equation */
-int CpuSimpleSimulationBackend::poissonSolver(float *res, int ifull)
+int CpuSimpleSimBackend::poissonSolver(float *res, int ifull)
 {
     int i, j, iter;
     float add, beta_2, beta_mod;
@@ -264,7 +243,7 @@ int CpuSimpleSimulationBackend::poissonSolver(float *res, int ifull)
 /* Update the velocity values based on the tentative
  * velocity values and the new pressure matrix
  */
-void CpuSimpleSimulationBackend::updateVelocity()
+void CpuSimpleSimBackend::updateVelocity()
 {
     int i, j;
 
@@ -292,7 +271,7 @@ void CpuSimpleSimulationBackend::updateVelocity()
  * timestep). Otherwise the simulation becomes unstable.
  * TODO: On the GPU this could be changed to do half-step, quarter-step etc. which would make it simpler to get out consistent units
  */
-void CpuSimpleSimulationBackend::setTimestepInterval()
+void CpuSimpleSimBackend::setTimestepInterval()
 {
     int i, j;
     float umax, vmax, deltu, deltv, deltRe;
@@ -325,7 +304,7 @@ void CpuSimpleSimulationBackend::setTimestepInterval()
     }
 }
 
-void CpuSimpleSimulationBackend::applyBoundaryConditions()
+void CpuSimpleSimBackend::applyBoundaryConditions()
 {
     int i, j;
 

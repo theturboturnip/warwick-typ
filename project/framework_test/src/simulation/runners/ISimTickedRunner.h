@@ -1,20 +1,20 @@
 //
-// Created by samuel on 20/06/2020.
+// Created by samuel on 28/06/2020.
 //
 
 #pragma once
 
-struct LegacySimDump;
+#include "simulation/file_format/legacy.h"
 
-class ISimulation {
+class ISimTickedRunner {
 protected:
-    ISimulation() = default;
+    ISimTickedRunner() = default;
 
     bool m_started = false;
     float m_currentTime = 0;
 
 public:
-    virtual ~ISimulation() = default;
+    virtual ~ISimTickedRunner() = default;
 
     inline float started() const {
         return m_started;
