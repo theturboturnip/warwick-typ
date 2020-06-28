@@ -12,6 +12,7 @@ enum SimulationBackend {
     Null,
     CUDA,
     CpuSimple,
+    CpuOptimized,
 };
 
 std::unique_ptr<ISimTickedRunner> getSimulation(SimulationBackend backend);

@@ -6,6 +6,7 @@
 
 #include "simulation/runners/ISimTickedRunner.h"
 #include "simulation/backends/cpu_simple/CpuSimpleSimBackend.h"
+#include "simulation/backends/cpu_simple/CpuOptimizedSimBackend.h"
 #include "simulation/backends/null/NullSimulation.h"
 #include "util/fatal_error.h"
 
@@ -17,8 +18,10 @@ std::unique_ptr<ISimTickedRunner> getSimulation(SimulationBackend backend) {
             return std::make_unique<SimTickedRunner<NullSimulation>>();
         case CpuSimple:
             return std::make_unique<SimTickedRunner<CpuSimpleSimBackend>>();
+        case CpuOptimized:
+            return std::make_unique<SimTickedRunner<CpuOptimizedSimBackend>>();
         default:
-            FATAL_ERROR("CUDA (enum val %d) isn't defined yet!\n", backend);
+            FATAL_ERROR("Enum val %d isn't defined yet!\n", backend);
     }
     return nullptr;
 }

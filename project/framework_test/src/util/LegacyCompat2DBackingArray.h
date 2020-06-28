@@ -26,6 +26,10 @@ public:
         return m_as2D[index];
     }
 
+    gsl::span<const T> operator[](int index) const {
+        return m_as2D[index];
+    }
+
     const std::vector<T>& getBacking() {
         return m_backing;
     }

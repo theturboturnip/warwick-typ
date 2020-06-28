@@ -15,7 +15,8 @@ SimulationBackend selectBackend() {
     return SimulationBackend::CUDA;
 #endif
 
-    return SimulationBackend::CpuSimple;
+    return SimulationBackend::CpuOptimized;
+    //return SimulationBackend::CpuSimple;
     //return SimulationBackend::Null;
 }
 
