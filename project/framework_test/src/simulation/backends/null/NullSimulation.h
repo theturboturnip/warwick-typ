@@ -14,7 +14,7 @@ class NullSimulation {
 public:
     explicit NullSimulation(const LegacySimDump& dump);
 
-    float tick();
+    float tick(float baseTimestep);
     LegacySimDump dumpStateAsLegacy();
 
 private:

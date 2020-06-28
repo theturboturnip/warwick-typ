@@ -8,7 +8,7 @@
 
 class ISimTickedRunner {
 protected:
-    ISimTickedRunner() = default;
+    explicit ISimTickedRunner() = default;
 
     bool m_started = false;
     float m_currentTime = 0;
@@ -24,7 +24,7 @@ public:
         return m_currentTime;
     }
 
-    virtual float tick(float expectedTimestep) = 0;
+    virtual float tick(float baseTimestep) = 0;
 
     virtual void loadFromLegacy(const LegacySimDump& dump) = 0;
     virtual LegacySimDump dumpStateAsLegacy() = 0;

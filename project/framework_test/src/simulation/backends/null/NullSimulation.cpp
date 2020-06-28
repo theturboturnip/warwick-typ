@@ -10,7 +10,7 @@ LegacySimDump NullSimulation::dumpStateAsLegacy() {
     return m_state;
 }
 
-float NullSimulation::tick() {
+float NullSimulation::tick(float baseTimestep) {
     // TODO: This is bad behaviour, we should establish a base timestep
-    return 1;
+    return baseTimestep;
 }

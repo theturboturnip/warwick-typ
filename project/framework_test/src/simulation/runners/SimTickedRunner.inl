@@ -31,10 +31,10 @@ public:
         return m_backendData->dumpStateAsLegacy();
     }
 
-    float tick(float expectedTimestep) override {
+    float tick(float baseTimestep) override {
         DASSERT_M(m_backendData, "Backend data was null, make sure to load state into the simulation!");
 
-        float timestep = m_backendData->tick();
+        float timestep = m_backendData->tick(baseTimestep);
         m_currentTime += timestep;
 
         return timestep;

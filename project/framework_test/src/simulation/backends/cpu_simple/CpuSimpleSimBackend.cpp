@@ -35,7 +35,8 @@
 
 CpuSimpleSimBackend::CpuSimpleSimBackend(const LegacySimDump &dump) : CpuSimBackendBase(dump) {}
 
-float CpuSimpleSimBackend::tick() {
+float CpuSimpleSimBackend::tick(float baseTimestep) {
+    // TODO: This does not respect the base timestep!
     setTimestepInterval();
 
     int ifluid = (imax * jmax) - ibound;
