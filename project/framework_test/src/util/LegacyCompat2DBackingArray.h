@@ -8,6 +8,8 @@
 #include <vector>
 #include <gsl/span>
 
+#define CHECKED !NDEBUG
+
 template<typename T>
 class LegacyCompat2DBackingArray {
     std::vector<T> m_backing;
@@ -22,6 +24,7 @@ public:
         build2D(width, height);
     }
 
+#if CHECKED
     gsl::span<T> operator[](int index) {
         return m_as2D[index];
     }
@@ -29,6 +32,15 @@ public:
     gsl::span<const T> operator[](int index) const {
         return m_as2D[index];
     }
+#else
+    T* operator[](int index) {
+        return m_as2D[index].data();
+    }
+
+    const T* operator[](int index) const {
+        return m_as2D[index].data();
+    }
+#endif
 
     const std::vector<T>& getBacking() {
         return m_backing;
