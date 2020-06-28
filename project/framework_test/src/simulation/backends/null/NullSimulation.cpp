@@ -14,7 +14,3 @@ float NullSimulation::tick() {
     // TODO: This is bad behaviour, we should establish a base timestep
     return 1;
 }
-
-std::unique_ptr<NullSimulation> NullSimulation::makeUniquePtrFromLegacy(const LegacySimDump& dump) {
-    return std::make_unique<NullSimulation>(dump);
-}

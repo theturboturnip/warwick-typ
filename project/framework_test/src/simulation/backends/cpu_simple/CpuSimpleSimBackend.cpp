@@ -35,10 +35,6 @@
 
 CpuSimpleSimBackend::CpuSimpleSimBackend(const LegacySimDump &dump) : CpuSimBackendBase(dump) {}
 
-std::unique_ptr<CpuSimpleSimBackend> CpuSimpleSimBackend::makeUniquePtrFromLegacy(const LegacySimDump &dump) {
-    return std::make_unique<CpuSimpleSimBackend>(dump);
-}
-
 float CpuSimpleSimBackend::tick() {
     setTimestepInterval();
 

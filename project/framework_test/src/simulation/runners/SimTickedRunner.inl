@@ -22,7 +22,7 @@ public:
     void loadFromLegacy(const LegacySimDump& dump) override {
         m_started = true;
 
-        m_backendData = SimBackend::makeUniquePtrFromLegacy(dump);
+        m_backendData = std::make_unique<SimBackend>(dump);
     }
     LegacySimDump dumpStateAsLegacy() override {
         if (!m_started)

@@ -14,7 +14,6 @@ class NullSimulation {
 public:
     explicit NullSimulation(const LegacySimDump& dump);
 
-    static std::unique_ptr<NullSimulation> makeUniquePtrFromLegacy(const LegacySimDump& dump);
     float tick();
     LegacySimDump dumpStateAsLegacy();
 

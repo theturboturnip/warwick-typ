@@ -13,7 +13,6 @@ class CpuSimpleSimBackend : public CpuSimBackendBase {
 public:
     explicit CpuSimpleSimBackend(const LegacySimDump& dump);
 
-    static std::unique_ptr<CpuSimpleSimBackend> makeUniquePtrFromLegacy(const LegacySimDump& dump);
     float tick();
 
 private:
