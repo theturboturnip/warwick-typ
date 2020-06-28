@@ -17,6 +17,7 @@ add_subdirectory(external)
 
 find_package(Vulkan REQUIRED)
 find_package(SDL2 REQUIRED)
+find_package(OpenMP REQUIRED)
 
 add_executable(framework_test)
 
@@ -29,7 +30,8 @@ if (CMAKE_CUDA_COMPILER)
 endif()
 
 # TODO: -O2 on debug
-target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-fast-math -std=c++14 -Wall -Werror -Wno-deprecated-declarations -Wno-error-unused>)
+# NOTE: Right now the simple sim is compiled with vectorization, so auto-vectorization will take place.
+target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>: -fopenmp -fno-fast-math -std=c++14 -Wall -Werror -Wno-deprecated-declarations -Wno-error-unused -msse3 -mssse3 -msse2 -msse -msse4.1 -msse4.2 -mavx -mavx2 -mfma -ffp-contract=off>)
 if (CMAKE_CUDA_COMPILER)
     target_compile_options(framework_test PRIVATE -DCUDA_ENABLED)
 endif()
@@ -39,6 +41,8 @@ target_link_libraries(framework_test PRIVATE ${Vulkan_LIBRARIES})
 
 target_include_directories(framework_test SYSTEM PRIVATE ${SDL2_INCLUDE_DIRS})
 target_link_libraries(framework_test PRIVATE ${SDL2_LIBRARIES})
+
+target_link_libraries(framework_test PUBLIC OpenMP::OpenMP_CXX)
 
 # This project uses a local installation of GLM so find_package isn't necessary
 target_link_libraries(framework_test PRIVATE glm)

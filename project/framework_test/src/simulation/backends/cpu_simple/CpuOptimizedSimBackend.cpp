@@ -141,7 +141,7 @@ void CpuOptimizedSimBackend::computeTentativeVelocity()
     const double _4delx = 1.0/(4.0*delx);
     const double _4dely = 1.0/(4.0*dely);
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax-1; i++) {
         for (j=1; j<=jmax; j++) {
             /* only if both adjacent cells are fluid cells */
@@ -168,7 +168,7 @@ void CpuOptimizedSimBackend::computeTentativeVelocity()
         }
     }
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax-1; j++) {
             /* only if both adjacent cells are fluid cells */
@@ -210,7 +210,7 @@ void CpuOptimizedSimBackend::computeRhs()
 {
     int i, j;
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1;i<=imax;i++) {
         for (j=1;j<=jmax;j++) {
             if (flag[i][j] & C_F) {
@@ -299,7 +299,7 @@ int CpuOptimizedSimBackend::poissonSolver(float *res, int ifull)
                 const int last_vector_end = j_start + total_vectors_processed * VECTOR_LENGTH;
 
                 // If we're doing the black side, and we aren't sure if we're within the error range, try adding to the residual.
-                if (rb == 1 && threadlocal_res < partial_res_sqr_thresh) {
+                if (false && rb == 1 && threadlocal_res < partial_res_sqr_thresh) {
                     for(j = j_start; j < last_vector_end; j += VECTOR_LENGTH) {
                         __m128 north = _mm_loadu_ps(&updown_col[j + north_offset]);
                         __m128 south = _mm_loadu_ps(&updown_col[j + north_offset + 1]);
@@ -398,9 +398,10 @@ int CpuOptimizedSimBackend::poissonSolver(float *res, int ifull)
         // TODO: Use other fluidmask bits to make it faster? Probably not needed
 
         // The rest of the code does not operate on split P matrices, so join them back up
-        joinRedBlack(p, p_red, p_black);
+        //joinRedBlack(p, p_red, p_black);
 
-#pragma omp parallel for private(j) reduction(+:res_stack) default(shared)
+        // TODO: This is actually necessary lol
+/*#pragma omp parallel for private(j) reduction(+:res_stack) default(shared)
         for (i = 1; i <= imax; i++) {
             for (j = 1; j <= jmax; j++) {
                 //if ((i+j)%2 != 0) continue;
@@ -415,11 +416,11 @@ int CpuOptimizedSimBackend::poissonSolver(float *res, int ifull)
             }
         }
         res_stack = sqrt((res_stack)/ifull)/p0;
-        fprintf(stderr, "res_stack: %g, eps: %g\r", res_stack, eps);
+        //fprintf(stderr, "res_stack: %g, eps: %g\r", res_stack, eps);
         if (res_stack<eps) {
-            fprintf(stderr, "\n");
+            //fprintf(stderr, "\n");
             return iter;
-        }
+        }*/
 
         /* TODO: Enable dynamic error
         if (iter % 100 == 0 && eps < 0.01f) {
@@ -430,7 +431,7 @@ int CpuOptimizedSimBackend::poissonSolver(float *res, int ifull)
 
     // The rest of the code does not operate on split P matrices, so join them back up
     joinRedBlack(p, p_red, p_black);
-                fprintf(stderr, "\n");
+                //fprintf(stderr, "\n");
 
     return iter;
 }
@@ -442,7 +443,7 @@ void CpuOptimizedSimBackend::calculatePBeta() {
     float rdy2 = 1.0/(dely*dely);
     float beta_2 = -omega/(2.0*(rdx2+rdy2));
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i = 1; i <= imax; i++) {
         for (j = 1; j <= jmax; j++) {
             if (flag[i][j] == (C_F | B_NSEW)) {
@@ -462,7 +463,7 @@ void CpuOptimizedSimBackend::calculatePBeta() {
 void CpuOptimizedSimBackend::splitToRedBlack(const LegacyCompat2DBackingArray<float>& joined, LegacyCompat2DBackingArray<float>& red, LegacyCompat2DBackingArray<float>& black){
     int i,j;
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i = 0; i < imax+2; i++) {
         for (j = 0; j < jmax+2; j++) {
             if ((i+j) % 2 == 0)
@@ -476,7 +477,7 @@ void CpuOptimizedSimBackend::splitToRedBlack(const LegacyCompat2DBackingArray<fl
 void CpuOptimizedSimBackend::joinRedBlack(LegacyCompat2DBackingArray<float>& joined, const LegacyCompat2DBackingArray<float>& red, const LegacyCompat2DBackingArray<float>& black) {
     int i,j;
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i = 0; i < imax+2; i++) {
         for (j = 0; j < jmax+2; j++) {
             if ((i+j) % 2 == 0)
@@ -495,7 +496,7 @@ void CpuOptimizedSimBackend::updateVelocity()
     int i, j;
 
     // Loop was fused and parallelized
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax; j++) {
             /* only if both adjacent cells are fluid cells */
@@ -526,7 +527,7 @@ void CpuOptimizedSimBackend::setTimestepInterval()
         vmax = 1.0e-10;
 
         // Loop was fused and parallelized
-#pragma omp parallel for schedule(static) private(j) reduction(max:umax) reduction(max:vmax)
+#pragma omp parallel for schedule(static) private(j) reduction(max:umax) reduction(max:vmax) default(shared)
         for (i=0; i<=imax+1; i++) {
             for (j=1; j<=jmax+1; j++) {
                 umax = max(fabs(u[i][j]), umax);
@@ -575,7 +576,7 @@ void CpuOptimizedSimBackend::applyBoundaryConditions()
      * internal obstacle cells. This forces the u and v velocity to
      * tend towards zero in these cells.
      */
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax; j++) {
             if (flag[i][j] & B_NSEW) {
