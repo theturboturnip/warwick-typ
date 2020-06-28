@@ -238,9 +238,9 @@ int CpuOptimizedSimBackend::poissonSolver(float *res, int ifull)
     float inv_omega = 1.0 - omega;
     const __m128 inv_omega_v = _mm_set1_ps(inv_omega);
 
-    float p0 = 0.0;
+    /*float p0 = 0.0;
 
-    /* Calculate sum of squares */
+    // Calculate sum of squares
     for (i = 1; i <= imax; i++) {
         for (j = 1; j <= jmax; j++) {
             if (flag[i][j] & C_F) {
@@ -259,14 +259,14 @@ int CpuOptimizedSimBackend::poissonSolver(float *res, int ifull)
     // We compute a part of the res during the black iteration
     // Once that part of the res is larger than this value, we know that we'll need to perform the next iteration.
     const double partial_res_sqr_thresh = (double)eps * (double)p0 * (double)eps * (double)p0 * (double)ifull;
-
+*/
     // The RHS function does not operate on split matrices, so split the matrix back up
     splitToRedBlack(rhs, rhs_red, rhs_black);
 
     /* Red/Black SOR-iteration */
 
     for (iter = 0; iter < itermax; iter++) {
-        res_stack = 0.0f;
+        //res_stack = 0.0f;
         //fprintf(stderr, "res_stack reset: %g\n", res_stack);
         for (rb = 0; rb <= 1; rb++) {
             float threadlocal_res = 0.0f;
@@ -299,7 +299,7 @@ int CpuOptimizedSimBackend::poissonSolver(float *res, int ifull)
                 const int last_vector_end = j_start + total_vectors_processed * VECTOR_LENGTH;
 
                 // If we're doing the black side, and we aren't sure if we're within the error range, try adding to the residual.
-                if (false && rb == 1 && threadlocal_res < partial_res_sqr_thresh) {
+                if (false /*rb == 1 && threadlocal_res < partial_res_sqr_thresh*/) {
                     for(j = j_start; j < last_vector_end; j += VECTOR_LENGTH) {
                         __m128 north = _mm_loadu_ps(&updown_col[j + north_offset]);
                         __m128 south = _mm_loadu_ps(&updown_col[j + north_offset + 1]);
@@ -332,7 +332,7 @@ int CpuOptimizedSimBackend::poissonSolver(float *res, int ifull)
                         adds = _mm_dp_ps(adds, adds, 0xFF);
                         float final_add = _mm_cvtss_f32(adds);
                         threadlocal_res += final_add;
-                        res_stack += final_add;
+                        //res_stack += final_add;
                     }
                 } else {
 
@@ -393,7 +393,7 @@ int CpuOptimizedSimBackend::poissonSolver(float *res, int ifull)
         //if (res_stack > partial_res_sqr_thresh) continue;
         //fprintf(stderr, "Didn't skip, res_stack=%.9g < %.9g\n", res_stack, partial_res_sqr_thresh);
 
-        res_stack = 0.0f;
+        //res_stack = 0.0f;
         // Compute the residual
         // TODO: Use other fluidmask bits to make it faster? Probably not needed
 

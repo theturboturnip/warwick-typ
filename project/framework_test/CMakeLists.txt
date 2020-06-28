@@ -30,8 +30,9 @@ if (CMAKE_CUDA_COMPILER)
 endif()
 
 # TODO: -O2 on debug
-# NOTE: Right now the simple sim is compiled with vectorization, so auto-vectorization will take place.
-target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>: -fopenmp -fno-fast-math -std=c++14 -Wall -Werror -Wno-deprecated-declarations -Wno-error-unused -msse3 -mssse3 -msse2 -msse -msse4.1 -msse4.2 -mavx -mavx2 -mfma -ffp-contract=off>)
+# NOTE: Right now the simple sim is compiled with vectorization, so auto-vectorization will take place
+# These work on GCC-8 with the optimized version
+target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>: -fopenmp -fno-fast-math -std=c++14 -Wall -Werror -Wno-deprecated-declarations -Wno-error=unused -Wno-error=unused-result -Wno-error=unused-but-set-variable -msse3 -mssse3 -msse2 -msse -msse4.1 -msse4.2 -mavx -mavx2 -mfma -ffp-contract=off>)
 if (CMAKE_CUDA_COMPILER)
     target_compile_options(framework_test PRIVATE -DCUDA_ENABLED)
 endif()
