@@ -29,10 +29,28 @@ if (CMAKE_CUDA_COMPILER)
     target_sources(framework_test PRIVATE ${CUDA_SOURCES})
 endif()
 
+#if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # using Clang
+    # set(CXX_WARNING_OPT -Wall -Werror -Wno-error-unused)
+#elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # using GCC
+#elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    # using Intel C++
+#elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # using Visual Studio C++
+#end()
+
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    message(FATAL_ERROR "This project must be compiled with GCC for correct results")
+endif()
+
 # TODO: -O2 on debug
 # NOTE: Right now the simple sim is compiled with vectorization, so auto-vectorization will take place
 # These work on GCC-8 with the optimized version
-target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>: -fopenmp -fno-fast-math -std=c++14 -Wall -Werror -Wno-deprecated-declarations -Wno-error=unused -Wno-error=unused-result -Wno-error=unused-but-set-variable -msse3 -mssse3 -msse2 -msse -msse4.1 -msse4.2 -mavx -mavx2 -mfma -ffp-contract=off>)
+set(CXX_SIMD_OPT -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx -mavx2 -mfma -ffp-contract=off -fno-fast-math)
+set(CXX_WARNING_OPT -Wall -Werror -Wno-error=unused -Wno-error=unused-result -Wno-error=unused-but-set-variable -Wno-error=unused-variable)
+
+target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-std=c++14 -flto ${CXX_WARNING_OPT} ${CXX_SIMD_OPT}>)
 if (CMAKE_CUDA_COMPILER)
     target_compile_options(framework_test PRIVATE -DCUDA_ENABLED)
 endif()
