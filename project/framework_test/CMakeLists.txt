@@ -47,10 +47,10 @@ endif()
 # TODO: -O2 on debug
 # NOTE: Right now the simple sim is compiled with vectorization, so auto-vectorization will take place
 # These work on GCC-8 with the optimized version
-set(CXX_SIMD_OPT -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx -mavx2 -mfma -ffp-contract=off -fno-fast-math)
+set(CXX_SIMD_OPT -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx -mavx2 -mfma -ffp-contract=off)
 set(CXX_WARNING_OPT -Wall -Werror -Wno-error=unused -Wno-error=unused-result -Wno-error=unused-but-set-variable -Wno-error=unused-variable)
 
-target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-std=c++14 -flto ${CXX_WARNING_OPT} ${CXX_SIMD_OPT}>)
+target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-flto ${CXX_WARNING_OPT} ${CXX_SIMD_OPT}>)
 if (CMAKE_CUDA_COMPILER)
     target_compile_options(framework_test PRIVATE -DCUDA_ENABLED)
 endif()
