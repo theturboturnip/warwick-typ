@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <memory>
+#include "simulation/SimulationBackendEnum.h"
 #include "simulation/file_format/legacy.h"
 
 class ISimTickedRunner {
@@ -28,4 +30,6 @@ public:
 
     virtual void loadFromLegacy(const LegacySimDump& dump) = 0;
     virtual LegacySimDump dumpStateAsLegacy() = 0;
+
+    static std::unique_ptr<ISimTickedRunner> getForBackend(SimulationBackendEnum backendType);
 };

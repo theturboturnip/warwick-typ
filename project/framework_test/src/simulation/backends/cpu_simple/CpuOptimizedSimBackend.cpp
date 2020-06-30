@@ -2,10 +2,6 @@
 // Created by samuel on 28/06/2020.
 //
 
-//
-// Created by samuel on 22/06/2020.
-//
-
 #include "CpuOptimizedSimBackend.h"
 
 #include <cstdio>
@@ -275,7 +271,7 @@ int CpuOptimizedSimBackend::poissonSolver(float *res, int ifull)
             auto& other_color = rb ? p_red : p_black;
 
             // This breaks res_stack - presumably the reduction keeps some internal variable which isn't reset
-#pragma omp parallel for schedule(static) private(j) firstprivate(threadlocal_res) default(shared)// reduction(+:res_stack)
+#pragma omp parallel for schedule(static) private(j) /*firstprivate(threadlocal_res)*/ default(shared)// reduction(+:res_stack)
             for (i = 1; i <= imax; i++) {
                 // Formerly const float *const, but because gsl::span is used internally
                 const auto left_col = other_color[i-1];

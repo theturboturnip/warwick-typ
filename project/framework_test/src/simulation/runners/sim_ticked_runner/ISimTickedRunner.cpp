@@ -2,18 +2,19 @@
 // Created by samuel on 20/06/2020.
 //
 
-#include "get_sims.h"
+#include "simulation/SimulationBackendEnum.h"
 
-#include "simulation/runners/ISimTickedRunner.h"
+#include "ISimTickedRunner.h"
+#include "SimTickedRunner.inl"
+
 #include "simulation/backends/cpu_simple/CpuSimpleSimBackend.h"
 #include "simulation/backends/cpu_simple/CpuOptimizedSimBackend.h"
 #include "simulation/backends/null/NullSimulation.h"
 #include "util/fatal_error.h"
 
-#include "simulation/runners/SimTickedRunner.inl"
 
-std::unique_ptr<ISimTickedRunner> getSimulation(SimulationBackend backend) {
-    switch(backend) {
+std::unique_ptr<ISimTickedRunner> ISimTickedRunner::getForBackend(SimulationBackendEnum backendType) {
+    switch(backendType) {
         case Null:
             return std::make_unique<SimTickedRunner<NullSimulation>>();
         case CpuSimple:
@@ -21,7 +22,7 @@ std::unique_ptr<ISimTickedRunner> getSimulation(SimulationBackend backend) {
         case CpuOptimized:
             return std::make_unique<SimTickedRunner<CpuOptimizedSimBackend>>();
         default:
-            FATAL_ERROR("Enum val %d isn't defined yet!\n", backend);
+            FATAL_ERROR("Enum val %d doesn't have an ISimTickedRunner!\n", backendType);
     }
     return nullptr;
 }
