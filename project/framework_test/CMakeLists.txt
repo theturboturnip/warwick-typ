@@ -13,20 +13,58 @@ else()
     message(WARNING "CMake not found, disabling...")
 endif()
 
-add_subdirectory(external)
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    message(FATAL_ERROR "This project must be compiled with GCC for correct results")
+endif()
 
+# Set up resource copying
+add_custom_target(copy_assets ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets
+        ${CMAKE_BINARY_DIR}
+        )
+
+# Set up CXX flags
+# TODO: -O2 on debug?
+# NOTE: Right now the simple sim is compiled with vectorization, so auto-vectorization will take place
+# These work on GCC-8 with the optimized version
+set(CXX_SIMD_OPT -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx -mavx2 -mfma -ffp-contract=off)
+set(CXX_WARNING_OPT -Wall -Werror -Wextra -Wno-error=extra -Wno-error=unused-parameter -Wno-error=unused-result -Wno-error=unused-but-set-variable -Wno-error=unused-variable)
+set(CXX_GENERAL_OPT -flto)
+set(CXX_OVERALL_OPT ${CXX_SIMD_OPT} ${CXX_WARNING_OPT} ${CXX_GENERAL_OPT})
+
+# Set up external dependencies
+add_subdirectory(external)
 find_package(Vulkan REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(OpenMP REQUIRED)
 
-add_executable(framework_test)
+# Create a list of libraries used in both CUDA and non-CUDA
+set(GLOBAL_LINKED_LIBS ${Vulkan_LIBRARIES} ${SDL2_LIBRARIES} OpenMP::OpenMP_CXX glm imgui GSL)
+set(GLOBAL_INCLUDE_DIRS ./src/)
+set(GLOBAL_SYSTEM_INCLUDE_DIRS ${Vulkan_INCLUDE_DIRS} ${SDL2_INCLUDE_DIRS})
 
-file(GLOB_RECURSE CXX_SOURCES ./src/*.cpp ./src/*.h ./src/*.inl)
-target_sources(framework_test PRIVATE ${CXX_SOURCES})
-target_include_directories(framework_test PRIVATE ./src/)
+# Setup the executables
+add_subdirectory(src)
+
+add_executable(sim_nocuda)
+target_link_libraries(sim_nocuda PRIVATE generic_sources)
+target_link_libraries(sim_nocuda PRIVATE ${GLOBAL_LINKED_LIBS})
+target_include_directories(sim_nocuda SYSTEM PRIVATE ${GLOBAL_SYSTEM_INCLUDE_DIRS})
+target_include_directories(sim_nocuda PRIVATE ${GLOBAL_INCLUDE_DIRS})
+target_compile_options(sim_nocuda PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${CXX_OVERALL_OPT}>)
+add_dependencies(sim_nocuda copy_assets)
+
 if (CMAKE_CUDA_COMPILER)
-    file(GLOB_RECURSE CUDA_SOURCES ./src/*.cu)
-    target_sources(framework_test PRIVATE ${CUDA_SOURCES})
+    message(STATUS "CUDA found, will generate sim_cuda binary")
+    add_executable(sim_cuda)
+    target_link_libraries(sim_cuda PRIVATE generic_sources cuda_sources)
+    target_link_libraries(sim_cuda PRIVATE ${GLOBAL_LINKED_LIBS})
+    target_include_directories(sim_cuda SYSTEM PRIVATE ${GLOBAL_SYSTEM_INCLUDE_DIRS})
+    target_include_directories(sim_cuda PRIVATE ${GLOBAL_INCLUDE_DIRS})
+    target_compile_options(sim_cuda PRIVATE -DCUDA_ENABLED)
+    target_compile_options(sim_cuda PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${CXX_OVERALL_OPT}>)
+    add_dependencies(sim_cuda copy_assets)
 endif()
 
 #if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -39,41 +77,3 @@ endif()
 #elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # using Visual Studio C++
 #end()
-
-if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    message(FATAL_ERROR "This project must be compiled with GCC for correct results")
-endif()
-
-# TODO: -O2 on debug
-# NOTE: Right now the simple sim is compiled with vectorization, so auto-vectorization will take place
-# These work on GCC-8 with the optimized version
-set(CXX_SIMD_OPT -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx -mavx2 -mfma -ffp-contract=off)
-set(CXX_WARNING_OPT -Wall -Werror -Wno-error=unused -Wno-error=unused-result -Wno-error=unused-but-set-variable -Wno-error=unused-variable)
-
-target_compile_options(framework_test PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-flto ${CXX_WARNING_OPT} ${CXX_SIMD_OPT}>)
-if (CMAKE_CUDA_COMPILER)
-    target_compile_options(framework_test PRIVATE -DCUDA_ENABLED)
-endif()
-
-target_include_directories(framework_test SYSTEM PRIVATE ${Vulkan_INCLUDE_DIRS})
-target_link_libraries(framework_test PRIVATE ${Vulkan_LIBRARIES})
-
-target_include_directories(framework_test SYSTEM PRIVATE ${SDL2_INCLUDE_DIRS})
-target_link_libraries(framework_test PRIVATE ${SDL2_LIBRARIES})
-
-target_link_libraries(framework_test PUBLIC OpenMP::OpenMP_CXX)
-
-# This project uses a local installation of GLM so find_package isn't necessary
-target_link_libraries(framework_test PRIVATE glm)
-
-target_link_libraries(framework_test PRIVATE imgui)
-
-target_link_libraries(framework_test PRIVATE GSL)
-
-# Set up resource copying
-add_custom_target(copy_assets ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/assets
-        ${CMAKE_BINARY_DIR}
-        )
-add_dependencies(framework_test copy_assets)
