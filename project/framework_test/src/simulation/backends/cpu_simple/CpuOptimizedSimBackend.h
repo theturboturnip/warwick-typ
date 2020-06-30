@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include "simulation/file_format/legacy.h"
+#include "simulation/file_format/LegacySimDump.h"
 #include "util/LegacyCompat2DBackingArray.h"
 #include "CpuSimBackendBase.h"
 

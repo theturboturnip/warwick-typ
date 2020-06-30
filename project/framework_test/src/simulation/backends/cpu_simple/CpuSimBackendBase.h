@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <simulation/file_format/legacy.h>
+#include <simulation/file_format/LegacySimDump.h>
 #include "simulation/SimulationParameters.h"
 #include "util/LegacyCompat2DBackingArray.h"
 

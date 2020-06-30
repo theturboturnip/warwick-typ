@@ -5,7 +5,7 @@
 #pragma once
 
 #include <vector>
-#include "simulation/file_format/legacy.h"
+#include "simulation/file_format/LegacySimDump.h"
 
 struct SingleDataDifference {
     std::vector<float> error;

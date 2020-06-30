@@ -6,7 +6,7 @@
 
 #include <memory>
 #include "simulation/SimulationBackendEnum.h"
-#include "simulation/file_format/legacy.h"
+#include "simulation/file_format/LegacySimDump.h"
 
 class ISimTickedRunner {
 protected:

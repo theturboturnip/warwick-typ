@@ -2,7 +2,7 @@
 #include <chrono>
 
 #include "simulation/SimulationBackendEnum.h"
-#include "simulation/file_format/legacy.h"
+#include "simulation/file_format/LegacySimDump.h"
 #include "simulation/runners/sim_10s_runner/ISim10sRunner.h"
 #include "simulation/runners/sim_ticked_runner/ISimTickedRunner.h"
 #include "validation/SimDumpDifferenceData.h"

@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include "simulation/file_format/legacy.h"
+#include "simulation/file_format/LegacySimDump.h"
 #include "ISimTickedRunner.h"
 #include "util/fatal_error.h"
 

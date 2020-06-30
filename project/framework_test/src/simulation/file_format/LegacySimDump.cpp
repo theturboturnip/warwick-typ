@@ -2,7 +2,7 @@
 // Created by samuel on 20/06/2020.
 //
 
-#include "legacy.h"
+#include "LegacySimDump.h"
 
 #include <fstream>
 #include <limits>

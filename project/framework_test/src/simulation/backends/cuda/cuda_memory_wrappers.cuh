@@ -9,7 +9,7 @@
 #include <cstring>
 #include <stdexcept>
 
-#include "util/host_visible_array.h"
+#include "util/HostVisibleArray.h"
 
 /**
  * Managed pointer for CUDA allocated arrays of T.
