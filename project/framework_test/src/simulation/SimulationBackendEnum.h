@@ -6,7 +6,9 @@
 
 enum SimulationBackendEnum {
     Null,
+#if CUDA_ENABLED
     CUDA,
+#endif
     CpuSimple,
     CpuOptimized,
 };
