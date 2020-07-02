@@ -5,9 +5,16 @@ project(imgui LANGUAGES CXX)
 
 file(GLOB SOURCES src/*.cpp)
 
-# Create imgui as an INTERFACE library, which means the sources are compiled with each project that includes them.
-# This is simpler than a STATIC library, which would need to be linked to Vulkan and SDL2 at this point.
-add_library(imgui INTERFACE)
+find_package(Vulkan REQUIRED)
+find_package(SDL2 REQUIRED)
 
-target_sources(imgui INTERFACE ${SOURCES})
-target_include_directories(imgui INTERFACE include)
+add_library(imgui STATIC)
+
+target_sources(imgui PRIVATE ${SOURCES})
+target_include_directories(imgui
+        PUBLIC
+            include
+        PRIVATE
+            ${Vulkan_INCLUDE_DIRS}
+            ${SDL2_INCLUDE_DIRS})
+target_link_libraries(imgui PUBLIC ${Vulkan_LIBRARIES} ${SDL2_LIBRARIES})

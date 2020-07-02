@@ -30,7 +30,11 @@ add_custom_target(copy_assets ALL
 # These work on GCC-8 with the optimized version
 set(CXX_SIMD_OPT -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx -mavx2 -mfma -ffp-contract=off)
 set(CXX_WARNING_OPT -Wall -Werror -Wextra -Wno-error=extra -Wno-error=unused-parameter -Wno-error=unused-result -Wno-error=unused-but-set-variable -Wno-error=unused-variable)
-set(CXX_GENERAL_OPT -flto)
+if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
+    set(CXX_GENERAL_OPT)
+else()
+    set(CXX_GENERAL_OPT -flto)
+endif()
 set(CXX_OVERALL_OPT ${CXX_SIMD_OPT} ${CXX_WARNING_OPT} ${CXX_GENERAL_OPT})
 
 # Set up external dependencies
