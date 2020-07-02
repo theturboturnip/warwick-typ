@@ -9,6 +9,7 @@
 #include "cmd_line/subapps/CompareSubApp.h"
 #include "cmd_line/subapps/FixedTimeSimSubApp.h"
 #include "cmd_line/subapps/MakeInputSubApp.h"
+#include "cmd_line/subapps/LegacyRenderPPMSubApp.h"
 
 int CommandLineParser::parseArguments(int argc, const char *argv[]) {
     CLI::App app{APP_NAME};
@@ -24,6 +25,7 @@ int CommandLineParser::parseArguments(int argc, const char *argv[]) {
                     std::make_shared<MakeInputSubApp>(),
                      std::make_shared<FixedTimeSimSubApp>(),
                      std::make_shared<CompareSubApp>(),
+                     std::make_shared<LegacyRenderPPMSubApp>(),
             }};
 
     const CommandLineConverters converters{};

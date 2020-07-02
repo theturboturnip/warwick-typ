@@ -1,4 +1,4 @@
-add_library(generic_sources INTERFACE)
+add_library(generic_sources INTERFACE )
 target_sources(generic_sources INTERFACE
         cmd_line/CommandLineConverters.h
         cmd_line/CommandLineConverters.cpp
@@ -11,6 +11,8 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/FixedTimeSimSubApp.h
         cmd_line/subapps/CompareSubApp.cpp
         cmd_line/subapps/CompareSubApp.h
+        cmd_line/subapps/LegacyRenderPPMSubApp.cpp
+        cmd_line/subapps/LegacyRenderPPMSubApp.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.h
         simulation/backends/cpu_simple/CpuSimBackendBase.cpp

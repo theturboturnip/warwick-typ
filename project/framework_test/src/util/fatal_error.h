@@ -11,7 +11,8 @@ void fatal_error(const char* filepath, int line, const char* fmt, ...);
 
 #define FATAL_ERROR(...) fatal_error(__FILE__, __LINE__, __VA_ARGS__)
 
-#define FATAL_ERROR_IF(cond, ...) do { if (!(cond)) FATAL_ERROR(__VA_ARGS__); } while(0);
+#define FATAL_ERROR_IF(cond, ...) do { if (cond) FATAL_ERROR(__VA_ARGS__); } while(0);
+#define FATAL_ERROR_UNLESS(cond, ...) do { if (!cond) FATAL_ERROR(__VA_ARGS__); } while(0);
 
 #define STR(x) #x
 
@@ -20,10 +21,10 @@ void fatal_error(const char* filepath, int line, const char* fmt, ...);
 
 // Debug assertion which prints a custom message
 // and exits the program when the condition is false.
-#define DASSERT_M(cond, ...) FATAL_ERROR_IF(cond, __VA_ARGS__)
+#define DASSERT_M(cond, ...) FATAL_ERROR_UNLESS(cond, __VA_ARGS__)
 // Debug assertion which prints the violated condition
 // and exits the program when the condition is false
-#define DASSERT(cond) FATAL_ERROR_IF(cond, "Assertion failed: %s\n", STR(cond))
+#define DASSERT(cond) FATAL_ERROR_UNLESS(cond, "Assertion failed: %s\n", STR(cond))
 
 #else
 // In Release mode, disable DASSERT
