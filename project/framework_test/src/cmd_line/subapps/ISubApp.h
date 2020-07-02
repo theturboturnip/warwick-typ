@@ -22,6 +22,6 @@ public:
 
     virtual void run() = 0;
 
-    virtual std::string cmdName() const = 0;
+    [[nodiscard]] virtual std::string cmdName() const = 0;
     virtual void setupArgumentsForSubcommand(CLI::App* subcommand, const CommandLineConverters& converters) = 0;
 };

@@ -9,6 +9,8 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/MakeInputSubApp.h
         cmd_line/subapps/FixedTimeSimSubApp.cpp
         cmd_line/subapps/FixedTimeSimSubApp.h
+        cmd_line/subapps/CompareSubApp.cpp
+        cmd_line/subapps/CompareSubApp.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.h
         simulation/backends/cpu_simple/CpuSimBackendBase.cpp

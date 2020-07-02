@@ -6,6 +6,7 @@
 
 #include <CLI/CLI11.hpp>
 
+#include "cmd_line/subapps/CompareSubApp.h"
 #include "cmd_line/subapps/FixedTimeSimSubApp.h"
 #include "cmd_line/subapps/MakeInputSubApp.h"
 
@@ -21,7 +22,8 @@ int CommandLineParser::parseArguments(int argc, const char *argv[]) {
     std::vector<std::shared_ptr<ISubApp>> subapps =
             {{
                     std::make_shared<MakeInputSubApp>(),
-                    std::make_shared<FixedTimeSimSubApp>(),
+                     std::make_shared<FixedTimeSimSubApp>(),
+                     std::make_shared<CompareSubApp>(),
             }};
 
     const CommandLineConverters converters{};
