@@ -5,3 +5,4 @@ project(CLI11 LANGUAGES CXX)
 
 add_library(CLI11 INTERFACE)
 target_include_directories(CLI11 INTERFACE include)
+target_precompile_headers(CLI11 INTERFACE include/CLI/CLI11.hpp)
