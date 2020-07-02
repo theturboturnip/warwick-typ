@@ -25,16 +25,13 @@ void MakeInputSubApp::run() {
     }
 }
 void MakeInputSubApp::setupArgumentsForSubcommand(CLI::App *subcommand) {
-    auto exportTypeMap = std::map<std::string, ExportType>({
-                                                                   {"empty", ExportType::Empty}
-                                                           });
+    std::map<std::string, ExportType> exportTypeMap = {{"empty", ExportType::Empty}};
 
     subcommand->add_option("output", outputPath, "Location of desired output file")->required();
 
     exportType = ExportType::Empty;
     subcommand->add_option("--type", exportType, "Type of input file to generate")
-            ->transform(CLI::CheckedTransformer(exportTypeMap))
-            ->transform(CLI::IsMember(exportTypeMap));
+            ->transform(CLI::IsMember(exportTypeMap, CLI::ignore_case));
 
     // TODO: These default values are unnecessary/distracting once we move away from ACA
     resolution = {660, 120};
