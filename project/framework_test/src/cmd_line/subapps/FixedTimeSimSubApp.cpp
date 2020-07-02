@@ -5,37 +5,29 @@
 #include "FixedTimeSimSubApp.h"
 
 #include "simulation/file_format/LegacySimDump.h"
-#include "simulation/runners/sim_10s_runner/ISim10sRunner.h"
 
 #include <chrono>
-
-struct SimRunData {
-    LegacySimDump finalDump;
-    double timeInSeconds = 0;
-};
-
-SimRunData runSimWithFixedTimeRunner(SimulationBackendEnum backend, const LegacySimDump& initial) {
-    auto sim = ISim10sRunner::getForBackend(backend);
-
-    auto start = std::chrono::steady_clock::now();
-
-    const float baseTimestep = 1.0f/30.0f;
-    LegacySimDump output = sim->runFor10s(initial, baseTimestep);
-
-    auto end = std::chrono::steady_clock::now();
-    std::chrono::duration<double> diff = end-start;
-
-    return SimRunData{ .finalDump = std::move(output), .timeInSeconds = diff.count() };
-}
+#include "simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.h"
 
 void FixedTimeSimSubApp::run() {
     LegacySimDump initial = LegacySimDump::fromFile(inputFile);
 
-    // TODO: Use the fixed time
-    SimRunData runData = runSimWithFixedTimeRunner(backend, initial);
+    auto sim = ISimFixedTimeRunner::getForBackend(backend);
 
-    LegacySimDump& output = runData.finalDump;
-    fprintf(stderr, "performed calc in %f seconds\n", runData.timeInSeconds);
+    LegacySimDump output;
+    double timeTaken;
+    const float baseTimestep = 1.0f / 30.0f;
+    {
+        auto start = std::chrono::steady_clock::now();
+
+        output = sim->runForTime(initial, baseTimestep, timeToRun);
+
+        auto end = std::chrono::steady_clock::now();
+        std::chrono::duration<double> diff = end - start;
+        timeTaken = diff.count();
+    }
+
+    fprintf(stderr, "performed calc in %f seconds\n", timeTaken);
     fprintf(stderr, "enddump: %s", output.debugString().c_str());
     if (outputFile.has_value())
         output.saveToFile(outputFile.value());

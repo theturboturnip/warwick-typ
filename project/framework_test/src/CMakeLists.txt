@@ -24,10 +24,10 @@ target_sources(generic_sources INTERFACE
         simulation/file_format/LegacySimDump.cpp
         simulation/file_format/LegacySimDump.h
         simulation/runners
-        simulation/runners/sim_10s_runner
-        simulation/runners/sim_10s_runner/ISim10sRunner.cpp
-        simulation/runners/sim_10s_runner/ISim10sRunner.h
-        simulation/runners/sim_10s_runner/Sim10sRunner.inl
+        simulation/runners/sim_fixedtime_runner
+        simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.cpp
+        simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.h
+        simulation/runners/sim_fixedtime_runner/SimFixedTimeRunner.inl
         simulation/runners/sim_ticked_runner
         simulation/runners/sim_ticked_runner/ISimTickedRunner.cpp
         simulation/runners/sim_ticked_runner/ISimTickedRunner.h
