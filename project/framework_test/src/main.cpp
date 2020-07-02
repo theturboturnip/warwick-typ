@@ -1,5 +1,7 @@
-#include <vulkan/vulkan.hpp>
+#include <CLI/CLI11.hpp>
 #include <chrono>
+#include <cmd_line/CommandLineParser.h>
+#include <vulkan/vulkan.hpp>
 
 #include "simulation/SimulationBackendEnum.h"
 #include "simulation/file_format/LegacySimDump.h"
@@ -13,7 +15,7 @@ void printSimDumpDifference(const SimDumpDifferenceData& data) {
     fprintf(stderr, "p:\n\tmean: \t%g\n\tvariance: \t%g\n\tstddev: \t%g\n", data.p.errorMean, data.p.errorVariance, data.p.errorStdDev);
 }
 
-SimulationBackendEnum selectBackend() {
+SimulationBackendEnum defaultBackend() {
 #if false && CUDA_ENABLED
     return SimulationBackendEnum::CUDA;
 #endif
@@ -69,9 +71,7 @@ SimRunData runSimFor10sWith10sRunner(SimulationBackendEnum backend, const Legacy
     return SimRunData{ .finalDump = std::move(output), .timeInSeconds = diff.count() };
 }
 
-int main() {
-    auto backend = selectBackend();
-
+void normalRun(SimulationBackendEnum backend) {
     LegacySimDump initial = LegacySimDump::fromFile("initial.bin");
 
     SimRunData runData = runSimFor10sWith10sRunner(backend, initial);
@@ -85,6 +85,25 @@ int main() {
     auto outputTargetDiff = SimDumpDifferenceData(output, targetEndDump);
     fprintf(stderr, "Output->Target\n");
     printSimDumpDifference(outputTargetDiff);
+}
 
-    return 0;
+int main(int argc, const char* argv[]) {
+
+
+    /*auto backendValidator = CLI::CheckedTransformer(
+        std::map<std::string, SimulationBackendEnum>({
+                    {"null", SimulationBackendEnum::Null},
+                    {"cpu_simple", SimulationBackendEnum::CpuSimple},
+                    {"cpu", SimulationBackendEnum::CpuOptimized},
+#if CUDA_ENABLED
+                    {"cuda", SimulationBackendEnum::CUDA}
+#endif
+            })
+    );
+    SimulationBackendEnum backend = defaultBackend();
+    app.add_option("--backend", backend)->check(backendValidator);
+
+    CLI11_PARSE(app, argc, argv);*/
+
+    return CommandLineParser().parseArguments(argc, argv);
 }
