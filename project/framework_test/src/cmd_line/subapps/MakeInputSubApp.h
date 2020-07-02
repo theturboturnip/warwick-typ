@@ -12,10 +12,11 @@ public:
     ~MakeInputSubApp() override = default;
 
     void run() override;
-    std::string cmdName() const override {
+
+    [[nodiscard]] std::string cmdName() const override {
         return "makeinput";
     }
-    void setupArgumentsForSubcommand(CLI::App* subcommand) override;
+    void setupArgumentsForSubcommand(CLI::App* subcommand, const CommandLineConverters& converters) override;
 
     enum ExportType {
         Empty

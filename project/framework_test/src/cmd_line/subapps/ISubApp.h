@@ -6,6 +6,8 @@
 
 #include <CLI/CLI11.hpp>
 
+#include "cmd_line/CommandLineConverters.h"
+
 #include <string>
 
 /**
@@ -21,5 +23,5 @@ public:
     virtual void run() = 0;
 
     virtual std::string cmdName() const = 0;
-    virtual void setupArgumentsForSubcommand(CLI::App* subcommand) = 0;
+    virtual void setupArgumentsForSubcommand(CLI::App* subcommand, const CommandLineConverters& converters) = 0;
 };

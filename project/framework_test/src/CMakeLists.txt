@@ -1,10 +1,14 @@
 add_library(generic_sources INTERFACE)
 target_sources(generic_sources INTERFACE
+        cmd_line/CommandLineConverters.h
+        cmd_line/CommandLineConverters.cpp
         cmd_line/CommandLineParser.cpp
         cmd_line/CommandLineParser.h
         cmd_line/subapps/ISubApp.h
         cmd_line/subapps/MakeInputSubApp.cpp
         cmd_line/subapps/MakeInputSubApp.h
+        cmd_line/subapps/FixedTimeSimSubApp.cpp
+        cmd_line/subapps/FixedTimeSimSubApp.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.h
         simulation/backends/cpu_simple/CpuSimBackendBase.cpp

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(framework_test LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(CheckLanguage)
@@ -51,6 +51,8 @@ set(GLOBAL_SYSTEM_INCLUDE_DIRS ${Vulkan_INCLUDE_DIRS} ${SDL2_INCLUDE_DIRS})
 # Setup the executables
 add_subdirectory(src)
 
+add_custom_target(all_sims)
+
 add_executable(sim_nocuda)
 target_link_libraries(sim_nocuda PRIVATE generic_sources)
 target_link_libraries(sim_nocuda PRIVATE ${GLOBAL_LINKED_LIBS})
@@ -58,6 +60,7 @@ target_include_directories(sim_nocuda SYSTEM PRIVATE ${GLOBAL_SYSTEM_INCLUDE_DIR
 target_include_directories(sim_nocuda PRIVATE ${GLOBAL_INCLUDE_DIRS})
 target_compile_options(sim_nocuda PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${CXX_OVERALL_OPT}>)
 add_dependencies(sim_nocuda copy_assets)
+add_dependencies(all_sims sim_nocuda)
 
 if (CMAKE_CUDA_COMPILER)
     message(STATUS "CUDA found, will generate sim_cuda binary")
@@ -69,6 +72,7 @@ if (CMAKE_CUDA_COMPILER)
     target_compile_options(sim_cuda PRIVATE -DCUDA_ENABLED)
     target_compile_options(sim_cuda PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${CXX_OVERALL_OPT}>)
     add_dependencies(sim_cuda copy_assets)
+    add_dependencies(all_sims sim_cuda)
 endif()
 
 #if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

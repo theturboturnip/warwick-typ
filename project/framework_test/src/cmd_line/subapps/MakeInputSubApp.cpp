@@ -24,16 +24,16 @@ void MakeInputSubApp::run() {
             FATAL_ERROR("Unimplemented exportType %d\n", exportType);
     }
 }
-void MakeInputSubApp::setupArgumentsForSubcommand(CLI::App *subcommand) {
+void MakeInputSubApp::setupArgumentsForSubcommand(CLI::App *subcommand, const CommandLineConverters& converters) {
     std::map<std::string, ExportType> exportTypeMap = {{"empty", ExportType::Empty}};
 
     subcommand->add_option("output", outputPath, "Location of desired output file")->required();
 
     exportType = ExportType::Empty;
     subcommand->add_option("--type", exportType, "Type of input file to generate")
-            ->transform(CLI::IsMember(exportTypeMap, CLI::ignore_case));
+            ->transform(ENUM_TRANSFORMER(exportTypeMap));
 
-    // TODO: These default values are unnecessary/distracting once we move away from ACA
+    // TODO: These default values are unnecessary once we move away from ACA-based simulations
     resolution = {660, 120};
     dimensions = {22.0, 4.1};
     subcommand->add_option("--resolution", resolution, "Resolution in blocks of output file");
