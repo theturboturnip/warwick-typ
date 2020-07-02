@@ -30,3 +30,10 @@ CommandLineConverters::CommandLineConverters()
       defaultBackend(SimulationBackendEnum::CpuOptimized)
 #endif
 {}
+
+void CommandLineConverters::addBackendArgument(CLI::App* app, SimulationBackendEnum &backend) const {
+    backend = defaultBackend;
+    app->add_option("--backend", backend, "Simulation backend")
+            ->transform(ENUM_TRANSFORMER(backendMap))
+            ->default_str(backendToStrMap.at(backend));
+}

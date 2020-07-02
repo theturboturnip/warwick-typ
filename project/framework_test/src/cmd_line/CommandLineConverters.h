@@ -14,6 +14,8 @@ struct CommandLineConverters {
     const std::map<std::string, SimulationBackendEnum> backendMap;
     const std::map<SimulationBackendEnum, std::string> backendToStrMap;
     const SimulationBackendEnum defaultBackend;
+
+    void addBackendArgument(CLI::App* app, SimulationBackendEnum& backend) const;
 };
 
 // Generates a nice string->enum transformer given a mapping of string->enum.

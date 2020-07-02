@@ -49,10 +49,7 @@ void FixedTimeSimSubApp::setupArgumentsForSubcommand(CLI::App *subcommand, const
         ->check(CLI::PositiveNumber)
         ->required(true);
 
-    backend = converters.defaultBackend;
-    subcommand->add_option("--backend", backend, "Simulation backend")
-            ->transform(ENUM_TRANSFORMER(converters.backendMap))
-            ->default_str(converters.backendToStrMap.at(backend));
+    converters.addBackendArgument(subcommand, backend);
 
     subcommand->add_option("--output,-o", outputFile, "File to store the final simulation state");
 }
