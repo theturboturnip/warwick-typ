@@ -16,7 +16,7 @@ void FixedTimeSimSubApp::run() {
 
     LegacySimDump output;
     double timeTaken;
-    const float baseTimestep = 1.0f / 30.0f;
+    const float baseTimestep = 1.0f / 60.0f;
     {
         auto start = std::chrono::steady_clock::now();
 

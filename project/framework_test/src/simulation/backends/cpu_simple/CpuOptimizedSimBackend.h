@@ -11,9 +11,9 @@
 
 class CpuOptimizedSimBackend : public CpuSimBackendBase {
 public:
-    explicit CpuOptimizedSimBackend(const LegacySimDump& dump);
+    explicit CpuOptimizedSimBackend(const LegacySimDump& dump, float baseTimestep);
 
-    float tick(float baseTimestep);
+    float tick();
 
 private:
 
@@ -28,9 +28,9 @@ private:
     LegacyCompat2DBackingArray<int> surroundmask_red;
     LegacyCompat2DBackingArray<int> surroundmask_black;
 
-    void computeTentativeVelocity();
+    void computeTentativeVelocity(float del_t);
 
-    void computeRhs();
+    void computeRhs(float del_t);
 
     int poissonSolver(float *res, int ifull);
 
@@ -39,9 +39,7 @@ private:
     void splitToRedBlack(const LegacyCompat2DBackingArray<float>& joined, LegacyCompat2DBackingArray<float>& red, LegacyCompat2DBackingArray<float>& black);
     void joinRedBlack(LegacyCompat2DBackingArray<float>& joined, const LegacyCompat2DBackingArray<float>& red, const LegacyCompat2DBackingArray<float>& black);
 
-    void updateVelocity();
-
-    void setTimestepInterval();
+    void updateVelocity(float del_t);
 
     void applyBoundaryConditions();
 

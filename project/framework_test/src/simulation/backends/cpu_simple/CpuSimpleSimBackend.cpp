@@ -20,51 +20,61 @@
 #define eps_N ((flag[i][j+1] & C_F)?1:0)
 #define eps_S ((flag[i][j-1] & C_F)?1:0)
 
-CpuSimpleSimBackend::CpuSimpleSimBackend(const LegacySimDump &dump) : CpuSimBackendBase(dump) {}
+CpuSimpleSimBackend::CpuSimpleSimBackend(const LegacySimDump &dump, float baseTimestep) : CpuSimBackendBase(dump, baseTimestep) {}
 
-float CpuSimpleSimBackend::tick(float baseTimestep) {
-    // TODO: This does not respect the base timestep!
-    setTimestepInterval();
+float CpuSimpleSimBackend::tick() {
+    float umax = 1.0e-10;
+    float vmax = 1.0e-10;
 
-    int ifluid = (imax * jmax) - ibound;
-    //updateCurrCnt();
-
-    computeTentativeVelocity();
-
-    //addToCnt(tentVelCnt_div256);
-
-    computeRhs();
-
-    //addToCnt(rhs_div256);
-
-    // Assume some fluid module exists for now
-    int itersor;
-    float res = 0.0f;
-    if (ifluid > 0) {
-        itersor = poissonSolver(&res, ifluid);
-        //addToCnt(poisson_div256);
-    } else {
-        itersor = 0;
+    // Loop was fused and parallelized
+#pragma omp parallel for schedule(static) reduction(max:umax) reduction(max:vmax) shared(u,v) default(none)
+    // Note - the original umax/vmax loops were i=[0,imax+1]/j=[1,jmax+1] for umax, i=[1,imax+1]/j=[0,jmax+1] for vmax
+    // Expanding these to fuse the loops is only going to make timesteps smaller, not accidentally make them larger.
+    // This is ok.
+    for (int i=0; i<=imax+1; i++) {
+        for (int j=0; j<=jmax+1; j++) {
+            umax = max(fabs(u[i][j]), umax);
+            vmax = max(fabs(v[i][j]), vmax);
+        }
+    }
+    uint32_t subdivisions = getRequiredTimestepSubdivision(umax, vmax);
+    const float del_t = baseTimestep / subdivisions;
+    const int ifluid = (imax * jmax) - ibound;
+    for (uint32_t t = 0; t < subdivisions; t++) {
         //updateCurrCnt();
+        computeTentativeVelocity(del_t);
+        //addToCnt(tentVelCnt_div256);
+        computeRhs(del_t);
+        //addToCnt(rhs_div256);
+
+        // Assume some fluid module exists for now
+        int itersor;
+        float res = 0.0f;
+        if (ifluid > 0) {
+            itersor = poissonSolver(&res, ifluid);
+            //addToCnt(poisson_div256);
+        } else {
+            itersor = 0;
+            //updateCurrCnt();
+        }
+
+        /*if (verbose > 1) {
+            printf("%d t:%g, del_t:%g, SOR iters:%3d, res:%e, bcells:%d\n",
+                   iters, t+del_t, del_t, itersor, res, ibound);
+        }*/
+
+        //updateCurrCnt();
+        updateVelocity(del_t);
+        //addToCnt(updateVel_div256);
+        applyBoundaryConditions();
+        //addToCnt(bounds_div256);
     }
 
-    /*if (verbose > 1) {
-        printf("%d t:%g, del_t:%g, SOR iters:%3d, res:%e, bcells:%d\n",
-               iters, t+del_t, del_t, itersor, res, ibound);
-    }*/
-
-    //updateCurrCnt();
-    updateVelocity();
-    //addToCnt(updateVel_div256);
-
-    applyBoundaryConditions();
-    //addToCnt(bounds_div256);
-
-    return del_t;
+    return del_t*subdivisions;
 }
 
 // Computation of tentative velocity field (f, g)
-void CpuSimpleSimBackend::computeTentativeVelocity()
+void CpuSimpleSimBackend::computeTentativeVelocity(float del_t )
 {
     int  i, j;
     float du2dx, duvdy, duvdx, dv2dy, laplu, laplv;
@@ -131,7 +141,7 @@ void CpuSimpleSimBackend::computeTentativeVelocity()
 
 
 // Calculate the right hand side of the pressure equation
-void CpuSimpleSimBackend::computeRhs()
+void CpuSimpleSimBackend::computeRhs(float del_t)
 {
     int i, j;
 
@@ -227,7 +237,7 @@ int CpuSimpleSimBackend::poissonSolver(float *res, int ifull)
 /* Update the velocity values based on the tentative
  * velocity values and the new pressure matrix
  */
-void CpuSimpleSimBackend::updateVelocity()
+void CpuSimpleSimBackend::updateVelocity(float del_t)
 {
     int i, j;
 
@@ -255,7 +265,7 @@ void CpuSimpleSimBackend::updateVelocity()
  * timestep). Otherwise the simulation becomes unstable.
  * TODO: On the GPU this could be changed to do half-step, quarter-step etc. which would make it simpler to get out consistent units
  */
-void CpuSimpleSimBackend::setTimestepInterval()
+/*void CpuSimpleSimBackend::setTimestepInterval()
 {
     int i, j;
     float umax, vmax, deltu, deltv, deltRe;
@@ -286,7 +296,7 @@ void CpuSimpleSimBackend::setTimestepInterval()
         }
         del_t = tau * (del_t); // multiply by safety factor
     }
-}
+}*/
 
 void CpuSimpleSimBackend::applyBoundaryConditions()
 {

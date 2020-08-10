@@ -16,13 +16,13 @@
 template<typename SimBackend>
 class SimTickedRunner : public ISimTickedRunner {
 public:
-    SimTickedRunner() = default;
+    explicit SimTickedRunner(float baseTimestep) : ISimTickedRunner(baseTimestep) {}
     ~SimTickedRunner() override = default;
 
     void loadFromLegacy(const LegacySimDump& dump) override {
         m_started = true;
 
-        m_backendData = std::make_unique<SimBackend>(dump);
+        m_backendData = std::make_unique<SimBackend>(dump, m_baseTimestep);
     }
     LegacySimDump dumpStateAsLegacy() override {
         if (!m_started)
@@ -31,10 +31,11 @@ public:
         return m_backendData->dumpStateAsLegacy();
     }
 
-    float tick(float baseTimestep) override {
+    float tick() override {
         DASSERT_M(m_backendData, "Backend data was null, make sure to load state into the simulation!");
 
-        float timestep = m_backendData->tick(baseTimestep);
+        // TODO: timestep should be disregarded?
+        float timestep = m_backendData->tick();
         m_currentTime += timestep;
 
         return timestep;

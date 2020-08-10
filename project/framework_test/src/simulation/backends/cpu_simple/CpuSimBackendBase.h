@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include <simulation/file_format/LegacySimDump.h>
-#include "simulation/SimulationParameters.h"
+#include "simulation/file_format/LegacySimulationParameters.h"
 #include "util/LegacyCompat2DBackingArray.h"
+#include <simulation/file_format/LegacySimDump.h>
 
 class CpuSimBackendBase {
 public:
     LegacySimDump dumpStateAsLegacy();
 
 protected:
-    explicit CpuSimBackendBase(const LegacySimDump& dump);
+    explicit CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep);
 
-    SimulationParameters params;
+    LegacySimulationParameters params;
     // Copies of the simulation parameter data for the C model
     const int imax, jmax;
     const float xlength, ylength;
@@ -26,8 +26,10 @@ protected:
     const float Re, tau;
     const int itermax;
     const float eps, omega, gamma;
-    float del_t; // Not const, this can change over times
+    const float baseTimestep;
 
     LegacyCompat2DBackingArray<float> u, v, f, g, p, rhs;
     LegacyCompat2DBackingArray<char> flag;
+
+    uint32_t getRequiredTimestepSubdivision(float umax, float vmax) const;
 };

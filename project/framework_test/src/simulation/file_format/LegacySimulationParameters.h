@@ -4,7 +4,7 @@
 
 #pragma once
 
-struct SimulationParameters {
+struct LegacySimulationParameters {
     // Simulation block resolution
     int imax, jmax;
     inline int totalElements() const {

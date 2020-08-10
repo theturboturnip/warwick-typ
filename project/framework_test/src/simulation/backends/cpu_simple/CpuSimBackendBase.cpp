@@ -3,6 +3,7 @@
 //
 
 #include "CpuSimBackendBase.h"
+#include <algorithm>
 
 LegacySimDump CpuSimBackendBase::dumpStateAsLegacy() {
     auto dump = LegacySimDump();
@@ -15,7 +16,7 @@ LegacySimDump CpuSimBackendBase::dumpStateAsLegacy() {
     return dump;
 }
 
-CpuSimBackendBase::CpuSimBackendBase(const LegacySimDump& dump) :
+CpuSimBackendBase::CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep) :
     params(dump.params),
     imax(dump.params.imax),
     jmax(dump.params.jmax),
@@ -32,7 +33,7 @@ CpuSimBackendBase::CpuSimBackendBase(const LegacySimDump& dump) :
     eps(0.001), // Stopping error threshold for SOR
     omega(1.7), // Relaxation parameter for SOR
     gamma(0.9), // Upwind differencing factor in PDE discretisation
-    del_t(0.003),
+    baseTimestep(baseTimestep),
     u(dump.u, imax+2, jmax+2),
     v(dump.v, imax+2, jmax+2),
     f(imax+2, jmax+2, 0.0f),
@@ -41,3 +42,34 @@ CpuSimBackendBase::CpuSimBackendBase(const LegacySimDump& dump) :
     rhs(imax+2, jmax+2, 0.0f),
     flag(dump.flag, imax+2, jmax+2)
 {}
+
+uint32_t CpuSimBackendBase::getRequiredTimestepSubdivision(float umax, float vmax) const {
+    const float delt_u = delx/umax;
+    const float delt_v = dely/vmax;
+    const float delt_Re = 1.0/(1/(delx*delx)+1/(dely*dely))*Re/2.0;
+
+    const float min_delt = tau * std::min({delt_u, delt_v, delt_Re});
+    DASSERT_M(min_delt < 1.0e-10, "Minimum timestep is too small");
+    uint32_t subdivision = 1;
+    float timestep = baseTimestep;
+    while (timestep > min_delt) {
+        timestep /= 2;
+        subdivision *= 2;
+    }
+
+    //fprintf(stderr, "Subdiv: %02d min_delt: %5g actual timestep: %5g\r", subdivision, min_delt, timestep);
+
+    return subdivision;
+
+    // del_t satisfying CFL conditions
+    /*if (tau >= 1.0e-10) { // else no time stepsize control TODO: why?
+
+
+        if (deltu<deltv) {
+            del_t_temp = min(deltu, deltRe);
+        } else {
+            del_t_temp = min(deltv, deltRe);
+        }
+        del_t = tau * (del_t_temp); // multiply by safety factor
+    }*/
+}

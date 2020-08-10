@@ -4,13 +4,12 @@
 
 #include "NullSimulation.h"
 
-NullSimulation::NullSimulation(const LegacySimDump& dump) : m_state(dump) {}
+NullSimulation::NullSimulation(const LegacySimDump& dump, float baseTimestep) : m_state(dump), m_baseTimestep(baseTimestep) {}
 
 LegacySimDump NullSimulation::dumpStateAsLegacy() {
     return m_state;
 }
 
-float NullSimulation::tick(float baseTimestep) {
-    // TODO: This is bad behaviour, we should establish a base timestep
-    return baseTimestep;
+float NullSimulation::tick() {
+    return m_baseTimestep;
 }

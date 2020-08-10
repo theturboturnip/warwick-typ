@@ -12,7 +12,7 @@ void fatal_error(const char* filepath, int line, const char* fmt, ...);
 #define FATAL_ERROR(...) fatal_error(__FILE__, __LINE__, __VA_ARGS__)
 
 #define FATAL_ERROR_IF(cond, ...) do { if (cond) FATAL_ERROR(__VA_ARGS__); } while(0);
-#define FATAL_ERROR_UNLESS(cond, ...) do { if (!cond) FATAL_ERROR(__VA_ARGS__); } while(0);
+#define FATAL_ERROR_UNLESS(cond, ...) do { if (!(cond)) FATAL_ERROR(__VA_ARGS__); } while(0);
 
 #define STR(x) #x
 

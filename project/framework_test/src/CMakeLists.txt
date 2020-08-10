@@ -23,6 +23,11 @@ target_sources(generic_sources INTERFACE
         simulation/backends/null/NullSimulation.h
         simulation/file_format/LegacySimDump.cpp
         simulation/file_format/LegacySimDump.h
+        simulation/file_format/LegacySimulationParameters.h
+        simulation/file_format/SimParams.h
+        simulation/file_format/SimParams.cpp
+        simulation/file_format/SimSnapshot.h
+        simulation/file_format/SimSnapshot.cpp
         simulation/runners
         simulation/runners/sim_fixedtime_runner
         simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.cpp
@@ -33,9 +38,9 @@ target_sources(generic_sources INTERFACE
         simulation/runners/sim_ticked_runner/ISimTickedRunner.h
         simulation/runners/sim_ticked_runner/SimTickedRunner.inl
         simulation/SimulationBackendEnum.h
-        simulation/SimulationParameters.h
         util/fatal_error.cpp
         util/fatal_error.h
+        util/Size.h
         util/HostVisibleArray.h
         util/LegacyCompat2DBackingArray.h
         validation/SimDumpDifferenceData.cpp

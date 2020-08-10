@@ -40,8 +40,8 @@
 #define eps_fromB_N ((flag[i][j] & B_N)?0:1)
 #define eps_fromB_S ((flag[i][j] & B_S)?0:1)
 
-CpuOptimizedSimBackend::CpuOptimizedSimBackend(const LegacySimDump &dump) :
-    CpuSimBackendBase(dump),
+CpuOptimizedSimBackend::CpuOptimizedSimBackend(const LegacySimDump &dump, float baseTimestep) :
+    CpuSimBackendBase(dump, baseTimestep),
     p_beta(imax+2, jmax+2, 0),
     p_beta_red(imax+2, (jmax+2)/2, 0),
     p_beta_black(imax+2, (jmax+2)/2, 0),
@@ -65,49 +65,62 @@ CpuOptimizedSimBackend::CpuOptimizedSimBackend(const LegacySimDump &dump) :
     splitFluidmaskToSurroundedMask();
 }
 
-float CpuOptimizedSimBackend::tick(float baseTimestep) {
-    // TODO: This does not respect the base timestep!
-    setTimestepInterval();
+float CpuOptimizedSimBackend::tick() {
+    float umax = 1.0e-10;
+    float vmax = 1.0e-10;
 
-    int ifluid = (imax * jmax) - ibound;
-    //updateCurrCnt();
-
-    computeTentativeVelocity();
-
-    //addToCnt(tentVelCnt_div256);
-
-    computeRhs();
-
-    //addToCnt(rhs_div256);
-
-    // Assume some fluid module exists for now
-    int itersor;
-    float res = 0.0f;
-    if (ifluid > 0) {
-        itersor = poissonSolver(&res, ifluid);
-        //addToCnt(poisson_div256);
-    } else {
-        itersor = 0;
-        //updateCurrCnt();
+    // Loop was fused and parallelized
+    // Note - the original umax/vmax loops were i=[0,imax+1]/j=[1,jmax+1] for umax, i=[1,imax+1]/j=[0,jmax+1] for vmax
+    // Expanding these to fuse the loops is only going to make timesteps smaller, not accidentally make them larger.
+    // This is ok.
+#pragma omp parallel for schedule(static) reduction(max:umax) reduction(max:vmax) shared(u,v) default(none)
+    for (int i=0; i<=imax+1; i++) {
+        for (int j=0; j<=jmax+1; j++) {
+            umax = max(fabs(u[i][j]), umax);
+            vmax = max(fabs(v[i][j]), vmax);
+        }
     }
+    uint32_t subdivisions = getRequiredTimestepSubdivision(umax, vmax);
+    const float del_t = baseTimestep / subdivisions;
+    const int ifluid = (imax * jmax) - ibound;
+    for (uint32_t t = 0; t < subdivisions; t++) {
+        fprintf(stderr, "t: %d\n", t);
+        //updateCurrCnt();
+        computeTentativeVelocity(del_t);
+        //addToCnt(tentVelCnt_div256);
+        computeRhs(del_t);
+        //addToCnt(rhs_div256);
 
-    /*if (verbose > 1) {
-        printf("%d t:%g, del_t:%g, SOR iters:%3d, res:%e, bcells:%d\n",
-               iters, t+del_t, del_t, itersor, res, ibound);
-    }*/
+        // Assume some fluid module exists for now
+        /*int itersor;
+        float res = 0.0f;
+        if (ifluid > 0) {
+            itersor =
+        } else {
+            itersor = 0;
+            //updateCurrCnt();
+        }*/
 
-    //updateCurrCnt();
-    updateVelocity();
-    //addToCnt(updateVel_div256);
+        float res = 0;
+        poissonSolver(&res, ifluid);
+        //addToCnt(poisson_div256);
 
-    applyBoundaryConditions();
-    //addToCnt(bounds_div256);
+        /*if (verbose > 1) {
+            printf("%d t:%g, del_t:%g, SOR iters:%3d, res:%e, bcells:%d\n",
+                   iters, t+del_t, del_t, itersor, res, ibound);
+        }*/
 
-    return del_t;
+        //updateCurrCnt();
+        updateVelocity(del_t);
+        //addToCnt(updateVel_div256);
+        applyBoundaryConditions();
+        //addToCnt(bounds_div256);
+    }
+    return del_t * subdivisions;
 }
 
 // Computation of tentative velocity field (f, g)
-void CpuOptimizedSimBackend::computeTentativeVelocity()
+void CpuOptimizedSimBackend::computeTentativeVelocity(float del_t)
 {
     int  i, j;
     float du2dx, duvdy, duvdx, dv2dy, laplu, laplv;
@@ -190,7 +203,7 @@ void CpuOptimizedSimBackend::computeTentativeVelocity()
 }
 
 // Calculate the right hand side of the pressure equation
-void CpuOptimizedSimBackend::computeRhs()
+void CpuOptimizedSimBackend::computeRhs(float del_t)
 {
     int i, j;
 
@@ -475,7 +488,7 @@ void CpuOptimizedSimBackend::joinRedBlack(LegacyCompat2DBackingArray<float>& joi
 /* Update the velocity values based on the tentative
  * velocity values and the new pressure matrix
  */
-void CpuOptimizedSimBackend::updateVelocity()
+void CpuOptimizedSimBackend::updateVelocity(float del_t)
 {
     int i, j;
 
@@ -493,42 +506,6 @@ void CpuOptimizedSimBackend::updateVelocity()
                 v[i][j] = g[i][j]-(p[i][j+1]-p[i][j])*del_t/dely;
             }
         }
-    }
-}
-
-/* Set the timestep size so that we satisfy the Courant-Friedrichs-Lewy
- * conditions (ie no particle moves more than one cell width in one
- * timestep). Otherwise the simulation becomes unstable.
- */
-void CpuOptimizedSimBackend::setTimestepInterval()
-{
-    int i, j;
-    float umax, vmax, deltu, deltv, deltRe;
-
-    // del_t satisfying CFL conditions
-    if (tau >= 1.0e-10) { // else no time stepsize control
-        umax = 1.0e-10;
-        vmax = 1.0e-10;
-
-        // Loop was fused and parallelized
-#pragma omp parallel for schedule(static) private(j) reduction(max:umax) reduction(max:vmax) default(shared)
-        for (i=0; i<=imax+1; i++) {
-            for (j=1; j<=jmax+1; j++) {
-                umax = max(fabs(u[i][j]), umax);
-                vmax = max(fabs(v[i][j]), vmax);
-            }
-        }
-
-        deltu = delx/umax;
-        deltv = dely/vmax;
-        deltRe = 1/(1/(delx*delx)+1/(dely*dely))*Re/2.0;
-
-        if (deltu<deltv) {
-            del_t = min(deltu, deltRe);
-        } else {
-            del_t = min(deltv, deltRe);
-        }
-        del_t = tau * (del_t); // multiply by safety factor
     }
 }
 

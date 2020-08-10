@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <vector>
+#include "simulation/file_format/LegacySimulationParameters.h"
 #include <string>
-#include "simulation/SimulationParameters.h"
+#include <vector>
 
 // Definitions of flags in the flag vector
 // TODO: Refactor into namespace?
@@ -25,9 +25,9 @@
 
 struct LegacySimDump {
     LegacySimDump() = default;
-    LegacySimDump(SimulationParameters params);
+    explicit LegacySimDump(LegacySimulationParameters params);
 
-    SimulationParameters params;
+    LegacySimulationParameters params;
 
     std::vector<float> u;
     std::vector<float> v;

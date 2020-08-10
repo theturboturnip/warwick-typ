@@ -1,16 +1,18 @@
 cmake_minimum_required(VERSION 3.16)
 project(framework_test LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+#set(CMAKE_FIND_DEBUG_MODE 1)
 include(CheckLanguage)
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
     set(CUDA_PROPAGATE_HOST_FLAGS FALSE)
 else()
-    message(WARNING "CMake not found, disabling...")
+    message(WARNING "CUDA not found, disabling...")
+    message(WARNING $ENV{LD_LIBRARY_PATH})
 endif()
 
 if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -44,7 +46,7 @@ find_package(SDL2 REQUIRED)
 find_package(OpenMP REQUIRED)
 
 # Create a list of libraries used in both CUDA and non-CUDA
-set(GLOBAL_LINKED_LIBS ${Vulkan_LIBRARIES} ${SDL2_LIBRARIES} OpenMP::OpenMP_CXX glm imgui GSL CLI11)
+set(GLOBAL_LINKED_LIBS ${Vulkan_LIBRARIES} ${SDL2_LIBRARIES} OpenMP::OpenMP_CXX glm imgui GSL CLI11 nlohmann_json)
 set(GLOBAL_INCLUDE_DIRS ./src/)
 set(GLOBAL_SYSTEM_INCLUDE_DIRS ${Vulkan_INCLUDE_DIRS} ${SDL2_INCLUDE_DIRS})
 

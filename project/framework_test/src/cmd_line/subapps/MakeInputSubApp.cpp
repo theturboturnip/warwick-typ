@@ -4,13 +4,13 @@
 
 #include "MakeInputSubApp.h"
 
-#include "simulation/SimulationParameters.h"
+#include "simulation/LegacySimulationParameters.h"
 #include "simulation/file_format/LegacySimDump.h"
 #include "util/fatal_error.h"
 
 MakeInputSubApp::MakeInputSubApp() : exportType(ExportType::Empty) {}
 void MakeInputSubApp::run() {
-    SimulationParameters params = {
+    LegacySimulationParameters params = {
             .imax = (int)resolution.first,
             .jmax = (int)resolution.second,
             .xlength = dimensions.first,

@@ -104,7 +104,7 @@ std::string LegacySimDump::debugString() {
     str << "xlength: " << params.xlength << " ylength: " << params.ylength << '\n';
     return str.str();
 }
-LegacySimDump::LegacySimDump(SimulationParameters params)
+LegacySimDump::LegacySimDump(LegacySimulationParameters params)
     : params(params),
       u(params.totalElements(), 0),
       v(params.totalElements(), 0),

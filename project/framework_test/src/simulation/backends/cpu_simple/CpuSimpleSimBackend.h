@@ -11,9 +11,9 @@
 
 class CpuSimpleSimBackend : public CpuSimBackendBase {
 public:
-    explicit CpuSimpleSimBackend(const LegacySimDump& dump);
+    explicit CpuSimpleSimBackend(const LegacySimDump& dump, float baseTimestep);
 
-    float tick(float baseTimestep);
+    float tick();
 
 private:
     /*template<typename T>
@@ -24,15 +24,13 @@ private:
         }
     }*/
 
-    void computeTentativeVelocity();
+    void computeTentativeVelocity(float del_t);
 
-    void computeRhs();
+    void computeRhs(float del_t);
 
     int poissonSolver(float *res, int ifull);
 
-    void updateVelocity();
-
-    void setTimestepInterval();
+    void updateVelocity(float del_t);
 
     void applyBoundaryConditions();
 };
