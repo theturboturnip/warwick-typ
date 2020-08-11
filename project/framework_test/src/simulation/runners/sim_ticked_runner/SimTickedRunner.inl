@@ -11,7 +11,7 @@
 
 /**
  *
- * @tparam SimBackend Backend for the simulation. Must have makeUniquePtrFromLegacy, dumpStateAsLegacy, tick
+ * @tparam SimBackend Backend for the simulation. Must have makeUniquePtrFromLegacy, get_snapshot, tick
  */
 template<typename SimBackend>
 class SimTickedRunner : public ISimTickedRunner {
@@ -19,16 +19,16 @@ public:
     explicit SimTickedRunner(float baseTimestep) : ISimTickedRunner(baseTimestep) {}
     ~SimTickedRunner() override = default;
 
-    void loadFromLegacy(const LegacySimDump& dump) override {
+    void loadFromLegacy(const SimSnapshot& dump) override {
         m_started = true;
 
-        m_backendData = std::make_unique<SimBackend>(dump, m_baseTimestep);
+        m_backendData = std::make_unique<SimBackend>(dump);
     }
-    LegacySimDump dumpStateAsLegacy() override {
+    std::optional<SimSnapshot> get_snapshot() override {
         if (!m_started)
-            return LegacySimDump();
+            return std::nullopt;
 
-        return m_backendData->dumpStateAsLegacy();
+        return m_backendData->get_snapshot();
     }
 
     float tick() override {

@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include <memory>
 #include "simulation/SimulationBackendEnum.h"
 #include "simulation/file_format/LegacySimDump.h"
+#include "simulation/file_format/SimSnapshot.h"
+#include <memory>
 
 class ISimFixedTimeRunner {
 protected:
@@ -14,7 +15,7 @@ protected:
 
 public:
     virtual ~ISimFixedTimeRunner() = default;
-    virtual LegacySimDump runForTime(const LegacySimDump& start, float baseTimestep, float timeToRun) = 0;
+    virtual SimSnapshot runForTime(const SimSnapshot& start, float timeToRun) = 0;
 
     static std::unique_ptr<ISimFixedTimeRunner> getForBackend(SimulationBackendEnum backendType);
 };

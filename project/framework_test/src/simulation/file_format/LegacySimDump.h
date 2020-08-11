@@ -33,7 +33,7 @@ struct LegacySimDump {
     std::vector<float> v;
     std::vector<float> p;
 
-    std::vector<char> flag;
+    std::vector<uint8_t> flag;
 
     static LegacySimDump fromFile(std::string path);
     void saveToFile(std::string path);

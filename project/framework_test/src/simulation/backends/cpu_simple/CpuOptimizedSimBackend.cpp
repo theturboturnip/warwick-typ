@@ -40,8 +40,8 @@
 #define eps_fromB_N ((flag[i][j] & B_N)?0:1)
 #define eps_fromB_S ((flag[i][j] & B_S)?0:1)
 
-CpuOptimizedSimBackend::CpuOptimizedSimBackend(const LegacySimDump &dump, float baseTimestep) :
-    CpuSimBackendBase(dump, baseTimestep),
+CpuOptimizedSimBackend::CpuOptimizedSimBackend(const SimSnapshot& s) :
+    CpuSimBackendBase(s),
     p_beta(imax+2, jmax+2, 0),
     p_beta_red(imax+2, (jmax+2)/2, 0),
     p_beta_black(imax+2, (jmax+2)/2, 0),

@@ -24,7 +24,7 @@ public:
         build2D(width, height);
     }
 
-    // TODO - add operator =(std::vector<T>) to reassign backing
+    // TODO - add operator =(std::vector<T>) to reassign backing?
 
 #if CHECKED
     gsl::span<T> operator[](int index) {

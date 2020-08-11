@@ -20,7 +20,7 @@
 #define eps_N ((flag[i][j+1] & C_F)?1:0)
 #define eps_S ((flag[i][j-1] & C_F)?1:0)
 
-CpuSimpleSimBackend::CpuSimpleSimBackend(const LegacySimDump &dump, float baseTimestep) : CpuSimBackendBase(dump, baseTimestep) {}
+CpuSimpleSimBackend::CpuSimpleSimBackend(const SimSnapshot& s) : CpuSimBackendBase(s) {}
 
 float CpuSimpleSimBackend::tick() {
     float umax = 1.0e-10;

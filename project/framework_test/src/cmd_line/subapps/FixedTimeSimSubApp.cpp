@@ -4,33 +4,35 @@
 
 #include "FixedTimeSimSubApp.h"
 
-#include "simulation/file_format/LegacySimDump.h"
-
 #include <chrono>
+
+#include "simulation/file_format/SimSnapshot.h"
 #include "simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.h"
 
 void FixedTimeSimSubApp::run() {
-    LegacySimDump initial = LegacySimDump::fromFile(inputFile);
+    nlohmann::json initial_json;
+    std::ifstream(inputFile) >> initial_json;
+    auto initial = initial_json.get<SimSnapshot>();
 
     auto sim = ISimFixedTimeRunner::getForBackend(backend);
 
-    LegacySimDump output;
     double timeTaken;
-    const float baseTimestep = 1.0f / 60.0f;
-    {
-        auto start = std::chrono::steady_clock::now();
 
-        output = sim->runForTime(initial, baseTimestep, timeToRun);
+    auto start = std::chrono::steady_clock::now();
 
-        auto end = std::chrono::steady_clock::now();
-        std::chrono::duration<double> diff = end - start;
-        timeTaken = diff.count();
-    }
+    auto output = sim->runForTime(initial, timeToRun);
 
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double> diff = end - start;
+    timeTaken = diff.count();
+
+    nlohmann::json output_json = output;
+    std::string pretty_output_json = output_json.dump(4);
     fprintf(stderr, "performed calc in %f seconds\n", timeTaken);
-    fprintf(stderr, "enddump: %s", output.debugString().c_str());
-    if (outputFile.has_value())
-        output.saveToFile(outputFile.value());
+    fprintf(stderr, "enddump: %s", pretty_output_json.c_str());
+    if (outputFile.has_value()){
+        std::ofstream(outputFile.value()) << pretty_output_json;
+    }
 }
 
 void FixedTimeSimSubApp::setupArgumentsForSubcommand(CLI::App *subcommand, const CommandLineConverters& converters) {

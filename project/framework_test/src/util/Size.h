@@ -4,7 +4,7 @@
 
 #pragma once
 
-//#include <utility>
+#include <utility>
 
 template<typename T>
 struct Size {
@@ -12,6 +12,5 @@ struct Size {
 
     Size() : x(-1), y(-1) {}
     Size(T x, T y) : x(x), y(y) {}
-    // TODO - should we include a std::pair constructor?
-    //Size(std::pair<T, T> pair) : x(pair.x), y(pair.y) {}
+    explicit Size(std::pair<T, T> pair) : x(pair.first), y(pair.second) {}
 };

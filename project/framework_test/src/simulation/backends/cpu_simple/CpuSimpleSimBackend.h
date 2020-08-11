@@ -11,7 +11,7 @@
 
 class CpuSimpleSimBackend : public CpuSimBackendBase {
 public:
-    explicit CpuSimpleSimBackend(const LegacySimDump& dump, float baseTimestep);
+    explicit CpuSimpleSimBackend(const SimSnapshot& s);
 
     float tick();
 

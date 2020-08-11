@@ -7,6 +7,7 @@
 #include <memory>
 #include "simulation/SimulationBackendEnum.h"
 #include "simulation/file_format/LegacySimDump.h"
+#include "simulation/file_format/SimSnapshot.h"
 
 class ISimTickedRunner {
 protected:
@@ -29,8 +30,8 @@ public:
 
     virtual float tick() = 0;
 
-    virtual void loadFromLegacy(const LegacySimDump& dump) = 0;
-    virtual LegacySimDump dumpStateAsLegacy() = 0;
+    virtual void loadFromLegacy(const SimSnapshot& dump) = 0;
+    virtual std::optional<SimSnapshot> get_snapshot() = 0;
 
     static std::unique_ptr<ISimTickedRunner> getForBackend(SimulationBackendEnum backendType, float baseTimestep);
 };

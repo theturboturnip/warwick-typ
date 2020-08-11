@@ -18,6 +18,7 @@ enum class CellType : uint8_t {
 
 struct SimSnapshot {
     explicit SimSnapshot(const SimParams& params);
+    static SimSnapshot from_legacy(const SimParams& params, const LegacySimDump& from_legacy_dump);
 
     const SimParams params;
 
@@ -28,7 +29,10 @@ struct SimSnapshot {
 
     std::vector<CellType> cell_type;
 
-    LegacySimDump to_legacy();
+    [[nodiscard]] std::vector<uint8_t> get_legacy_cell_flags() const;
+    [[nodiscard]] int get_boundary_cell_count() const;
+
+    [[nodiscard]] LegacySimDump to_legacy() const;
 };
 
 // SimSnapshot has a const field, which means you can't use the normal to_json/from_json functions.
@@ -39,5 +43,4 @@ namespace nlohmann {
         static SimSnapshot from_json(const nlohmann::json& j);
         static void to_json(nlohmann::json& j, const SimSnapshot& s);
     };
-
 }

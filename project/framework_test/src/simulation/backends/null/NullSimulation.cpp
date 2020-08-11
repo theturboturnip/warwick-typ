@@ -4,12 +4,17 @@
 
 #include "NullSimulation.h"
 
-NullSimulation::NullSimulation(const LegacySimDump& dump, float baseTimestep) : m_state(dump), m_baseTimestep(baseTimestep) {}
+NullSimulation::NullSimulation(const SimSnapshot& dump)
+    : m_state(dump),
+      m_baseTimestep(1.0f/dump.params.timestep_divisor) {}
 
 LegacySimDump NullSimulation::dumpStateAsLegacy() {
-    return m_state;
+    return m_state.to_legacy();
 }
 
 float NullSimulation::tick() {
     return m_baseTimestep;
+}
+SimSnapshot NullSimulation::get_snapshot() {
+    return m_state;
 }

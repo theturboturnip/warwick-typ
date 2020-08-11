@@ -7,7 +7,9 @@
 
 LegacySimDump CpuSimBackendBase::dumpStateAsLegacy() {
     auto dump = LegacySimDump();
-    dump.params = params;
+
+    dump.params = params.to_legacy();
+
     dump.u = u.getBacking();
     dump.v = v.getBacking();
     dump.p = p.getBacking();
@@ -16,7 +18,11 @@ LegacySimDump CpuSimBackendBase::dumpStateAsLegacy() {
     return dump;
 }
 
-CpuSimBackendBase::CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep) :
+SimSnapshot CpuSimBackendBase::get_snapshot() {
+    return SimSnapshot::from_legacy(params, dumpStateAsLegacy());
+}
+
+/*CpuSimBackendBase::CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep) :
     params(dump.params),
     imax(dump.params.imax),
     jmax(dump.params.jmax),
@@ -41,7 +47,39 @@ CpuSimBackendBase::CpuSimBackendBase(const LegacySimDump& dump, float baseTimest
     p(dump.p, imax+2, jmax+2),
     rhs(imax+2, jmax+2, 0.0f),
     flag(dump.flag, imax+2, jmax+2)
-{}
+{}*/
+
+CpuSimBackendBase::CpuSimBackendBase(const SimSnapshot &s)
+    : params(s.params),
+      imax(s.params.pixel_size.x),
+      jmax(s.params.pixel_size.y),
+      xlength(s.params.physical_size.x),
+      ylength(s.params.physical_size.y),
+      delx(s.params.del_x()),
+      dely(s.params.del_y()),
+
+      ibound(s.get_boundary_cell_count()),
+
+      ui(s.params.initial_velocity_x),
+      vi(s.params.initial_velocity_y),
+      Re(s.params.Re),
+      tau(s.params.timestep_safety),
+      itermax(s.params.poisson_max_iterations),
+      eps(s.params.poisson_error_threshold),
+      omega(s.params.poisson_omega),
+      gamma(s.params.gamma),
+      baseTimestep(1.0f/s.params.timestep_divisor),
+
+      u(s.velocity_x, imax+2, jmax+2),
+      v(s.velocity_y, imax+2, jmax+2),
+      f(imax+2, jmax+2, 0.0f),
+      g(imax+2, jmax+2, 0.0f),
+      p(s.pressure, imax+2, jmax+2),
+      rhs(imax+2, jmax+2, 0.0f),
+      flag(s.get_legacy_cell_flags(), imax+2, jmax+2)
+{
+}
+
 
 uint32_t CpuSimBackendBase::getRequiredTimestepSubdivision(float umax, float vmax) const {
     const float delt_u = delx/umax;

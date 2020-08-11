@@ -19,7 +19,7 @@ void LegacyRenderPPMSubApp::run() {
     const auto u = LegacyCompat2DBackingArray<float>(dump.u, imax+2, jmax+2);
     const auto v = LegacyCompat2DBackingArray<float>(dump.v, imax+2, jmax+2);
     const auto p = LegacyCompat2DBackingArray<float>(dump.p, imax+2, jmax+2);
-    const auto flag = LegacyCompat2DBackingArray<char>(dump.flag, imax+2, jmax+2);
+    const auto flag = LegacyCompat2DBackingArray<uint8_t>(dump.flag, imax+2, jmax+2);
 
     const float pressure_max = *(std::max_element(dump.p.begin(), dump.p.end()));
 

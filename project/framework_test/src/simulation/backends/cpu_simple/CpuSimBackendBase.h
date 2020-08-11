@@ -6,16 +6,19 @@
 
 #include "simulation/file_format/LegacySimulationParameters.h"
 #include "util/LegacyCompat2DBackingArray.h"
-#include <simulation/file_format/LegacySimDump.h>
+#include "simulation/file_format/LegacySimDump.h"
+#include "simulation/file_format/SimSnapshot.h"
 
 class CpuSimBackendBase {
 public:
     LegacySimDump dumpStateAsLegacy();
+    SimSnapshot get_snapshot();
 
 protected:
-    explicit CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep);
+    //CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep);
+    explicit CpuSimBackendBase(const SimSnapshot& s);
 
-    LegacySimulationParameters params;
+    const SimParams params;
     // Copies of the simulation parameter data for the C model
     const int imax, jmax;
     const float xlength, ylength;
@@ -29,7 +32,7 @@ protected:
     const float baseTimestep;
 
     LegacyCompat2DBackingArray<float> u, v, f, g, p, rhs;
-    LegacyCompat2DBackingArray<char> flag;
+    LegacyCompat2DBackingArray<uint8_t> flag;
 
     uint32_t getRequiredTimestepSubdivision(float umax, float vmax) const;
 };
