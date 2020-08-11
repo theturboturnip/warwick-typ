@@ -23,7 +23,7 @@ void MakeInputSubApp::run() {
         auto params = SimParams::make_aca_default(Size(resolution), Size(dimensions));
         auto snapshot = SimSnapshot(params);
 
-        std::ofstream(outputPath) << nlohmann::json(snapshot).dump(4);
+        std::ofstream(outputPath) << nlohmann::ordered_json(snapshot).dump(4);
     } else {
         FATAL_ERROR("Unimplemented exportType %d\n", exportType);
     }

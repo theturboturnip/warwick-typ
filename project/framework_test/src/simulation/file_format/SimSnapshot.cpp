@@ -3,6 +3,8 @@
 //
 #include "SimSnapshot.h"
 
+#include "util/fatal_error.h"
+
 SimSnapshot::SimSnapshot(const SimParams &params)
     : params(params),
       velocity_x(params.pixel_count(), 0.0),
@@ -90,35 +92,32 @@ SimSnapshot SimSnapshot::from_legacy(const SimParams& params, const LegacySimDum
 }
 
 namespace nlohmann{
-    void adl_serializer<SimSnapshot>::to_json(nlohmann::json& j, const SimSnapshot& s) {
+    void adl_serializer<SimSnapshot>::to_json(ordered_json& j, const SimSnapshot& s) {
         j["params"] = s.params;
-        j["velocity_x"] = s.velocity_x;
-        j["velocity_y"] = s.velocity_y;
-        j["pressure"] = s.pressure;
-        j["cell_type"] = s.cell_type;
+        j["velocity_x"] = nlohmann::json(s.velocity_x).dump();
+        j["velocity_y"] = nlohmann::json(s.velocity_y).dump();
+        j["pressure"] = nlohmann::json(s.pressure).dump();
+        j["cell_type"] = nlohmann::json(s.cell_type).dump();
     }
 
-    SimSnapshot adl_serializer<SimSnapshot>::from_json(const json &j) {
+    SimSnapshot adl_serializer<SimSnapshot>::from_json(const ordered_json &j) {
         SimParams params{};
         j.at("params").get_to(params);
 
         auto snapshot = SimSnapshot(params);
 
-        if (j.at("velocity_x").size() != params.pixel_count())
-            throw std::runtime_error("Velocity X size mismatch");
-        j.at("velocity_x").get_to(snapshot.velocity_x);
+        auto extract_vector = [&j, &params](std::string key, auto& vec_ref) {
+            std::string array_dump;
+            j.at(key).get_to(array_dump);
+            auto array_json = nlohmann::json::parse(array_dump);
+            array_json.get_to(vec_ref);
+            DASSERT_M(vec_ref.size() == params.pixel_count(), "Size mismatch for %s - expected %zu got %zu\n", key.c_str(), params.pixel_count(), array_json.size());
+        };
 
-        if (j.at("velocity_y").size() != params.pixel_count())
-            throw std::runtime_error("Velocity Y size mismatch");
-        j.at("velocity_y").get_to(snapshot.velocity_y);
-
-        if (j.at("pressure").size() != params.pixel_count())
-            throw std::runtime_error("Pressure size mismatch");
-        j.at("pressure").get_to(snapshot.pressure);
-
-        if (j.at("cell_type").size() != params.pixel_count())
-            throw std::runtime_error("Cell Type size mismatch");
-        j.at("cell_type").get_to(snapshot.cell_type);
+        extract_vector("velocity_x", snapshot.velocity_x);
+        extract_vector("velocity_y", snapshot.velocity_y);
+        extract_vector("pressure", snapshot.pressure);
+        extract_vector("cell_type", snapshot.cell_type);
 
         return snapshot;
     }

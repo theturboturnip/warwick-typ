@@ -84,7 +84,7 @@ float CpuOptimizedSimBackend::tick() {
     const float del_t = baseTimestep / subdivisions;
     const int ifluid = (imax * jmax) - ibound;
     for (uint32_t t = 0; t < subdivisions; t++) {
-        fprintf(stderr, "t: %d\n", t);
+        //fprintf(stderr, "t: %d\n", t);
         //updateCurrCnt();
         computeTentativeVelocity(del_t);
         //addToCnt(tentVelCnt_div256);

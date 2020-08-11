@@ -79,5 +79,5 @@ struct SimParams {
     [[nodiscard]] LegacySimulationParameters to_legacy() const;
 };
 
-void to_json(nlohmann::json& j, const SimParams& p);
-void from_json(const nlohmann::json& j, SimParams& p);
+void to_json(nlohmann::ordered_json& j, const SimParams& p);
+void from_json(const nlohmann::ordered_json& j, SimParams& p);

@@ -26,12 +26,14 @@ void FixedTimeSimSubApp::run() {
     std::chrono::duration<double> diff = end - start;
     timeTaken = diff.count();
 
-    nlohmann::json output_json = output;
+    nlohmann::ordered_json output_json = output;
     std::string pretty_output_json = output_json.dump(4);
     fprintf(stderr, "performed calc in %f seconds\n", timeTaken);
-    fprintf(stderr, "enddump: %s", pretty_output_json.c_str());
+    //fprintf(stderr, "enddump: %s", pretty_output_json.c_str());
     if (outputFile.has_value()){
-        std::ofstream(outputFile.value()) << pretty_output_json;
+        std::ofstream output_stream;
+        output_stream.open(outputFile.value());
+        output_stream << pretty_output_json;
     }
 }
 

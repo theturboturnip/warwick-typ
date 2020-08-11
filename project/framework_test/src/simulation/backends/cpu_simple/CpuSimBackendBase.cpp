@@ -87,7 +87,7 @@ uint32_t CpuSimBackendBase::getRequiredTimestepSubdivision(float umax, float vma
     const float delt_Re = 1.0/(1/(delx*delx)+1/(dely*dely))*Re/2.0;
 
     const float min_delt = tau * std::min({delt_u, delt_v, delt_Re});
-    DASSERT_M(min_delt < 1.0e-10, "Minimum timestep is too small");
+    DASSERT_M(min_delt > 1.0e-10, "Minimum timestep is too small - was %f\n", min_delt);
     uint32_t subdivision = 1;
     float timestep = baseTimestep;
     while (timestep > min_delt) {

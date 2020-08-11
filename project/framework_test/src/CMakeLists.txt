@@ -7,6 +7,8 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/ISubApp.h
         cmd_line/subapps/MakeInputSubApp.cpp
         cmd_line/subapps/MakeInputSubApp.h
+        cmd_line/subapps/ConvertBinaryToJSONSubApp.cpp
+        cmd_line/subapps/ConvertBinaryToJSONSubApp.h
         cmd_line/subapps/FixedTimeSimSubApp.cpp
         cmd_line/subapps/FixedTimeSimSubApp.h
         cmd_line/subapps/CompareSubApp.cpp

@@ -40,7 +40,7 @@ struct SimSnapshot {
 namespace nlohmann {
     template<>
     struct adl_serializer<SimSnapshot> {
-        static SimSnapshot from_json(const nlohmann::json& j);
-        static void to_json(nlohmann::json& j, const SimSnapshot& s);
+        static SimSnapshot from_json(const nlohmann::ordered_json& j);
+        static void to_json(nlohmann::ordered_json& j, const SimSnapshot& s);
     };
 }

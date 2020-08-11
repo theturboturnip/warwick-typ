@@ -6,8 +6,8 @@
 #include <nlohmann/json.hpp>
 
 
-void to_json(nlohmann::json& j, const SimParams& p){
-    j = nlohmann::json{};
+void to_json(nlohmann::ordered_json& j, const SimParams& p){
+    j = nlohmann::ordered_json{};
     j["pixel_size"]["x"] = p.pixel_size.x;
     j["pixel_size"]["y"] = p.pixel_size.y;
     j["physical_size"]["x"] = p.physical_size.x;
@@ -24,7 +24,7 @@ void to_json(nlohmann::json& j, const SimParams& p){
     j["poisson_omega"] = p.poisson_omega;
 }
 
-void from_json(const nlohmann::json &j, SimParams &p) {
+void from_json(const nlohmann::ordered_json &j, SimParams &p) {
     j.at("pixel_size").at("x").get_to(p.pixel_size.x);
     j.at("pixel_size").at("y").get_to(p.pixel_size.y);
     j.at("physical_size").at("x").get_to(p.physical_size.x);

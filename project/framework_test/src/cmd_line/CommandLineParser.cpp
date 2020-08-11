@@ -8,8 +8,9 @@
 
 #include "cmd_line/subapps/CompareSubApp.h"
 #include "cmd_line/subapps/FixedTimeSimSubApp.h"
-#include "cmd_line/subapps/MakeInputSubApp.h"
 #include "cmd_line/subapps/LegacyRenderPPMSubApp.h"
+#include "cmd_line/subapps/MakeInputSubApp.h"
+#include "cmd_line/subapps/ConvertBinaryToJSONSubApp.h"
 
 int CommandLineParser::parseArguments(int argc, const char *argv[]) {
     CLI::App app{APP_NAME};
@@ -26,6 +27,7 @@ int CommandLineParser::parseArguments(int argc, const char *argv[]) {
                      std::make_shared<FixedTimeSimSubApp>(),
                      std::make_shared<CompareSubApp>(),
                      std::make_shared<LegacyRenderPPMSubApp>(),
+                     std::make_shared<ConvertBinaryToJSONSubApp>(),
             }};
 
     const CommandLineConverters converters{};
