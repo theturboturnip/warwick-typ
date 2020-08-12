@@ -22,55 +22,53 @@
 
 CpuSimpleSimBackend::CpuSimpleSimBackend(const SimSnapshot& s) : CpuSimBackendBase(s) {}
 
-float CpuSimpleSimBackend::tick() {
-    float umax = 1.0e-10;
-    float vmax = 1.0e-10;
+float CpuSimpleSimBackend::findMaxTimestep() {
+    int i, j;
+    float umax, vmax, deltu, deltv, deltRe;
 
-    // Loop was fused and parallelized
-#pragma omp parallel for schedule(static) reduction(max:umax) reduction(max:vmax) shared(u,v) default(none)
-    // Note - the original umax/vmax loops were i=[0,imax+1]/j=[1,jmax+1] for umax, i=[1,imax+1]/j=[0,jmax+1] for vmax
-    // Expanding these to fuse the loops is only going to make timesteps smaller, not accidentally make them larger.
-    // This is ok.
-    for (int i=0; i<=imax+1; i++) {
-        for (int j=0; j<=jmax+1; j++) {
+    //    /* del_t satisfying CFL conditions */
+    //    if (tau >= 1.0e-10) { /* else no time stepsize control */
+    umax = 1.0e-10;
+    vmax = 1.0e-10;
+    for (i = 0; i <= imax + 1; i++) {
+        for (j = 1; j <= jmax + 1; j++) {
             umax = max(fabs(u[i][j]), umax);
+        }
+    }
+    for (i = 1; i <= imax + 1; i++) {
+        for (j = 0; j <= jmax + 1; j++) {
             vmax = max(fabs(v[i][j]), vmax);
         }
     }
-    uint32_t subdivisions = getRequiredTimestepSubdivision(umax, vmax);
-    const float del_t = baseTimestep / subdivisions;
+
+    deltu = delx / umax;
+    deltv = dely / vmax;
+    deltRe = 1 / (1 / (delx * delx) + 1 / (dely * dely)) * Re / 2.0;
+
+    float del_t;
+    if (deltu < deltv) {
+        del_t = min(deltu, deltRe);
+    } else {
+        del_t = min(deltv, deltRe);
+    }
+    del_t = tau * (del_t); /* multiply by safety factor */
+    return del_t;
+//}
+}
+
+void CpuSimpleSimBackend::tick(float del_t) {
     const int ifluid = (imax * jmax) - ibound;
-    for (uint32_t t = 0; t < subdivisions; t++) {
-        //updateCurrCnt();
-        computeTentativeVelocity(del_t);
-        //addToCnt(tentVelCnt_div256);
-        computeRhs(del_t);
-        //addToCnt(rhs_div256);
 
-        // Assume some fluid module exists for now
-        int itersor;
-        float res = 0.0f;
-        if (ifluid > 0) {
-            itersor = poissonSolver(&res, ifluid);
-            //addToCnt(poisson_div256);
-        } else {
-            itersor = 0;
-            //updateCurrCnt();
-        }
+    computeTentativeVelocity(del_t);
+    computeRhs(del_t);
 
-        /*if (verbose > 1) {
-            printf("%d t:%g, del_t:%g, SOR iters:%3d, res:%e, bcells:%d\n",
-                   iters, t+del_t, del_t, itersor, res, ibound);
-        }*/
-
-        //updateCurrCnt();
-        updateVelocity(del_t);
-        //addToCnt(updateVel_div256);
-        applyBoundaryConditions();
-        //addToCnt(bounds_div256);
+    float res = 0.0f;
+    if (ifluid > 0) {
+        poissonSolver(&res, ifluid);
     }
 
-    return del_t*subdivisions;
+    updateVelocity(del_t);
+    applyBoundaryConditions();
 }
 
 // Computation of tentative velocity field (f, g)

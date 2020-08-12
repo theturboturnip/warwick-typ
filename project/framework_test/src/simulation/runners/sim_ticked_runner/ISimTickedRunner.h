@@ -11,11 +11,10 @@
 
 class ISimTickedRunner {
 protected:
-    explicit ISimTickedRunner(float baseTimestep) : m_baseTimestep(baseTimestep) {}
+    ISimTickedRunner() = default;
 
     bool m_started = false;
     float m_currentTime = 0;
-    const float m_baseTimestep;
 
 public:
     virtual ~ISimTickedRunner() = default;
@@ -33,5 +32,5 @@ public:
     virtual void loadFromLegacy(const SimSnapshot& dump) = 0;
     virtual std::optional<SimSnapshot> get_snapshot() = 0;
 
-    static std::unique_ptr<ISimTickedRunner> getForBackend(SimulationBackendEnum backendType, float baseTimestep);
+    static std::unique_ptr<ISimTickedRunner> getForBackend(SimulationBackendEnum backendType);
 };

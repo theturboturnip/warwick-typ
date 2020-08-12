@@ -13,7 +13,8 @@ class CpuSimpleSimBackend : public CpuSimBackendBase {
 public:
     explicit CpuSimpleSimBackend(const SimSnapshot& s);
 
-    float tick();
+    float findMaxTimestep();
+    void tick(float timestep);
 
 private:
     /*template<typename T>

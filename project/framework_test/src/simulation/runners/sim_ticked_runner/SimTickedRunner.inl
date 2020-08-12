@@ -16,7 +16,7 @@
 template<typename SimBackend>
 class SimTickedRunner : public ISimTickedRunner {
 public:
-    explicit SimTickedRunner(float baseTimestep) : ISimTickedRunner(baseTimestep) {}
+    explicit SimTickedRunner() : ISimTickedRunner() {}
     ~SimTickedRunner() override = default;
 
     void loadFromLegacy(const SimSnapshot& dump) override {
@@ -34,8 +34,8 @@ public:
     float tick() override {
         DASSERT_M(m_backendData, "Backend data was null, make sure to load state into the simulation!");
 
-        // TODO: timestep should be disregarded?
-        float timestep = m_backendData->tick();
+        float timestep = m_backendData->findMaxTimestep();
+        m_backendData->tick(timestep);
         m_currentTime += timestep;
 
         return timestep;

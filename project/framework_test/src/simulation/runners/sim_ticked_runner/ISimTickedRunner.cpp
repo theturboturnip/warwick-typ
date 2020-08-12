@@ -13,14 +13,14 @@
 #include "util/fatal_error.h"
 
 
-std::unique_ptr<ISimTickedRunner> ISimTickedRunner::getForBackend(SimulationBackendEnum backendType, float baseTimestep) {
+std::unique_ptr<ISimTickedRunner> ISimTickedRunner::getForBackend(SimulationBackendEnum backendType) {
     switch(backendType) {
         case Null:
-            return std::make_unique<SimTickedRunner<NullSimulation>>(baseTimestep);
+            return std::make_unique<SimTickedRunner<NullSimulation>>();
         case CpuSimple:
-            return std::make_unique<SimTickedRunner<CpuSimpleSimBackend>>(baseTimestep);
+            return std::make_unique<SimTickedRunner<CpuSimpleSimBackend>>();
         case CpuOptimized:
-            return std::make_unique<SimTickedRunner<CpuOptimizedSimBackend>>(baseTimestep);
+            return std::make_unique<SimTickedRunner<CpuOptimizedSimBackend>>();
         default:
             FATAL_ERROR("Enum val %d doesn't have an ISimTickedRunner!\n", backendType);
     }

@@ -15,7 +15,9 @@ public:
         auto sim = T(start);
         float currentTime = 0;
         while(currentTime < timeToRun) {
-            currentTime += sim.tick();
+            float maxTimestep = sim.findMaxTimestep();
+            sim.tick(maxTimestep);
+            currentTime += maxTimestep;
             //fprintf(stderr, "Current Time: %5g\r", currentTime);
         }
         //fprintf(stderr, "\n");

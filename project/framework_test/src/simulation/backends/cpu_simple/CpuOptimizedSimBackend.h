@@ -13,7 +13,8 @@ class CpuOptimizedSimBackend : public CpuSimBackendBase {
 public:
     explicit CpuOptimizedSimBackend(const SimSnapshot& s);
 
-    float tick();
+    float findMaxTimestep();
+    void tick(float timestep);
 
 private:
 

@@ -9,17 +9,21 @@
 #include "simulation/file_format/SimSnapshot.h"
 
 /**
- * ISimulation that does not actually do any simulation. Used for testing legacy state stuff etc.
+ * Simulation that does not actually do any simulation. Used for testing legacy state stuff etc.
  */
 class NullSimulation {
 public:
     explicit NullSimulation(const SimSnapshot& dump);
 
-    float tick();
+    // findMaxTimestep() is called first, to determine the upper bound of the timestep.
+    // return <0 if the runner can do anything
+    float findMaxTimestep();
+    // tick() will only ever be called with a timestep < findMaxTimestep()
+    void tick(float timestep);
+
     LegacySimDump dumpStateAsLegacy();
     SimSnapshot get_snapshot();
 
 private:
     SimSnapshot m_state;
-    const float m_baseTimestep;
 };
