@@ -27,15 +27,15 @@ public:
 
     // TODO - add operator =(std::vector<T>) to reassign backing?
 
-#if CHECKED
-    gsl::span<T> operator[](int index) {
-        return m_as2D[index];
-    }
-
-    gsl::span<const T> operator[](int index) const {
-        return m_as2D[index];
-    }
-#else
+//#if CHECKED
+//    gsl::span<T> operator[](int index) {
+//        return m_as2D[index];
+//    }
+//
+//    gsl::span<const T> operator[](int index) const {
+//        return m_as2D[index];
+//    }
+//#else
     T* operator[](int index) __attribute__((always_inline)) {
         return m_as2D[index];//.data();
     }
@@ -43,7 +43,7 @@ public:
     const T* operator[](int index) const __attribute__((always_inline)) {
         return m_as2D[index];//.data();
     }
-#endif
+//#endif
 
     const std::vector<T>& getBacking() {
         return m_backing;
