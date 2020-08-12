@@ -52,10 +52,4 @@ target_sources(generic_sources INTERFACE
 
 add_library(cuda_sources INTERFACE)
 target_sources(cuda_sources INTERFACE
-        simulation/backends/cuda/cuda_memory_wrappers.cu
-        simulation/backends/cuda/cuda_memory_wrappers.cuh
-        simulation/backends/cuda/cuda_red_black_pair.h
-        simulation/backends/cuda/cuda_sim.h
-        simulation/backends/cuda/cuda_vulkan_memory_wrappers.h
-        simulation/backends/cuda/interface.h
         )
