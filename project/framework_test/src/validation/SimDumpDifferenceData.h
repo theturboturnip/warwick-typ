@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <vector>
 #include "simulation/file_format/LegacySimDump.h"
+#include "simulation/file_format/SimSnapshot.h"
+#include <vector>
 
 struct SingleDataDifference {
     std::vector<float> error;
@@ -20,4 +21,5 @@ struct SimDumpDifferenceData {
     SingleDataDifference u, v, p;
 
     SimDumpDifferenceData(const LegacySimDump& a, const LegacySimDump& b);
+    SimDumpDifferenceData(const SimSnapshot& a, const SimSnapshot& b);
 };

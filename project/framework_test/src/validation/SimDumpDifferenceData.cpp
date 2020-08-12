@@ -12,6 +12,12 @@ SimDumpDifferenceData::SimDumpDifferenceData(const LegacySimDump &a, const Legac
     p(a.p, b.p)
     {}
 
+SimDumpDifferenceData::SimDumpDifferenceData(const SimSnapshot &a, const SimSnapshot &b) :
+        u(a.velocity_x, b.velocity_x),
+        v(a.velocity_y, b.velocity_y),
+        p(a.pressure, b.pressure)
+{}
+
 SingleDataDifference::SingleDataDifference(const std::vector<float> &a, const std::vector<float> &b) : error(a.size(), 0) {
     DASSERT(a.size() == b.size());
 

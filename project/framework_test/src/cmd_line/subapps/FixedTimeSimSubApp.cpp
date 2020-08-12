@@ -16,7 +16,6 @@ void FixedTimeSimSubApp::run() {
 
     auto sim = ISimFixedTimeRunner::getForBackend(backend);
 
-    double timeTaken;
 
     auto start = std::chrono::steady_clock::now();
 
@@ -24,7 +23,8 @@ void FixedTimeSimSubApp::run() {
 
     auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff = end - start;
-    timeTaken = diff.count();
+    double timeTaken = diff.count();
+
 
     nlohmann::ordered_json output_json = output;
     std::string pretty_output_json = output_json.dump(4);
