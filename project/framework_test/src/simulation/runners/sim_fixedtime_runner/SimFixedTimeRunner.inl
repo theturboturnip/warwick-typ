@@ -16,9 +16,9 @@ public:
         float currentTime = 0;
         while(currentTime < timeToRun) {
             currentTime += sim.tick();
-            fprintf(stderr, "Current Time: %5g\r", currentTime);
+            //fprintf(stderr, "Current Time: %5g\r", currentTime);
         }
-        fprintf(stderr, "\n");
+        //fprintf(stderr, "\n");
         return sim.get_snapshot();
     }
 };
