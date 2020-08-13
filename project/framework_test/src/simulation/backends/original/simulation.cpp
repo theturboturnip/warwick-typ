@@ -1,7 +1,3 @@
-//#ifdef __cplusplus
-//extern "C" {
-//#endif
-
 #include "simulation.h"
 
 #include <cstdio>
@@ -18,7 +14,7 @@
 
 namespace OriginalOptimized {
 
-/* Computation of tentative velocity field (f, g) */
+// Computation of tentative velocity field (f, g)
 void computeTentativeVelocity(float **u, float **v, float **f, float **g,
                               char **flag, int imax, int jmax, float del_t, float delx, float dely,
                               float gamma, float Re)
@@ -39,10 +35,10 @@ void computeTentativeVelocity(float **u, float **v, float **f, float **g,
     const double _4delx = 1.0/(4.0*delx);
     const double _4dely = 1.0/(4.0*dely);
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax-1; i++) {
         for (j=1; j<=jmax; j++) {
-            /* only if both adjacent cells are fluid cells */
+            // only if both adjacent cells are fluid cells
             if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
                 du2dx = ((u[i][j]+u[i+1][j])*(u[i][j]+u[i+1][j])+
                          gamma*fabs(u[i][j]+u[i+1][j])*(u[i][j]-u[i+1][j])-
@@ -66,10 +62,10 @@ void computeTentativeVelocity(float **u, float **v, float **f, float **g,
         }
     }
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax-1; j++) {
-            /* only if both adjacent cells are fluid cells */
+            // only if both adjacent cells are fluid cells
             if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
                 duvdx = ((u[i][j]+u[i][j+1])*(v[i][j]+v[i+1][j])+
                          gamma*fabs(u[i][j]+u[i][j+1])*(v[i][j]-v[i+1][j])-
@@ -92,7 +88,7 @@ void computeTentativeVelocity(float **u, float **v, float **f, float **g,
         }
     }
 
-    /* f & g at external boundaries */
+    // f & g at external boundaries
     for (j=1; j<=jmax; j++) {
         f[0][j]    = u[0][j];
         f[imax][j] = u[imax][j];
@@ -104,17 +100,17 @@ void computeTentativeVelocity(float **u, float **v, float **f, float **g,
 }
 
 
-/* Calculate the right hand side of the pressure equation */
+// Calculate the right hand side of the pressure equation
 void computeRhs(float **f, float **g, float **rhs, char **flag, int imax,
                 int jmax, float del_t, float delx, float dely)
 {
     int i, j;
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1;i<=imax;i++) {
         for (j=1;j<=jmax;j++) {
             if (flag[i][j] & C_F) {
-                /* only for fluid and non-surface cells */
+                // only for fluid and non-surface cells
                 rhs[i][j] = (
                                     (f[i][j]-f[i-1][j])/delx +
                                     (g[i][j]-g[i][j-1])/dely
@@ -125,7 +121,7 @@ void computeRhs(float **f, float **g, float **rhs, char **flag, int imax,
 }
 
 
-/* Red/Black SOR to solve the poisson equation */
+// Red/Black SOR to solve the poisson equation
 template<bool ErrorCheck>
 int poissonSolver(float **p, float **p_red, float **p_black,
                   float **p_beta, float **p_beta_red, float **p_beta_black,
@@ -137,7 +133,7 @@ int poissonSolver(float **p, float **p_red, float **p_black,
 {
     int i, j, iter;
 
-    int rb; /* Red-black value. */
+    int rb; // Red-black value.
 
     float rdx2 = 1.0/(delx*delx);
     const __m128 rdx2_v = _mm_set1_ps(rdx2);
@@ -147,19 +143,20 @@ int poissonSolver(float **p, float **p_red, float **p_black,
     const __m128 inv_omega_v = _mm_set1_ps(inv_omega);
 
     float p0 = 0.0;
-
-    /* Calculate sum of squares */
-    for (i = 1; i <= imax; i++) {
-        for (j = 1; j <= jmax; j++) {
-            if (flag[i][j] & C_F) {
-                float p_val = ((i+j)%2==0) ? p_red[i][j>>1] : p_black[i][j>>1];
-                p0 += p_val * p_val;
+    if (ErrorCheck) {
+        // Calculate sum of squares
+        for (i = 1; i <= imax; i++) {
+            for (j = 1; j <= jmax; j++) {
+                if (flag[i][j] & C_F) {
+                    float p_val = ((i + j) % 2 == 0) ? p_red[i][j >> 1] : p_black[i][j >> 1];
+                    p0 += p_val * p_val;
+                }
             }
         }
-    }
 
-    p0 = sqrt(p0/ifull);
-    if (p0 < 0.0001) { p0 = 1.0; }
+        p0 = sqrt(p0 / ifull);
+        if (p0 < 0.0001) { p0 = 1.0; }
+    }
     // Replace usages of *res with a stack variable, this can be converted to a register by the compiler
     // This is restored to *res at the end of the program
     float res_stack = 0.0;
@@ -171,7 +168,7 @@ int poissonSolver(float **p, float **p_red, float **p_black,
     // The RHS function does not operate on split matrices, so split the matrix back up
     splitToRedBlack(rhs, rhs_red, rhs_black, imax, jmax);
 
-    /* Red/Black SOR-iteration */
+    // Red/Black SOR-iteration
 
     for (iter = 0; iter < itermax; iter++) {
         //res_stack = 0.0f;
@@ -273,7 +270,7 @@ float add = (east - west) * rdx2 + (north - south) * rdy2 + m_rhs;
 threadlocal_res += add * add;
 res_stack += add * add;
 }
-} /* end of j black_check*/
+} */ // end of j black_check
                 } else {
 
                     // This assumes the size of the
@@ -298,7 +295,7 @@ res_stack += add * add;
                         __m128 final = _mm_fmsub_ps(inv_omega_v, centre, sum);
 
                         _mm_storeu_ps(&mid_col[j], final);
-                    }  /* end of j */
+                    }  // end of j
                     // This is a cleanup loop.
                     // Including this is unnecessary for the given input data, as jmax is divisible by 4
                     /*for(;j < j_end; j++){
@@ -322,11 +319,11 @@ res_stack += add * add;
                       // Similarly, if any FMA is used to calculate (horiz*rdx2+vert*rdy2) the simulation is "incorrect".
                       float beta_half = -beta_mod * ((horiz * rdx2 + vert * rdy2) + m_rhs);
                       mid_col[j] = fmaf(inv_omega, centre, beta_half);
-                      } /* end of j cleanup loop */
+                      } */ // end of j cleanup loop
                 }
 
-            } /* end of i */
-        } /* end of rb */
+            } // end of i
+        } // end of rb
 
         //fprintf(stderr, "res_stack: %g, partial_thresh: %g\n", res_stack, partial_res_sqr_thresh);
 
@@ -341,11 +338,6 @@ res_stack += add * add;
             // The rest of the code does not operate on split P matrices, so join them back up
             joinRedBlack(p, p_red, p_black, imax, jmax);
 
-            /*for (i = 0; i <= imax; i++) {
-                for (j = 0; j <= jmax; j++) {
-
-                }
-            }*/
 #pragma omp parallel for private(j) reduction(+: res_stack) default(shared)
             for (i = 1; i <= imax; i++) {
                 for (j = 1; j <= jmax; j++) {
@@ -375,7 +367,7 @@ res_stack += add * add;
 //        if (iter % 100 == 0 && eps < 0.01f) {
 //            eps *= 1.01f;
 //        }
-    } /* end of iter */
+    } // end of iter
 
 
     // The rest of the code does not operate on split P matrices, so join them back up
@@ -409,7 +401,7 @@ void calculatePBeta(float **p_beta,
     float rdy2 = 1.0/(dely*dely);
     float beta_2 = -omega/(2.0*(rdx2+rdy2));
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i = 1; i <= imax; i++) {
         for (j = 1; j <= jmax; j++) {
             if (flag[i][j] == (C_F | B_NSEW)) {
@@ -430,7 +422,7 @@ void splitToRedBlack(float **joined, float **red, float **black,
                      int imax, int jmax){
     int i,j;
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i = 0; i < imax+2; i++) {
         for (j = 0; j < jmax+2; j++) {
             if ((i+j) % 2 == 0)
@@ -445,7 +437,7 @@ void joinRedBlack(float **joined, float **red, float **black,
                   int imax, int jmax) {
     int i,j;
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i = 0; i < imax+2; i++) {
         for (j = 0; j < jmax+2; j++) {
             if ((i+j) % 2 == 0)
@@ -465,15 +457,15 @@ void updateVelocity(float **u, float **v, float **f, float **g, float **p,
     int i, j;
 
     // Loop was fused and parallelized
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax; j++) {
-            /* only if both adjacent cells are fluid cells */
+            // only if both adjacent cells are fluid cells
             if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
                 u[i][j] = f[i][j]-(p[i+1][j]-p[i][j])*del_t/delx;
             }
 
-            /* only if both adjacent cells are fluid cells */
+            // only if both adjacent cells are fluid cells
             if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
                 v[i][j] = g[i][j]-(p[i][j+1]-p[i][j])*del_t/dely;
             }
@@ -492,13 +484,13 @@ void setTimestepInterval(float *del_t, int imax, int jmax, float delx,
     int i, j;
     float umax, vmax, deltu, deltv, deltRe;
 
-    /* del_t satisfying CFL conditions */
-    if (tau >= 1.0e-10) { /* else no time stepsize control */
+    // del_t satisfying CFL conditions
+    if (tau >= 1.0e-10) { // else no time stepsize control
         umax = 1.0e-10;
         vmax = 1.0e-10;
 
         // Loop was fused and parallelized
-#pragma omp parallel for schedule(static) private(j) reduction(max:umax) reduction(max:vmax)
+#pragma omp parallel for schedule(static) private(j) reduction(max:umax) reduction(max:vmax) default(shared)
         for (i=0; i<=imax+1; i++) {
             for (j=1; j<=jmax+1; j++) {
                 umax = max(fabs(u[i][j]), umax);
@@ -515,7 +507,7 @@ void setTimestepInterval(float *del_t, int imax, int jmax, float delx,
         } else {
             *del_t = min(deltv, deltRe);
         }
-        *del_t = tau * (*del_t); /* multiply by safety factor */
+        *del_t = tau * (*del_t); // multiply by safety factor
     }
 }
 
@@ -525,11 +517,11 @@ void applyBoundaryConditions(float **u, float **v, char **flag,
     int i, j;
 
     for (j=0; j<=jmax+1; j++) {
-        /* Fluid freely flows in from the west */
+        // Fluid freely flows in from the west
         u[0][j] = u[1][j];
         v[0][j] = v[1][j];
 
-        /* Fluid freely flows out to the east */
+        // Fluid freely flows out to the east
         u[imax][j] = u[imax-1][j];
         v[imax+1][j] = v[imax][j];
     }
@@ -548,7 +540,7 @@ void applyBoundaryConditions(float **u, float **v, char **flag,
      * internal obstacle cells. This forces the u and v velocity to
      * tend towards zero in these cells.
      */
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax; j++) {
             if (flag[i][j] & B_NSEW) {
@@ -647,6 +639,3 @@ void splitFluidmaskToSurroundedMask(const int** fluidmask,
 }
 
 }
-//#ifdef __cplusplus
-//}
-//#endif

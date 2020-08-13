@@ -1,6 +1,4 @@
-//#ifdef __cplusplus
-//extern "C" {
-//#endif
+#pragma once
 
 namespace OriginalOptimized {
 
@@ -44,7 +42,3 @@ void calculateFluidmask(int **fluidmask, const char **flag,
 void splitFluidmaskToSurroundedMask(const int **f, int **red, int **black, int imax, int jmax);
 
 }
-
-//#ifdef __cplusplus
-//}
-//#endif

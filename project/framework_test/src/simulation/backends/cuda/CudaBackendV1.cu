@@ -63,8 +63,6 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
 
 float CudaBackendV1::findMaxTimestep() {
     float delta_t = -1;
-    //float *del_t, int imax, int jmax, float delx,
-    //    float dely, float **u, float **v, float Re, float tau
     OriginalOptimized::setTimestepInterval(&delta_t,
                         imax, jmax,
                         del_x, del_y,
@@ -85,23 +83,16 @@ void CudaBackendV1::tick(float timestep) {
                imax, jmax, timestep, del_x, del_y);
 
     float res = 0;
-    //if (ifluid > 0) {
-    //float **p, float **p_red, float **p_black,
-    //                  float **p_beta, float **p_beta_red, float **p_beta_black,
-    //                  float **rhs, float **rhs_red, float **rhs_black,
-    //                  char **flag, int imax, int jmax,
-    //                  float delx, float dely, float eps, int itermax, float omega,
-    //                  int ifull
-    OriginalOptimized::poissonSolver<false>(p.as_cpu(), p_red.as_cpu(), p_black.as_cpu(),
-                  p_beta.as_cpu(), p_beta_red.as_cpu(), p_beta_black.as_cpu(),
-                  rhs.as_cpu(), rhs_red.as_cpu(), rhs_black.as_cpu(),
-                  fluidmask.as_cpu(), surroundmask_black.as_cpu(),
-                  flag.as_cpu(), imax, jmax,
-                  del_x, del_y,
-                  params.poisson_error_threshold, params.poisson_max_iterations, params.poisson_omega,
-                  ifluid);
-    //}
-        fprintf(stdout, "ifluid: %d delx: %f dely: %f\n", ifluid, del_x, del_y);
+    if (ifluid > 0) {
+        OriginalOptimized::poissonSolver<false>(p.as_cpu(), p_red.as_cpu(), p_black.as_cpu(),
+                                            p_beta.as_cpu(), p_beta_red.as_cpu(), p_beta_black.as_cpu(),
+                                            rhs.as_cpu(), rhs_red.as_cpu(), rhs_black.as_cpu(),
+                                            fluidmask.as_cpu(), surroundmask_black.as_cpu(),
+                                            flag.as_cpu(), imax, jmax,
+                                            del_x, del_y,
+                                            params.poisson_error_threshold, params.poisson_max_iterations, params.poisson_omega,
+                                            ifluid);
+    }
 
     OriginalOptimized::updateVelocity(u.as_cpu(), v.as_cpu(),
                        f.as_cpu(), g.as_cpu(),
