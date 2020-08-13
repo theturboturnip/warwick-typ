@@ -92,7 +92,7 @@ void CudaBackendV1::tick(float timestep) {
     //                  char **flag, int imax, int jmax,
     //                  float delx, float dely, float eps, int itermax, float omega,
     //                  int ifull
-        poissonSolver(p.as_cpu(), p_red.as_cpu(), p_black.as_cpu(),
+        poissonSolver<false>(p.as_cpu(), p_red.as_cpu(), p_black.as_cpu(),
                   p_beta.as_cpu(), p_beta_red.as_cpu(), p_beta_black.as_cpu(),
                   rhs.as_cpu(), rhs_red.as_cpu(), rhs_black.as_cpu(),
                   fluidmask.as_cpu(), surroundmask_black.as_cpu(),

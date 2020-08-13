@@ -9,6 +9,7 @@ void computeTentativeVelocity(float **u, float **v, float **f, float **g,
 void computeRhs(float **f, float **g, float **rhs, char **flag, int imax,
                 int jmax, float del_t, float delx, float dely);
 
+template<bool ErrorCheck>
 int poissonSolver(float **p, float **p_red, float **p_black,
                   float **p_beta, float **p_beta_red, float **p_beta_black,
                   float **rhs, float **rhs_red, float **rhs_black,

@@ -124,6 +124,7 @@ void computeRhs(float **f, float **g, float **rhs, char **flag, int imax,
 
 
 /* Red/Black SOR to solve the poisson equation */
+template<bool ErrorCheck>
 int poissonSolver(float **p, float **p_red, float **p_black,
                   float **p_beta, float **p_beta_red, float **p_beta_black,
                   float **rhs, float **rhs_red, float **rhs_black,
@@ -203,7 +204,7 @@ int poissonSolver(float **p, float **p_red, float **p_black,
                 const int last_vector_end = j_start + total_vectors_processed * VECTOR_LENGTH;
 
                 // If we're doing the black side, and we aren't sure if we're within the error range, try adding to the residual.
-                if (rb == 1 && threadlocal_res < partial_res_sqr_thresh) {
+                if (ErrorCheck && rb == 1 && threadlocal_res < partial_res_sqr_thresh) {
                     for(j = j_start; j < last_vector_end; j += VECTOR_LENGTH) {
                         __m128 north = _mm_loadu_ps(&updown_col[j+north_offset]);
                         __m128 south = _mm_loadu_ps(&updown_col[j+north_offset+1]);
@@ -329,39 +330,43 @@ res_stack += add * add;
 
         //if (res_stack > partial_res_sqr_thresh) continue;
         //fprintf(stderr, "Didn't skip, res_stack=%.9g < %.9g\n", res_stack, partial_res_sqr_thresh);
+        if (ErrorCheck) {
 
-        res_stack = 0.0f;
-        // Compute the residual
-        // TODO: Use other fluidmask bits to make it faster? Probably not needed
+            res_stack = 0.0f;
+            // Compute the residual
+            // TODO: Use other fluidmask bits to make it faster? Probably not needed
 
-        // The rest of the code does not operate on split P matrices, so join them back up
-        joinRedBlack(p, p_red, p_black, imax, jmax);
+            // The rest of the code does not operate on split P matrices, so join them back up
+            joinRedBlack(p, p_red, p_black, imax, jmax);
 
-        /*for (i = 0; i <= imax; i++) {
-            for (j = 0; j <= jmax; j++) {
+            /*for (i = 0; i <= imax; i++) {
+                for (j = 0; j <= jmax; j++) {
 
-            }
-        }*/
-
-#pragma omp parallel for private(j) reduction(+:res_stack) default(shared)
-        for (i = 1; i <= imax; i++) {
-            for (j = 1; j <= jmax; j++) {
-                //if ((i+j)%2 != 0) continue;
-                if (flag[i][j] & C_F) {
-                    // only fluid cells
-                    float add = (fluid_E_mask(p[i+1][j]-p[i][j]) -
-                                 fluid_W_mask(p[i][j]-p[i-1][j])) * rdx2  +
-                                (fluid_N_mask(p[i][j+1]-p[i][j]) -
-                                 fluid_S_mask(p[i][j]-p[i][j-1])) * rdy2  -  rhs[i][j];
-                    res_stack += add*add;
+                }
+            }*/
+#pragma omp parallel for private(j) reduction(+: res_stack) default(shared)
+            for (i = 1; i <= imax; i++) {
+                for (j = 1; j <= jmax; j++) {
+                    //if ((i+j)%2 != 0) continue;
+                    if (flag[i][j] & C_F) {
+                        // only fluid cells
+                        float add = (fluid_E_mask(p[i + 1][j] - p[i][j]) -
+                                     fluid_W_mask(p[i][j] - p[i - 1][j])) *
+                                            rdx2 +
+                                    (fluid_N_mask(p[i][j + 1] - p[i][j]) -
+                                     fluid_S_mask(p[i][j] - p[i][j - 1])) *
+                                            rdy2 -
+                                    rhs[i][j];
+                        res_stack += add * add;
+                    }
                 }
             }
-        }
-        res_stack = sqrt((res_stack)/ifull)/p0;
-        ///fprintf(stdout, "res_stack: %g, eps: %g, ifull:%d, p0:%g\n", res_stack, eps, ifull, p0);
-        if (res_stack<eps) {
-            //fprintf(stdout, "\n");
-            return iter;
+            res_stack = sqrt((res_stack) / ifull) / p0;
+            ///fprintf(stdout, "res_stack: %g, eps: %g, ifull:%d, p0:%g\n", res_stack, eps, ifull, p0);
+            if (res_stack < eps) {
+                //fprintf(stdout, "\n");
+                return iter;
+            }
         }
 
 //        TODO - allow dynamic error to be enabled!!!
@@ -377,6 +382,20 @@ res_stack += add * add;
 
     return iter;
 }
+template int poissonSolver<true>(float **p, float **p_red, float **p_black,
+                                   float **p_beta, float **p_beta_red, float **p_beta_black,
+                                   float **rhs, float **rhs_red, float **rhs_black,
+                                   int** fluidmask, int** surroundmask_black,
+                                   char **flag, int imax, int jmax,
+                                   float delx, float dely, float eps, int itermax, float omega,
+                                   int ifull);
+template int poissonSolver<false>(float **p, float **p_red, float **p_black,
+                                    float **p_beta, float **p_beta_red, float **p_beta_black,
+                                    float **rhs, float **rhs_red, float **rhs_black,
+                                    int** fluidmask, int** surroundmask_black,
+                                    char **flag, int imax, int jmax,
+                                    float delx, float dely, float eps, int itermax, float omega,
+                                    int ifull);
 
 void calculatePBeta(float **p_beta,
                     char **flag,
