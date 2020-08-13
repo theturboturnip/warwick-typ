@@ -16,9 +16,11 @@ public:
         float currentTime = 0;
         while(currentTime < timeToRun) {
             float maxTimestep = sim.findMaxTimestep();
+            if (currentTime + maxTimestep > timeToRun)
+                maxTimestep = timeToRun - currentTime;
+            //fprintf(stdout, "t: %f\tts: %f\n", currentTime, maxTimestep);
             sim.tick(maxTimestep);
             currentTime += maxTimestep;
-            //fprintf(stderr, "Current Time: %5g\r", currentTime);
         }
         //fprintf(stderr, "\n");
         return sim.get_snapshot();
