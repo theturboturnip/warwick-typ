@@ -19,6 +19,7 @@ enum class CellType : uint8_t {
 struct SimSnapshot {
     explicit SimSnapshot(const SimParams& params);
     static SimSnapshot from_legacy(const SimParams& params, const LegacySimDump& from_legacy_dump);
+    static SimSnapshot from_file(std::string path);
 
     const SimParams params;
 

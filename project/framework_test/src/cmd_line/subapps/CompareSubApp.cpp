@@ -7,8 +7,8 @@
 #include "validation/SimDumpDifferenceData.h"
 
 void CompareSubApp::run() {
-    LegacySimDump a = LegacySimDump::fromFile(fileA);
-    LegacySimDump b = LegacySimDump::fromFile(fileB);
+    auto a = SimSnapshot::from_file(fileA);
+    auto b = SimSnapshot::from_file(fileB);
 
     auto diff = SimDumpDifferenceData(a, b);
     fprintf(stderr, "u:\n\tmean: \t%g\n\tvariance: \t%g\n\tstddev: \t%g\n", diff.u.errorMean, diff.u.errorVariance, diff.u.errorStdDev);

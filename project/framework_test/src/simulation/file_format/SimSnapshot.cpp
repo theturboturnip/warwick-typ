@@ -90,6 +90,12 @@ SimSnapshot SimSnapshot::from_legacy(const SimParams& params, const LegacySimDum
 
     return snapshot;
 }
+SimSnapshot SimSnapshot::from_file(std::string path) {
+    nlohmann::json j;
+    auto input = std::ifstream(path);
+    input >> j;
+    return j.get<SimSnapshot>();
+}
 
 namespace nlohmann{
     void adl_serializer<SimSnapshot>::to_json(ordered_json& j, const SimSnapshot& s) {
