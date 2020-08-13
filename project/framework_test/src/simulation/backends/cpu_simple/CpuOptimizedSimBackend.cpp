@@ -12,6 +12,8 @@
 #include <xmmintrin.h>
 #include <smmintrin.h>
 
+#include "simulation/backends/original/simulation.h"
+
 #define max(x,y) ((x)>(y)?(x):(y))
 #define min(x,y) ((x)<(y)?(x):(y))
 
@@ -68,7 +70,24 @@ CpuOptimizedSimBackend::CpuOptimizedSimBackend(const SimSnapshot& s) :
 void CpuOptimizedSimBackend::tick(float del_t) {
     const int ifluid = (imax * jmax) - ibound;
 
+//    computeTentativeVelocity(del_t);
+//    computeRhs(del_t);
+//
+//    float res = 0;
+//    if (ifluid > 0) {
+//        poissonSolver(&res, ifluid);
+//    }
+//
+//    fprintf(stdout, "ifluid: %d delx: %f dely: %f\n", ifluid, delx, dely);
+//
+//    updateVelocity(del_t);
+//    applyBoundaryConditions();
+
+//    OriginalOptimized::computeTentativeVelocity(u.get_pointers(), v.get_pointers(), f.get_pointers(), g.get_pointers(), flag.get_pointers(),
+//                                       imax, jmax, del_t, delx, dely, gamma, Re);
     computeTentativeVelocity(del_t);
+//    OriginalOptimized::computeRhs(f.get_pointers(), g.get_pointers(), rhs.get_pointers(), flag.get_pointers(),
+//                         imax, jmax, del_t, delx, dely);
     computeRhs(del_t);
 
     float res = 0;
@@ -96,7 +115,7 @@ float CpuOptimizedSimBackend::findMaxTimestep() {
     // Loop was fused and parallelized
 #pragma omp parallel for schedule(static) private(j) reduction(max:umax) reduction(max:vmax)
     for (i=0; i<=imax+1; i++) {
-        for (j=1; j<=jmax+1; j++) {
+        for (j=0; j<=jmax+1; j++) {
             umax = max(fabs(u[i][j]), umax);
             vmax = max(fabs(v[i][j]), vmax);
         }

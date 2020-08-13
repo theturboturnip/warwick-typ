@@ -45,6 +45,13 @@ public:
     }
 //#endif
 
+    T** get_pointers() {
+        return m_as2D.data();
+    }
+    const T** get_pointers() const {
+        return m_as2D.data();
+    }
+
     const std::vector<T>& getBacking() {
         return m_backing;
     }

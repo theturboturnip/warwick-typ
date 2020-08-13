@@ -4,7 +4,7 @@
 
 #include "CudaBackendV1.cuh"
 
-#include "simulation/backends/cuda/cpu_version/simulation.h"
+#include "simulation/backends/original/simulation.h"
 
 CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
     : params(s.params),
@@ -54,20 +54,20 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
     g.zero_out();
 
     // TODO - remove poisson_error_threshold from args
-    calculatePBeta(p_beta.as_cpu(), flag.as_cpu(), imax, jmax, del_x, del_y, params.poisson_error_threshold, params.poisson_omega);
-    splitToRedBlack(p.as_cpu(), p_red.as_cpu(), p_black.as_cpu(), imax, jmax);
-    splitToRedBlack(p_beta.as_cpu(), p_beta_red.as_cpu(), p_beta_black.as_cpu(), imax, jmax);
-    calculateFluidmask(fluidmask.as_cpu(), (const char**)flag.as_cpu(), imax, jmax);
-    splitFluidmaskToSurroundedMask((const int **)(fluidmask.as_cpu()), surroundmask_red.as_cpu(), surroundmask_black.as_cpu(), imax, jmax);
+    OriginalOptimized::calculatePBeta(p_beta.as_cpu(), flag.as_cpu(), imax, jmax, del_x, del_y, params.poisson_error_threshold, params.poisson_omega);
+    OriginalOptimized::splitToRedBlack(p.as_cpu(), p_red.as_cpu(), p_black.as_cpu(), imax, jmax);
+    OriginalOptimized::splitToRedBlack(p_beta.as_cpu(), p_beta_red.as_cpu(), p_beta_black.as_cpu(), imax, jmax);
+    OriginalOptimized::calculateFluidmask(fluidmask.as_cpu(), (const char**)flag.as_cpu(), imax, jmax);
+    OriginalOptimized::splitFluidmaskToSurroundedMask((const int **)(fluidmask.as_cpu()), surroundmask_red.as_cpu(), surroundmask_black.as_cpu(), imax, jmax);
 }
 
 float CudaBackendV1::findMaxTimestep() {
     float delta_t = -1;
     //float *del_t, int imax, int jmax, float delx,
     //    float dely, float **u, float **v, float Re, float tau
-    setTimestepInterval(&delta_t,
-                        params.pixel_size.x, params.pixel_size.y,
-                        params.del_x(), params.del_y(),
+    OriginalOptimized::setTimestepInterval(&delta_t,
+                        imax, jmax,
+                        del_x, del_y,
                         u.as_cpu(), v.as_cpu(),
                         params.Re,
                         params.timestep_safety
@@ -79,10 +79,10 @@ float CudaBackendV1::findMaxTimestep() {
 void CudaBackendV1::tick(float timestep) {
     //const int ifluid = (imax * jmax) - ibound;
 
-    computeTentativeVelocity(u.as_cpu(), v.as_cpu(), f.as_cpu(), g.as_cpu(), flag.as_cpu(),
-                             imax, jmax, timestep, params.del_x(), params.del_y(), params.gamma, params.Re);
-    computeRhs(f.as_cpu(), g.as_cpu(), rhs.as_cpu(), flag.as_cpu(),
-               imax, jmax, timestep, params.del_x(), params.del_y());
+    OriginalOptimized::computeTentativeVelocity(u.as_cpu(), v.as_cpu(), f.as_cpu(), g.as_cpu(), flag.as_cpu(),
+                             imax, jmax, timestep, del_x, del_y, params.gamma, params.Re);
+    OriginalOptimized::computeRhs(f.as_cpu(), g.as_cpu(), rhs.as_cpu(), flag.as_cpu(),
+               imax, jmax, timestep, del_x, del_y);
 
     float res = 0;
     //if (ifluid > 0) {
@@ -92,21 +92,22 @@ void CudaBackendV1::tick(float timestep) {
     //                  char **flag, int imax, int jmax,
     //                  float delx, float dely, float eps, int itermax, float omega,
     //                  int ifull
-        poissonSolver<false>(p.as_cpu(), p_red.as_cpu(), p_black.as_cpu(),
+    OriginalOptimized::poissonSolver<false>(p.as_cpu(), p_red.as_cpu(), p_black.as_cpu(),
                   p_beta.as_cpu(), p_beta_red.as_cpu(), p_beta_black.as_cpu(),
                   rhs.as_cpu(), rhs_red.as_cpu(), rhs_black.as_cpu(),
                   fluidmask.as_cpu(), surroundmask_black.as_cpu(),
                   flag.as_cpu(), imax, jmax,
-                  params.del_x(), params.del_y(),
+                  del_x, del_y,
                   params.poisson_error_threshold, params.poisson_max_iterations, params.poisson_omega,
                   ifluid);
     //}
+        fprintf(stdout, "ifluid: %d delx: %f dely: %f\n", ifluid, del_x, del_y);
 
-    updateVelocity(u.as_cpu(), v.as_cpu(),
+    OriginalOptimized::updateVelocity(u.as_cpu(), v.as_cpu(),
                        f.as_cpu(), g.as_cpu(),
                        p.as_cpu(), flag.as_cpu(),
-                       imax, jmax, timestep, params.del_x(), params.del_y());
-    applyBoundaryConditions(u.as_cpu(), v.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
+                       imax, jmax, timestep, del_x, del_y);
+    OriginalOptimized::applyBoundaryConditions(u.as_cpu(), v.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
 }
 LegacySimDump CudaBackendV1::dumpStateAsLegacy() {
     auto dump = LegacySimDump(params.to_legacy());

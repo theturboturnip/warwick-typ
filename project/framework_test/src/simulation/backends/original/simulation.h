@@ -2,6 +2,8 @@
 //extern "C" {
 //#endif
 
+namespace OriginalOptimized {
+
 void computeTentativeVelocity(float **u, float **v, float **f, float **g,
                               char **flag, int imax, int jmax, float del_t, float delx, float dely,
                               float gamma, float Re);
@@ -40,6 +42,8 @@ void applyBoundaryConditions(float **u, float **v, char **flag,
 void calculateFluidmask(int **fluidmask, const char **flag,
                         int imax, int jmax);
 void splitFluidmaskToSurroundedMask(const int **f, int **red, int **black, int imax, int jmax);
+
+}
 
 //#ifdef __cplusplus
 //}

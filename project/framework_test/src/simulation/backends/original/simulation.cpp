@@ -4,9 +4,9 @@
 
 #include "simulation.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
 #include "constants.h"
 
 #include <immintrin.h>
@@ -15,6 +15,8 @@
 
 #define max(x,y) ((x)>(y)?(x):(y))
 #define min(x,y) ((x)<(y)?(x):(y))
+
+namespace OriginalOptimized {
 
 /* Computation of tentative velocity field (f, g) */
 void computeTentativeVelocity(float **u, float **v, float **f, float **g,
@@ -644,6 +646,7 @@ void splitFluidmaskToSurroundedMask(const int** fluidmask,
     }
 }
 
+}
 //#ifdef __cplusplus
 //}
 //#endif

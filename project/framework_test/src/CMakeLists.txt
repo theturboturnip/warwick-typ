@@ -23,6 +23,9 @@ target_sources(generic_sources INTERFACE
         simulation/backends/cpu_simple/CpuSimpleSimBackend.h
         simulation/backends/null/NullSimulation.cpp
         simulation/backends/null/NullSimulation.h
+        simulation/backends/original/constants.h
+        simulation/backends/original/simulation.h
+        simulation/backends/original/simulation.cpp
         simulation/file_format/LegacySimDump.cpp
         simulation/file_format/LegacySimDump.h
         simulation/file_format/LegacySimulationParameters.h
@@ -55,7 +58,4 @@ target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/CudaBackendV1.cu
         simulation/backends/cuda/CudaBackendV1.cuh
         simulation/backends/cuda/utils/CudaUnified2DArray.cuh
-        simulation/backends/cuda/cpu_version/constants.h
-        simulation/backends/cuda/cpu_version/simulation.h
-        simulation/backends/cuda/cpu_version/simulation.cpp
         )
