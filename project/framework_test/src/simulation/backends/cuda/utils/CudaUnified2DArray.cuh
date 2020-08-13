@@ -9,14 +9,17 @@
 
 #include <cuda_runtime.h>
 
-template<typename T>
+template<typename T, bool NativeMemOnly=false>
 class CudaUnified2DArray {
 public:
     CudaUnified2DArray() : width(0), height(0) {}// = default;
     explicit CudaUnified2DArray(Size<size_t> size) : width(size.x), height(size.y) {
         // TODO - pitch allocation
-        cudaMallocManaged(&raw_data, width * height * sizeof(T));
-        //raw_data = (T*)malloc(width * height * sizeof(T));
+        if (NativeMemOnly) {
+            raw_data = (T*)malloc(width * height * sizeof(T));
+        } else {
+            cudaMallocManaged(&raw_data, width * height * sizeof(T));
+        }
         cpu_pointers = std::vector<T*>();
         for (int i = 0; i < width; i++) {
             cpu_pointers.push_back(raw_data + (i * height));
@@ -25,8 +28,11 @@ public:
     CudaUnified2DArray(const CudaUnified2DArray<T>&) = delete;
     ~CudaUnified2DArray() {
         if (raw_data) {
-            cudaFree(raw_data);
-            //free(raw_data);
+            if (NativeMemOnly) {
+                free(raw_data);
+            } else {
+                cudaFree(raw_data);
+            }
         }
     }
 
