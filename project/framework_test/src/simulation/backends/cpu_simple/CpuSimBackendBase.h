@@ -32,7 +32,7 @@ protected:
     const float baseTimestep;
 
     LegacyCompat2DBackingArray<float> u, v, f, g, p, rhs;
-    LegacyCompat2DBackingArray<uint8_t> flag;
+    LegacyCompat2DBackingArray<char> flag;
 
     uint32_t getRequiredTimestepSubdivision(float umax, float vmax) const;
 };

@@ -29,7 +29,7 @@ struct SimSnapshot {
 
     std::vector<CellType> cell_type;
 
-    [[nodiscard]] std::vector<uint8_t> get_legacy_cell_flags() const;
+    [[nodiscard]] std::vector<char> get_legacy_cell_flags() const;
     [[nodiscard]] int get_boundary_cell_count() const;
 
     [[nodiscard]] LegacySimDump to_legacy() const;

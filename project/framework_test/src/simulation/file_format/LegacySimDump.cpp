@@ -29,7 +29,7 @@ LegacySimDump LegacySimDump::fromFile(std::string path) {
     dump.u = std::vector<float>(totalElements);
     dump.v = std::vector<float>(totalElements);
     dump.p = std::vector<float>(totalElements);
-    dump.flag = std::vector<uint8_t>(totalElements);
+    dump.flag = std::vector<char>(totalElements);
 
     for (int i=0; i < dump.params.imax+2; i++) {
         fread(&dump.u[i * (dump.params.jmax+2)], sizeof(float), dump.params.jmax+2, fp);

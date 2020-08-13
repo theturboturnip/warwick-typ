@@ -36,8 +36,8 @@ int SimSnapshot::get_boundary_cell_count() const {
     return boundary_cell_count;
 }
 
-std::vector<uint8_t> SimSnapshot::get_legacy_cell_flags() const {
-    auto legacy = std::vector<uint8_t>(params.pixel_count(), 0);
+std::vector<char> SimSnapshot::get_legacy_cell_flags() const {
+    auto legacy = std::vector<char>(params.pixel_count(), 0);
 
     const int width = params.pixel_size.x+2;
     const int height = params.pixel_size.y+2;
