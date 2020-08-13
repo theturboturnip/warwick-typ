@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <cuda_runtime.h>
+#include "simulation/backends/cuda/kernels/common.cuh"
 
 template<typename T, bool NativeMemOnly=false>
 class CudaUnified2DArray {
@@ -20,6 +21,7 @@ public:
         } else {
             cudaMallocManaged(&raw_data, width * height * sizeof(T));
         }
+
         cpu_pointers = std::vector<T*>();
         for (int i = 0; i < width; i++) {
             cpu_pointers.push_back(raw_data + (i * height));
@@ -36,8 +38,8 @@ public:
         }
     }
 
-    T* as_gpu() {
-        return raw_data;
+    Array2D<T> as_gpu() {
+        return Array2D<T>(raw_data, height);
     }
     T** as_cpu() {
         return cpu_pointers.data();
@@ -55,9 +57,8 @@ public:
     }
 
     const size_t width, height;
-
-private:
     T* raw_data = nullptr;
+private:
 
     size_t raw_data_pitch = 0;
     std::vector<T*> cpu_pointers;

@@ -5,6 +5,7 @@
 #include "CudaBackendV1.cuh"
 
 #include "simulation/backends/original/simulation.h"
+#include "simulation/backends/cuda/kernels/simple.cuh"
 
 CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
     : params(s.params),
@@ -53,13 +54,20 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
     f.zero_out();
     g.zero_out();
 
+    cudaStreamCreate(&stream);
+
     // TODO - remove poisson_error_threshold from args
     OriginalOptimized::calculatePBeta(p_beta.as_cpu(), flag.as_cpu(), imax, jmax, del_x, del_y, params.poisson_error_threshold, params.poisson_omega);
     OriginalOptimized::splitToRedBlack(p.as_cpu(), p_red.as_cpu(), p_black.as_cpu(), imax, jmax);
     OriginalOptimized::splitToRedBlack(p_beta.as_cpu(), p_beta_red.as_cpu(), p_beta_black.as_cpu(), imax, jmax);
-    OriginalOptimized::calculateFluidmask(fluidmask.as_cpu(), (const char**)flag.as_cpu(), imax, jmax);
-    OriginalOptimized::splitFluidmaskToSurroundedMask((const int **)(fluidmask.as_cpu()), surroundmask_red.as_cpu(), surroundmask_black.as_cpu(), imax, jmax);
+    OriginalOptimized::calculateFluidmask((int**)fluidmask.as_cpu(), (const char**)flag.as_cpu(), imax, jmax);
+    OriginalOptimized::splitFluidmaskToSurroundedMask((const int **)(fluidmask.as_cpu()), (int**)surroundmask_red.as_cpu(), (int**)surroundmask_black.as_cpu(), imax, jmax);
 }
+
+CudaBackendV1::~CudaBackendV1() {
+    cudaStreamDestroy(stream);
+}
+
 
 float CudaBackendV1::findMaxTimestep() {
     float delta_t = -1;
@@ -76,22 +84,40 @@ float CudaBackendV1::findMaxTimestep() {
 
 void CudaBackendV1::tick(float timestep) {
     //const int ifluid = (imax * jmax) - ibound;
+    auto gpu_params = CommonParams{
+            .size = ulong2{matrix_size.x, matrix_size.y},
+            .deltas = float2{del_x, del_y},
+            .timestep = timestep,
+    };
+    dim3 threads_per_block(32, 32);
+    dim3 num_blocks(
+            (matrix_size.x + threads_per_block.x - 1) / threads_per_block.x,
+            (matrix_size.y + threads_per_block.y - 1) / threads_per_block.y
+            );
 
     OriginalOptimized::computeTentativeVelocity(u.as_cpu(), v.as_cpu(), f.as_cpu(), g.as_cpu(), flag.as_cpu(),
                              imax, jmax, timestep, del_x, del_y, params.gamma, params.Re);
-    OriginalOptimized::computeRhs(f.as_cpu(), g.as_cpu(), rhs.as_cpu(), flag.as_cpu(),
-               imax, jmax, timestep, del_x, del_y);
+//    OriginalOptimized::computeRhs(f.as_cpu(), g.as_cpu(), rhs.as_cpu(), flag.as_cpu(),
+//               imax, jmax, timestep, del_x, del_y);
+//    cudaMemPrefetchAsync(f.raw_data, rhs.width*rhs.height*sizeof(float), 0, stream);
+//    cudaMemPrefetchAsync(g.raw_data, rhs.width*rhs.height*sizeof(float), 0, stream);
+//    cudaMemPrefetchAsync(fluidmask.raw_data, rhs.width*rhs.height*sizeof(int), 0, stream);
+//    cudaStreamSynchronize(stream);
+    computeRHS_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.as_gpu().constify(), g.as_gpu().constify(), fluidmask.as_gpu().constify(),
+                          rhs.as_gpu(), gpu_params);
+    cudaStreamSynchronize(stream);
+//    cudaMemPrefetchAsync(rhs.raw_data, rhs.width*rhs.height*sizeof(float), cudaCpuDeviceId, stream);
 
     float res = 0;
     if (ifluid > 0) {
         OriginalOptimized::poissonSolver<false>(p.as_cpu(), p_red.as_cpu(), p_black.as_cpu(),
-                                            p_beta.as_cpu(), p_beta_red.as_cpu(), p_beta_black.as_cpu(),
-                                            rhs.as_cpu(), rhs_red.as_cpu(), rhs_black.as_cpu(),
-                                            fluidmask.as_cpu(), surroundmask_black.as_cpu(),
-                                            flag.as_cpu(), imax, jmax,
-                                            del_x, del_y,
-                                            params.poisson_error_threshold, params.poisson_max_iterations, params.poisson_omega,
-                                            ifluid);
+                                                p_beta.as_cpu(), p_beta_red.as_cpu(), p_beta_black.as_cpu(),
+                                                rhs.as_cpu(), rhs_red.as_cpu(), rhs_black.as_cpu(),
+                                                (int**)fluidmask.as_cpu(), (int**)surroundmask_black.as_cpu(),
+                                                flag.as_cpu(), imax, jmax,
+                                                del_x, del_y,
+                                                params.poisson_error_threshold, params.poisson_max_iterations, params.poisson_omega,
+                                                ifluid);
     }
 
     OriginalOptimized::updateVelocity(u.as_cpu(), v.as_cpu(),

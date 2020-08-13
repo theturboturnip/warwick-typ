@@ -12,6 +12,7 @@
 class CudaBackendV1 {
 public:
     explicit CudaBackendV1(const SimSnapshot& s);
+    ~CudaBackendV1();
 
     float findMaxTimestep();
     void tick(float timestep);
@@ -34,5 +35,7 @@ private:
     CudaUnified2DArray<float> p_beta, p_beta_red, p_beta_black;
     CudaUnified2DArray<float> rhs, rhs_red, rhs_black;
     CudaUnified2DArray<char> flag;
-    CudaUnified2DArray<int> fluidmask, surroundmask_red, surroundmask_black;
+    CudaUnified2DArray<uint> fluidmask, surroundmask_red, surroundmask_black;
+
+    cudaStream_t stream;
 };
