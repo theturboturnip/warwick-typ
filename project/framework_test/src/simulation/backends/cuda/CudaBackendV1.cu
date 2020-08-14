@@ -85,6 +85,8 @@ float CudaBackendV1::findMaxTimestep() {
 void CudaBackendV1::tick(float timestep) {
     auto gpu_params = CommonParams{
             .size = ulong2{matrix_size.x, matrix_size.y},
+            .col_pitch_4byte=matrix_size.y,
+            .col_pitch_redblack=redblack_matrix_size.y,
             .deltas = float2{del_x, del_y},
             .timestep = timestep,
     };
@@ -100,8 +102,7 @@ void CudaBackendV1::tick(float timestep) {
 //    OriginalOptimized::computeRhs(f.as_cpu(), g.as_cpu(), rhs2.as_cpu(), flag.as_cpu(),
 //               imax, jmax, timestep, del_x, del_y);
 
-    computeRHS_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.raw_data, g.raw_data, fluidmask.raw_data, rhs.raw_data, gpu_params);
-    //set<<<num_blocks, threads_per_block, 0, stream>>>(u.raw_data, 20.0, gpu_params);
+    computeRHS_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.as_gpu(), g.as_gpu(), fluidmask.as_gpu(), rhs.as_gpu(), gpu_params);
     cudaStreamSynchronize(stream);
 
 
@@ -117,10 +118,15 @@ void CudaBackendV1::tick(float timestep) {
                                                 ifluid);
     }
 
-    OriginalOptimized::updateVelocity(u.as_cpu(), v.as_cpu(),
-                       f.as_cpu(), g.as_cpu(),
-                       p.as_cpu(), flag.as_cpu(),
-                       imax, jmax, timestep, del_x, del_y);
+//    OriginalOptimized::updateVelocity(u.as_cpu(), v.as_cpu(),
+//                       f.as_cpu(), g.as_cpu(),
+//                       p.as_cpu(), flag.as_cpu(),
+//                       imax, jmax, timestep, del_x, del_y);
+    updateVelocity_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.as_gpu(), g.as_gpu(), p.as_gpu(), fluidmask.as_gpu(),
+                                                                      u.as_gpu(), v.as_gpu(),
+                                                                      gpu_params);
+    cudaStreamSynchronize(stream);
+
     OriginalOptimized::applyBoundaryConditions(u.as_cpu(), v.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
 }
 LegacySimDump CudaBackendV1::dumpStateAsLegacy() {

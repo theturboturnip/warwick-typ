@@ -38,8 +38,10 @@ public:
         }
     }
 
-    Array2D<T> as_gpu() {
-        return Array2D<T>(raw_data, height);
+    template<typename = typename std::enable_if<!NativeMemOnly>::type>
+    T* as_gpu() {
+        static_assert(!NativeMemOnly, "as_gpu() only exists when NativeMemOnly = false!");
+        return raw_data;
     }
     T** as_cpu() {
         return cpu_pointers.data();
@@ -57,8 +59,9 @@ public:
     }
 
     const size_t width, height;
-    T* raw_data = nullptr;
+    size_t col_pitch;
 private:
+    T* raw_data = nullptr;
 
     size_t raw_data_pitch = 0;
     std::vector<T*> cpu_pointers;
