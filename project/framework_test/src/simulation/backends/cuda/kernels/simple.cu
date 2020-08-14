@@ -9,9 +9,9 @@
 #include <cstdio>
 
 // This is used to simulate a fma() C call - nvcc should optimize this down to a single FMA instr
-__device__ inline double fma_cuda(double a, double b, double c) {
+__device__ inline float fma_cuda(float a, float b, float c) {
     //return a * b + c;
-    return __fma_rn(a, b, c);
+    return __fmaf_rn(a, b, c);
 }
 
 __global__ void computeTentativeVelocity_apply(
@@ -42,14 +42,14 @@ __global__ void computeTentativeVelocity_apply(
     // are rounded down to single precision.
     // at that precision, the difference between (1/delx/delx) and (1/(delx*delx)) is very small, especially at double precision
     // adding the div by Re makes it faster, but puts accuracy down to e=0.0001
-    const double delx2 = 1.0/((double)params.deltas.x * (double)params.deltas.x);
-    const double dely2 = 1.0/((double)params.deltas.y * (double)params.deltas.y);
+    const float delx2 = 1.0f/(params.deltas.x * params.deltas.x);
+    const float dely2 = 1.0f/(params.deltas.y * params.deltas.y);
 
     // The use of `double fabs(double);` in du2dx, duvdy etc. force the division by 4*dely to be performed at double precision
     // However, the result is rounded down to single precision directly afterwards.
     // This means we can multiply by the reciporical instead without any loss in accuracy on the given input data.
-    const double _4delx = 1.0/(4.0*params.deltas.x);
-    const double _4dely = 1.0/(4.0*params.deltas.y);
+    const float _4delx = 1.0f/(4.0f*params.deltas.x);
+    const float _4dely = 1.0f/(4.0f*params.deltas.y);
 
     // TODO - could be worth splitting into two kernels for idx_east, idx_south?
     // In large majority of cases both will be true - only false when directly on a boundary
@@ -68,8 +68,8 @@ __global__ void computeTentativeVelocity_apply(
                        gamma*fabs(v[idx_south]+v[idx_south_east])*(u[idx_south]-u[idx]))
                       *_4dely;
 
-        float laplu = fma_cuda((fma_cuda(-2.0, u[idx], u[idx_east])+u[idx_west]), delx2,
-                          (fma_cuda(-2.0, u[idx], u[idx_north])+u[idx_south])*dely2);
+        float laplu = fma_cuda((fma_cuda(-2.0f, u[idx], u[idx_east])+u[idx_west]), delx2,
+                          (fma_cuda(-2.0f, u[idx], u[idx_north])+u[idx_south])*dely2);
 
         // This is not implicitly casted, so the division by Re cannot be converted to a multiplication.
         f[idx] = u[idx]+params.timestep*(laplu/Re-du2dx-duvdy);
@@ -92,8 +92,8 @@ __global__ void computeTentativeVelocity_apply(
                        gamma*fabs(v[idx_south]+v[idx])*(v[idx_south]-v[idx]))
                       *_4dely;
 
-        float laplv = fma_cuda((fma_cuda(-2.0, v[idx], v[idx_east])+v[idx_west]),delx2,
-                          (fma_cuda(-2.0, v[idx], v[idx_north])+v[idx_south])*dely2);
+        float laplv = fma_cuda((fma_cuda(-2.0f, v[idx], v[idx_east])+v[idx_west]),delx2,
+                          (fma_cuda(-2.0f, v[idx], v[idx_north])+v[idx_south])*dely2);
 
         g[idx] = v[idx]+params.timestep*(laplv/Re-duvdx-dv2dy);
     } else {
