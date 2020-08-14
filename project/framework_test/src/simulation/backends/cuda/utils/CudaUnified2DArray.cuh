@@ -18,8 +18,10 @@ public:
         // TODO - pitch allocation
         if (NativeMemOnly) {
             raw_data = (T*)malloc(width * height * sizeof(T));
+            col_pitch = height;
         } else {
             cudaMallocManaged(&raw_data, width * height * sizeof(T));
+            col_pitch = height;
         }
 
         cpu_pointers = std::vector<T*>();

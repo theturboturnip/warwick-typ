@@ -20,9 +20,11 @@ __global__ void updateVelocity_1per(in_matrix<float> f, in_matrix<float> g, in_m
                                     out_matrix<float> u, out_matrix<float> v,
                                     const CommonParams params);
 
-__global__ void computeRHS_1per(//Array2D<const float> f, Array2D<const float> g, Array2D<const uint> flag,
-                                //Array2D<float> rhs,
-         const float* __restrict__ f, const float* __restrict__ g, const uint* __restrict__ is_fluid, float* rhs,
-                                CommonParams params);
+__global__ void boundaryConditions_preproc_vertical(out_matrix<float> u, out_matrix<float> v, const CommonParams params);
+__global__ void boundaryConditions_preproc_horizontal(out_matrix<float> u, out_matrix<float> v, const CommonParams params);
+
+__global__ void boundaryConditions_apply(in_matrix<char> flags, out_matrix<float> u, out_matrix<float> v, const CommonParams params);
+
+__global__ void boundaryConditions_inputflow_west_vertical(out_matrix<float> u, out_matrix<float> v, float2 west_velocity, const CommonParams params);
 
 __global__ void set(float* output, float val, CommonParams params);
