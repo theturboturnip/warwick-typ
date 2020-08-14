@@ -105,6 +105,9 @@ void CudaBackendV1::tick(float timestep) {
     OriginalOptimized::computeTentativeVelocity(u.as_cpu(), v.as_cpu(), f.as_cpu(), g.as_cpu(), flag.as_cpu(),
                              imax, jmax, timestep, del_x, del_y, params.gamma, params.Re);
 
+    computeTentativeVelocity_postproc_vertical<<<vertical_num_blocks, vertical_blocksize, 0, stream>>>(u.as_gpu(), f.as_gpu(), gpu_params);
+    computeTentativeVelocity_postproc_horizontal<<<horizontal_num_blocks, horizontal_blocksize, 0, stream>>>(v.as_gpu(), g.as_gpu(), gpu_params);
+
 //    OriginalOptimized::computeRhs(f.as_cpu(), g.as_cpu(), rhs2.as_cpu(), flag.as_cpu(),
 //               imax, jmax, timestep, del_x, del_y);
 
@@ -131,13 +134,13 @@ void CudaBackendV1::tick(float timestep) {
     updateVelocity_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.as_gpu(), g.as_gpu(), p.as_gpu(), fluidmask.as_gpu(),
                                                                       u.as_gpu(), v.as_gpu(),
                                                                       gpu_params);
-    cudaStreamSynchronize(stream);
-
-    CudaUnified2DArray<float> u2({u.width, u.height});
-    u2.memcpy_in(u.extract_data());
-
-    CudaUnified2DArray<float> v2({v.width, v.height});
-    v2.memcpy_in(v.extract_data());
+//    cudaStreamSynchronize(stream);
+//
+//    CudaUnified2DArray<float> u2({u.width, u.height});
+//    u2.memcpy_in(u.extract_data());
+//
+//    CudaUnified2DArray<float> v2({v.width, v.height});
+//    v2.memcpy_in(v.extract_data());
 
     boundaryConditions_preproc_vertical<<<vertical_blocksize, vertical_num_blocks, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
     boundaryConditions_preproc_horizontal<<<horizontal_blocksize, horizontal_num_blocks, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
@@ -152,18 +155,9 @@ void CudaBackendV1::tick(float timestep) {
             gpu_params
             );
 
-    OriginalOptimized::applyBoundaryConditions(u2.as_cpu(), v2.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
+//    OriginalOptimized::applyBoundaryConditions(u2.as_cpu(), v2.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
 
     cudaStreamSynchronize(stream);
-
-    float** u_data = u.as_cpu();
-    float** u2_data = u2.as_cpu();
-    for (int i = 0; i < u2.width; i++) {
-        for (int j = 0; j < u2.height; j++) {
-            if (u_data[i][j] != u2_data[i][j])
-                fprintf(stdout, "%03d %03d u=%f u_cpu=%f\n", i, j, u_data[i][j], u2_data[i][j]);
-        }
-    }
 }
 LegacySimDump CudaBackendV1::dumpStateAsLegacy() {
     auto dump = LegacySimDump(params.to_legacy());

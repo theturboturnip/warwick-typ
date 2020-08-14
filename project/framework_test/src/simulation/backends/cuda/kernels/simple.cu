@@ -8,6 +8,104 @@
 
 #include <cstdio>
 
+__global__ void computeTentativeVelocity_apply(
+        in_matrix<float> u, in_matrix<float> v, in_matrix<uint> is_fluid,
+        out_matrix<float> f, out_matrix<float> g,
+        const CommonParams params,
+        const float gamma, const float Re
+) {
+    const uint i = (blockIdx.x * blockDim.x) + threadIdx.x;
+    const uint j = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+    if (!params.in_real_range(i, j)) return;
+
+    const uint idx = params.flatten_4byte(i, j);
+    const uint idx_east = params.flatten_4byte(i+1, j);
+    const uint idx_south = params.flatten_4byte(i, j);
+
+    if (!is_fluid[idx]) return;
+
+    // TODO - could be worth splitting into two kernels for idx_east, idx_south?
+    // In large majority of cases both will be true - only false when directly on a boundary
+//    for (i=1; i<=imax-1; i++) { <- we should reject i >= imax == params.size.x - 2
+//        for (j=1; j<=jmax; j++) {
+    if ((i < params.size.x - 2) && is_fluid[idx_east]) {
+        // TODO
+    } else {
+        f[idx] = u[idx];
+    }
+
+//    for (i=1; i<=imax; i++) {
+//        for (j=1; j<=jmax-1; j++) { <- we should reject j >= jmax == params.size.y - 2
+    if ((j < params.size.y - 2) && is_fluid[idx_south]) {
+        // TODO
+    } else {
+        g[idx] = v[idx];
+    }
+
+//#pragma omp parallel for schedule(static) private(j) default(none)
+//    for (i=1; i<=imax-1; i++) {
+//        for (j=1; j<=jmax; j++) {
+//            // only if both adjacent cells are fluid cells
+//            if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
+//                float du2dx = ((u[i][j]+u[i+1][j])*(u[i][j]+u[i+1][j])+
+//                               gamma*fabs(u[i][j]+u[i+1][j])*(u[i][j]-u[i+1][j])-
+//                               (u[i-1][j]+u[i][j])*(u[i-1][j]+u[i][j])-
+//                               gamma*fabs(u[i-1][j]+u[i][j])*(u[i-1][j]-u[i][j]))
+//                              *_4delx;
+//                float duvdy = ((v[i][j]+v[i+1][j])*(u[i][j]+u[i][j+1])+
+//                               gamma*fabs(v[i][j]+v[i+1][j])*(u[i][j]-u[i][j+1])-
+//                               (v[i][j-1]+v[i+1][j-1])*(u[i][j-1]+u[i][j])-
+//                               gamma*fabs(v[i][j-1]+v[i+1][j-1])*(u[i][j-1]-u[i][j]))
+//                              *_4dely;
+//
+//                float laplu = fma((fma(-2.0, u[i][j], u[i+1][j])+u[i-1][j]), delx2,
+//                                  (fma(-2.0, u[i][j], u[i][j+1])+u[i][j-1])*dely2);
+//
+//                // This is not implicitly casted, so the division by Re cannot be converted to a multiplication.
+//                f[i][j] = u[i][j]+del_t*(laplu/Re-du2dx-duvdy);
+//            } else {
+//                f[i][j] = u[i][j];
+//            }
+//        }
+//    }
+}
+
+__global__ void computeTentativeVelocity_postproc_vertical(in_matrix<float> u, out_matrix<float> f, const CommonParams params) {
+    const uint j = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+    // for (j=1; j<=jmax; j++) {
+    if (j == 0 || j >= params.size.y - 1) return;
+
+//        f[0][j]    = u[0][j];
+//        f[imax][j] = u[imax][j];
+//    }
+
+    const uint idx_0 = params.flatten_4byte(0, j);
+    f[idx_0] = u[idx_0];
+
+    // TODO - why is this at imax? there's another element just after
+    const uint idx_imax = params.flatten_4byte(params.size.x - 2, j);
+    f[idx_imax] = u[idx_imax];
+}
+__global__ void computeTentativeVelocity_postproc_horizontal(in_matrix<float> v, out_matrix<float> g, const CommonParams params) {
+    const uint i = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+    // for (i=1; i<=imax; i++) {
+    if (i == 0 || i >= params.size.x - 1) return;
+
+//        g[i][0]    = v[i][0];
+//        g[i][jmax] = v[i][jmax];
+//    }
+
+    const uint idx_0 = params.flatten_4byte(1, 0);
+    g[idx_0] = v[idx_0];
+
+    // TODO - why is this at jmax? there's another element just after
+    const uint idx_jmax = params.flatten_4byte(i, params.size.y - 2);
+    g[idx_jmax] = v[idx_jmax];
+}
+
 __global__ void computeRHS_1per(in_matrix<float> f, in_matrix<float> __restrict__ g, in_matrix<uint> is_fluid, out_matrix<float> rhs,
                                 const CommonParams params) {
     const uint i = (blockIdx.x * blockDim.x) + threadIdx.x;
