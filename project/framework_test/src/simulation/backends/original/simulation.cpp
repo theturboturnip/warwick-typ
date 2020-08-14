@@ -126,18 +126,25 @@ void computeTentativeVelocity<float>(float ** const u, float ** const v, float *
             // only if both adjacent cells are fluid cells
             if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
                 float du2dx = ((u[i][j]+u[i+1][j])*(u[i][j]+u[i+1][j])+
-                               gamma*fabs(u[i][j]+u[i+1][j])*(u[i][j]-u[i+1][j])-
+                               gamma*fabsf(u[i][j]+u[i+1][j])*(u[i][j]-u[i+1][j])-
                                (u[i-1][j]+u[i][j])*(u[i-1][j]+u[i][j])-
-                               gamma*fabs(u[i-1][j]+u[i][j])*(u[i-1][j]-u[i][j]))
+                               gamma*fabsf(u[i-1][j]+u[i][j])*(u[i-1][j]-u[i][j]))
                               *_4delx;
                 float duvdy = ((v[i][j]+v[i+1][j])*(u[i][j]+u[i][j+1])+
-                               gamma*fabs(v[i][j]+v[i+1][j])*(u[i][j]-u[i][j+1])-
+                               gamma*fabsf(v[i][j]+v[i+1][j])*(u[i][j]-u[i][j+1])-
                                (v[i][j-1]+v[i+1][j-1])*(u[i][j-1]+u[i][j])-
-                               gamma*fabs(v[i][j-1]+v[i+1][j-1])*(u[i][j-1]-u[i][j]))
+                               gamma*fabsf(v[i][j-1]+v[i+1][j-1])*(u[i][j-1]-u[i][j]))
                               *_4dely;
 
                 float laplu = fmaf((fmaf(-2.0f, u[i][j], u[i+1][j])+u[i-1][j]), delx2,
                                   (fmaf(-2.0f, u[i][j], u[i][j+1])+u[i][j-1])*dely2);
+
+//                if (i == 100 && j == 100) {
+//                    printf("100/100 CPU\n");
+//                    //printf("%.9g %.9g %.9g\n", u[i-1][j], u[i][j], u[i+1][j]);
+//                    printf("%a %a %a\n", du2dx, duvdy, laplu);
+//                    //printf("%.9g %.9g\n", _4delx, gamma);
+//                }
 
                 // This is not implicitly casted, so the division by Re cannot be converted to a multiplication.
                 f[i][j] = u[i][j]+del_t*(laplu/Re-du2dx-duvdy);
@@ -153,14 +160,14 @@ void computeTentativeVelocity<float>(float ** const u, float ** const v, float *
             // only if both adjacent cells are fluid cells
             if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
                 float duvdx = ((u[i][j]+u[i][j+1])*(v[i][j]+v[i+1][j])+
-                               gamma*fabs(u[i][j]+u[i][j+1])*(v[i][j]-v[i+1][j])-
+                               gamma*fabsf(u[i][j]+u[i][j+1])*(v[i][j]-v[i+1][j])-
                                (u[i-1][j]+u[i-1][j+1])*(v[i-1][j]+v[i][j])-
-                               gamma*fabs(u[i-1][j]+u[i-1][j+1])*(v[i-1][j]-v[i][j]))
+                               gamma*fabsf(u[i-1][j]+u[i-1][j+1])*(v[i-1][j]-v[i][j]))
                               *_4delx;
                 float dv2dy = ((v[i][j]+v[i][j+1])*(v[i][j]+v[i][j+1])+
-                               gamma*fabs(v[i][j]+v[i][j+1])*(v[i][j]-v[i][j+1])-
+                               gamma*fabsf(v[i][j]+v[i][j+1])*(v[i][j]-v[i][j+1])-
                                (v[i][j-1]+v[i][j])*(v[i][j-1]+v[i][j])-
-                               gamma*fabs(v[i][j-1]+v[i][j])*(v[i][j-1]-v[i][j]))
+                               gamma*fabsf(v[i][j-1]+v[i][j])*(v[i][j-1]-v[i][j]))
                               *_4dely;
 
                 float laplv = fmaf((fmaf(-2.0f, v[i][j], v[i+1][j])+v[i-1][j]),delx2,

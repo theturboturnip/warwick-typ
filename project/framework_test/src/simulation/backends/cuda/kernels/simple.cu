@@ -11,6 +11,10 @@
 // This is used to simulate a fma() C call - nvcc should optimize this down to a single FMA instr
 __device__ inline float fma_cuda(float a, float b, float c) {
     //return a * b + c;
+
+    // Using __fmaf_rn here makes it 1 bit out from computeTentativeVelocity normal
+    // _rn = round to nearest, which is the default.
+    // _rz = round to zero
     return __fmaf_rn(a, b, c);
 }
 
@@ -33,7 +37,6 @@ __global__ void computeTentativeVelocity_apply(
     const uint idx_west = params.flatten_4byte(i-1, j);
     const uint idx_north = params.flatten_4byte(i, j+1);
     const uint idx_south = params.flatten_4byte(i, j-1);
-    const uint idx_south_west = params.flatten_4byte(i-1, j-1);
     const uint idx_south_east = params.flatten_4byte(i+1, j-1);
     const uint idx_north_west = params.flatten_4byte(i-1, j+1);
 
@@ -58,18 +61,30 @@ __global__ void computeTentativeVelocity_apply(
     if ((i < params.size.x - 2) && is_fluid[idx_east]) {
         // TODO Fix floating point issues - use single only?
         float du2dx = ((u[idx]+u[idx_east])*(u[idx]+u[idx_east])+
-                       gamma*fabs(u[idx]+u[idx_east])*(u[idx]-u[idx_east])-
+                       gamma*fabsf(u[idx]+u[idx_east])*(u[idx]-u[idx_east])-
                        (u[idx_west]+u[idx])*(u[idx_west]+u[idx])-
-                       gamma*fabs(u[idx_west]+u[idx])*(u[idx_west]-u[idx]))
+                       gamma*fabsf(u[idx_west]+u[idx])*(u[idx_west]-u[idx]))
                       *_4delx;
+//        float du2dx = ((u[i][j]+u[i+1][j])*(u[i][j]+u[i+1][j])+
+//                       gamma*fabs(u[i][j]+u[i+1][j])*(u[i][j]-u[i+1][j])-
+//                       (u[i-1][j]+u[i][j])*(u[i-1][j]+u[i][j])-
+//                       gamma*fabs(u[i-1][j]+u[i][j])*(u[i-1][j]-u[i][j]))
+//                      *_4delx;
         float duvdy = ((v[idx]+v[idx_east])*(u[idx]+u[idx_north])+
-                       gamma*fabs(v[idx]+v[idx_east])*(u[idx]-u[idx_north])-
+                       gamma*fabsf(v[idx]+v[idx_east])*(u[idx]-u[idx_north])-
                        (v[idx_south]+v[idx_south_east])*(u[idx_south]+u[idx])-
-                       gamma*fabs(v[idx_south]+v[idx_south_east])*(u[idx_south]-u[idx]))
+                       gamma*fabsf(v[idx_south]+v[idx_south_east])*(u[idx_south]-u[idx]))
                       *_4dely;
 
         float laplu = fma_cuda((fma_cuda(-2.0f, u[idx], u[idx_east])+u[idx_west]), delx2,
                           (fma_cuda(-2.0f, u[idx], u[idx_north])+u[idx_south])*dely2);
+
+//        if (i == 100 && j == 100) {
+//            printf("100/100 GPU\n");
+//            //printf("%.9g %.9g %.9g\n", u[idx_west], u[idx], u[idx_east]);
+//            printf("%a %a %a\n", du2dx, duvdy, laplu);
+//            //printf("%.9g %.9g\n", _4delx, gamma);
+//        }
 
         // This is not implicitly casted, so the division by Re cannot be converted to a multiplication.
         f[idx] = u[idx]+params.timestep*(laplu/Re-du2dx-duvdy);
@@ -82,14 +97,14 @@ __global__ void computeTentativeVelocity_apply(
     if ((j < params.size.y - 2) && is_fluid[idx_north]) {
         // TODO Fix floating point issues as above
         float duvdx = ((u[idx]+u[idx_north])*(v[idx]+v[idx_east])+
-                       gamma*fabs(u[idx]+u[idx_north])*(v[idx]-v[idx_east])-
+                       gamma*fabsf(u[idx]+u[idx_north])*(v[idx]-v[idx_east])-
                        (u[idx_west]+u[idx_north_west])*(v[idx_west]+v[idx])-
-                       gamma*fabs(u[idx_west]+u[idx_north_west])*(v[idx_west]-v[idx]))
+                       gamma*fabsf(u[idx_west]+u[idx_north_west])*(v[idx_west]-v[idx]))
                       *_4delx;
         float dv2dy = ((v[idx]+v[idx_north])*(v[idx]+v[idx_north])+
-                       gamma*fabs(v[idx]+v[idx_north])*(v[idx]-v[idx_north])-
+                       gamma*fabsf(v[idx]+v[idx_north])*(v[idx]-v[idx_north])-
                        (v[idx_south]+v[idx])*(v[idx_south]+v[idx])-
-                       gamma*fabs(v[idx_south]+v[idx])*(v[idx_south]-v[idx]))
+                       gamma*fabsf(v[idx_south]+v[idx])*(v[idx_south]-v[idx]))
                       *_4dely;
 
         float laplv = fma_cuda((fma_cuda(-2.0f, v[idx], v[idx_east])+v[idx_west]),delx2,

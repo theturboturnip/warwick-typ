@@ -102,8 +102,15 @@ void CudaBackendV1::tick(float timestep) {
     dim3 horizontal_blocksize(32);
     dim3 horizontal_num_blocks((matrix_size.x + horizontal_blocksize.x - 1) / horizontal_blocksize.x);
 
-//    OriginalOptimized::computeTentativeVelocity(u.as_cpu(), v.as_cpu(), f.as_cpu(), g.as_cpu(), flag.as_cpu(),
-//                             imax, jmax, timestep, del_x, del_y, params.gamma, params.Re);
+    CudaUnified2DArray<float> f2({u.width, u.height});
+    f2.memcpy_in(f.extract_data());
+
+    CudaUnified2DArray<float> g2({v.width, v.height});
+    g2.memcpy_in(g.extract_data());
+
+    OriginalOptimized::computeTentativeVelocity<float>(u.as_cpu(), v.as_cpu(), f2.as_cpu(), g2.as_cpu(), flag.as_cpu(),
+                             imax, jmax, timestep, del_x, del_y, params.gamma, params.Re);
+
 
     computeTentativeVelocity_apply<<<num_blocks, threads_per_block, 0, stream>>>(
             u.as_gpu(), v.as_gpu(), fluidmask.as_gpu(),
@@ -113,6 +120,17 @@ void CudaBackendV1::tick(float timestep) {
 
     computeTentativeVelocity_postproc_vertical<<<vertical_num_blocks, vertical_blocksize, 0, stream>>>(u.as_gpu(), f.as_gpu(), gpu_params);
     computeTentativeVelocity_postproc_horizontal<<<horizontal_num_blocks, horizontal_blocksize, 0, stream>>>(v.as_gpu(), g.as_gpu(), gpu_params);
+    cudaStreamSynchronize(stream);
+
+    float** f_data = f.as_cpu();
+    float** f2_data = f2.as_cpu();
+    for (int i = 0; i < f.width; i++) {
+        for (int j = 0; j < f.height; j++) {
+            //if (f_data[i][j] != f2_data[i][j]) {
+            //    fprintf(stdout, "%03d %03d exp %g (%a) got %g (%a) diff %g\n", i, j, f2_data[i][j], f2_data[i][j], f_data[i][j], f_data[i][j], f_data[i][j] - f2_data[i][j]);
+            //}
+        }
+    }
 
 //    OriginalOptimized::computeRhs(f.as_cpu(), g.as_cpu(), rhs2.as_cpu(), flag.as_cpu(),
 //               imax, jmax, timestep, del_x, del_y);
@@ -142,11 +160,6 @@ void CudaBackendV1::tick(float timestep) {
                                                                       gpu_params);
 //    cudaStreamSynchronize(stream);
 //
-//    CudaUnified2DArray<float> u2({u.width, u.height});
-//    u2.memcpy_in(u.extract_data());
-//
-//    CudaUnified2DArray<float> v2({v.width, v.height});
-//    v2.memcpy_in(v.extract_data());
 
     boundaryConditions_preproc_vertical<<<vertical_blocksize, vertical_num_blocks, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
     boundaryConditions_preproc_horizontal<<<horizontal_blocksize, horizontal_num_blocks, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
