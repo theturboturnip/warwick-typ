@@ -90,7 +90,7 @@ void CudaBackendV1::tick(float timestep) {
             .deltas = float2{del_x, del_y},
             .timestep = timestep,
     };
-    dim3 threads_per_block(4, 4);
+    dim3 threads_per_block(16, 16);
     dim3 num_blocks(
             (matrix_size.x + threads_per_block.x - 1) / threads_per_block.x,
             (matrix_size.y + threads_per_block.y - 1) / threads_per_block.y
@@ -102,8 +102,14 @@ void CudaBackendV1::tick(float timestep) {
     dim3 horizontal_blocksize(32);
     dim3 horizontal_num_blocks((matrix_size.x + horizontal_blocksize.x - 1) / horizontal_blocksize.x);
 
-    OriginalOptimized::computeTentativeVelocity(u.as_cpu(), v.as_cpu(), f.as_cpu(), g.as_cpu(), flag.as_cpu(),
-                             imax, jmax, timestep, del_x, del_y, params.gamma, params.Re);
+//    OriginalOptimized::computeTentativeVelocity(u.as_cpu(), v.as_cpu(), f.as_cpu(), g.as_cpu(), flag.as_cpu(),
+//                             imax, jmax, timestep, del_x, del_y, params.gamma, params.Re);
+
+    computeTentativeVelocity_apply<<<num_blocks, threads_per_block, 0, stream>>>(
+            u.as_gpu(), v.as_gpu(), fluidmask.as_gpu(),
+            f.as_gpu(), g.as_gpu(),
+            gpu_params, params.gamma, params.Re
+            );
 
     computeTentativeVelocity_postproc_vertical<<<vertical_num_blocks, vertical_blocksize, 0, stream>>>(u.as_gpu(), f.as_gpu(), gpu_params);
     computeTentativeVelocity_postproc_horizontal<<<horizontal_num_blocks, horizontal_blocksize, 0, stream>>>(v.as_gpu(), g.as_gpu(), gpu_params);
@@ -157,9 +163,9 @@ void CudaBackendV1::tick(float timestep) {
 
 //    OriginalOptimized::applyBoundaryConditions(u2.as_cpu(), v2.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
 
-    cudaStreamSynchronize(stream);
 }
 LegacySimDump CudaBackendV1::dumpStateAsLegacy() {
+    cudaStreamSynchronize(stream);
     auto dump = LegacySimDump(params.to_legacy());
     dump.u = u.extract_data();
     dump.v = v.extract_data();

@@ -8,6 +8,12 @@
 
 #include <cstdio>
 
+// This is used to simulate a fma() C call - nvcc should optimize this down to a single FMA instr
+__device__ inline double fma_cuda(double a, double b, double c) {
+    //return a * b + c;
+    return __fma_rn(a, b, c);
+}
+
 __global__ void computeTentativeVelocity_apply(
         in_matrix<float> u, in_matrix<float> v, in_matrix<uint> is_fluid,
         out_matrix<float> f, out_matrix<float> g,
@@ -20,55 +26,79 @@ __global__ void computeTentativeVelocity_apply(
     if (!params.in_real_range(i, j)) return;
 
     const uint idx = params.flatten_4byte(i, j);
-    const uint idx_east = params.flatten_4byte(i+1, j);
-    const uint idx_south = params.flatten_4byte(i, j);
 
     if (!is_fluid[idx]) return;
+
+    const uint idx_east = params.flatten_4byte(i+1, j);
+    const uint idx_west = params.flatten_4byte(i-1, j);
+    const uint idx_north = params.flatten_4byte(i, j+1);
+    const uint idx_south = params.flatten_4byte(i, j-1);
+    const uint idx_south_west = params.flatten_4byte(i-1, j-1);
+    const uint idx_south_east = params.flatten_4byte(i+1, j-1);
+    const uint idx_north_west = params.flatten_4byte(i-1, j+1);
+
+    // TODO - Pass these in as arguments
+    // laplu/laplv use double precision literals in the original code, so are calculated at double precision, but then
+    // are rounded down to single precision.
+    // at that precision, the difference between (1/delx/delx) and (1/(delx*delx)) is very small, especially at double precision
+    // adding the div by Re makes it faster, but puts accuracy down to e=0.0001
+    const double delx2 = 1.0/((double)params.deltas.x * (double)params.deltas.x);
+    const double dely2 = 1.0/((double)params.deltas.y * (double)params.deltas.y);
+
+    // The use of `double fabs(double);` in du2dx, duvdy etc. force the division by 4*dely to be performed at double precision
+    // However, the result is rounded down to single precision directly afterwards.
+    // This means we can multiply by the reciporical instead without any loss in accuracy on the given input data.
+    const double _4delx = 1.0/(4.0*params.deltas.x);
+    const double _4dely = 1.0/(4.0*params.deltas.y);
 
     // TODO - could be worth splitting into two kernels for idx_east, idx_south?
     // In large majority of cases both will be true - only false when directly on a boundary
 //    for (i=1; i<=imax-1; i++) { <- we should reject i >= imax == params.size.x - 2
 //        for (j=1; j<=jmax; j++) {
     if ((i < params.size.x - 2) && is_fluid[idx_east]) {
-        // TODO
+        // TODO Fix floating point issues - use single only?
+        float du2dx = ((u[idx]+u[idx_east])*(u[idx]+u[idx_east])+
+                       gamma*fabs(u[idx]+u[idx_east])*(u[idx]-u[idx_east])-
+                       (u[idx_west]+u[idx])*(u[idx_west]+u[idx])-
+                       gamma*fabs(u[idx_west]+u[idx])*(u[idx_west]-u[idx]))
+                      *_4delx;
+        float duvdy = ((v[idx]+v[idx_east])*(u[idx]+u[idx_north])+
+                       gamma*fabs(v[idx]+v[idx_east])*(u[idx]-u[idx_north])-
+                       (v[idx_south]+v[idx_south_east])*(u[idx_south]+u[idx])-
+                       gamma*fabs(v[idx_south]+v[idx_south_east])*(u[idx_south]-u[idx]))
+                      *_4dely;
+
+        float laplu = fma_cuda((fma_cuda(-2.0, u[idx], u[idx_east])+u[idx_west]), delx2,
+                          (fma_cuda(-2.0, u[idx], u[idx_north])+u[idx_south])*dely2);
+
+        // This is not implicitly casted, so the division by Re cannot be converted to a multiplication.
+        f[idx] = u[idx]+params.timestep*(laplu/Re-du2dx-duvdy);
     } else {
         f[idx] = u[idx];
     }
 
 //    for (i=1; i<=imax; i++) {
 //        for (j=1; j<=jmax-1; j++) { <- we should reject j >= jmax == params.size.y - 2
-    if ((j < params.size.y - 2) && is_fluid[idx_south]) {
-        // TODO
+    if ((j < params.size.y - 2) && is_fluid[idx_north]) {
+        // TODO Fix floating point issues as above
+        float duvdx = ((u[idx]+u[idx_north])*(v[idx]+v[idx_east])+
+                       gamma*fabs(u[idx]+u[idx_north])*(v[idx]-v[idx_east])-
+                       (u[idx_west]+u[idx_north_west])*(v[idx_west]+v[idx])-
+                       gamma*fabs(u[idx_west]+u[idx_north_west])*(v[idx_west]-v[idx]))
+                      *_4delx;
+        float dv2dy = ((v[idx]+v[idx_north])*(v[idx]+v[idx_north])+
+                       gamma*fabs(v[idx]+v[idx_north])*(v[idx]-v[idx_north])-
+                       (v[idx_south]+v[idx])*(v[idx_south]+v[idx])-
+                       gamma*fabs(v[idx_south]+v[idx])*(v[idx_south]-v[idx]))
+                      *_4dely;
+
+        float laplv = fma_cuda((fma_cuda(-2.0, v[idx], v[idx_east])+v[idx_west]),delx2,
+                          (fma_cuda(-2.0, v[idx], v[idx_north])+v[idx_south])*dely2);
+
+        g[idx] = v[idx]+params.timestep*(laplv/Re-duvdx-dv2dy);
     } else {
         g[idx] = v[idx];
     }
-
-//#pragma omp parallel for schedule(static) private(j) default(none)
-//    for (i=1; i<=imax-1; i++) {
-//        for (j=1; j<=jmax; j++) {
-//            // only if both adjacent cells are fluid cells
-//            if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
-//                float du2dx = ((u[i][j]+u[i+1][j])*(u[i][j]+u[i+1][j])+
-//                               gamma*fabs(u[i][j]+u[i+1][j])*(u[i][j]-u[i+1][j])-
-//                               (u[i-1][j]+u[i][j])*(u[i-1][j]+u[i][j])-
-//                               gamma*fabs(u[i-1][j]+u[i][j])*(u[i-1][j]-u[i][j]))
-//                              *_4delx;
-//                float duvdy = ((v[i][j]+v[i+1][j])*(u[i][j]+u[i][j+1])+
-//                               gamma*fabs(v[i][j]+v[i+1][j])*(u[i][j]-u[i][j+1])-
-//                               (v[i][j-1]+v[i+1][j-1])*(u[i][j-1]+u[i][j])-
-//                               gamma*fabs(v[i][j-1]+v[i+1][j-1])*(u[i][j-1]-u[i][j]))
-//                              *_4dely;
-//
-//                float laplu = fma((fma(-2.0, u[i][j], u[i+1][j])+u[i-1][j]), delx2,
-//                                  (fma(-2.0, u[i][j], u[i][j+1])+u[i][j-1])*dely2);
-//
-//                // This is not implicitly casted, so the division by Re cannot be converted to a multiplication.
-//                f[i][j] = u[i][j]+del_t*(laplu/Re-du2dx-duvdy);
-//            } else {
-//                f[i][j] = u[i][j];
-//            }
-//        }
-//    }
 }
 
 __global__ void computeTentativeVelocity_postproc_vertical(in_matrix<float> u, out_matrix<float> f, const CommonParams params) {
@@ -149,22 +179,6 @@ __global__ void updateVelocity_1per(in_matrix<float> f, in_matrix<float> g, in_m
             v[idx] = g[idx]-(p[idx_north]-p[idx])*params.timestep/params.deltas.y;
         }
     }
-
-    // Loop was fused and parallelized
-//#pragma omp parallel for schedule(static) private(j) default(none)
-//    for (i=1; i<=imax; i++) {
-//        for (j=1; j<=jmax; j++) {
-//            // only if both adjacent cells are fluid cells
-//            if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
-//                u[i][j] = f[i][j]-(p[i+1][j]-p[i][j])*del_t/delx;
-//            }
-//
-//            // only if both adjacent cells are fluid cells
-//            if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
-//                v[i][j] = g[i][j]-(p[i][j+1]-p[i][j])*del_t/dely;
-//            }
-//        }
-//    }
 }
 
 __global__ void boundaryConditions_preproc_vertical(out_matrix<float> u, out_matrix<float> v, const CommonParams params){
