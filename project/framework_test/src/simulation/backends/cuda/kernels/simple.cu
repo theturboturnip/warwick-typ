@@ -23,12 +23,6 @@ __global__ void computeRHS_1per(//const Array2D<const float> f, const Array2D<co
     if ((i == 0) || (i >= p.size.x - 1)) return;
     if ((j == 0) || (j >= p.size.y - 1)) return;
 
-//    if (i * p.size.y + j >= p.size.x * p.size.y)
-//        return;
-
-    //if ((i >= p.size.x) || (j >= p.size.y)) return;
-
-    //if (!is_fluid.at(i, j)) return;
     if (!is_fluid[i * p.size.y + j]) return;
 
     const float f_this = f[i * p.size.y + j];
@@ -36,24 +30,15 @@ __global__ void computeRHS_1per(//const Array2D<const float> f, const Array2D<co
     const float g_this = g[i * p.size.y + j];
     const float g_south = g[i * p.size.y + (j-1)];
 
-//    float new_rhs = (
-//            (f.at(i, j)-f.at(i-1, j))/p.deltas.x +q
-//            (g.at(i, j)-g.at(i, j-1))/p.deltas.y
-//    ) / p.timestep;
+    const float new_rhs = ((f_this-f_west)/p.deltas.x + (g_this-g_south)/p.deltas.y) / p.timestep;
 
-    float new_rhs = ((f_this-f_west)/p.deltas.x + (g_this-g_south)/p.deltas.y) / p.timestep;
-
-//    rhs.at(i, j) = new_rhs;
-    rhs[i * p.size.y + j] = new_rhs;//20.0f;//i * p.size.y + j;//blockIdx.x + blockDim.x * blockIdx.y;//new_rhs;
+    rhs[i * p.size.y + j] = new_rhs;
 }
 
 __global__ void set(float* output, float val, CommonParams p) {
     const uint i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const uint j = (blockIdx.y * blockDim.y) + threadIdx.y;
     const uint idx = i * p.size.y + j;
-
-//    if (idx >= p.size.x * p.size.y)
-//        return;
 
     if ((i == 0) || (i >= p.size.x - 1)) return;
     if ((j == 0) || (j >= p.size.y - 1)) return;

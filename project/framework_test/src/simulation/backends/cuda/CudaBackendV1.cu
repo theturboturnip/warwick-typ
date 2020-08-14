@@ -83,7 +83,6 @@ float CudaBackendV1::findMaxTimestep() {
 }
 
 void CudaBackendV1::tick(float timestep) {
-    //const int ifluid = (imax * jmax) - ibound;
     auto gpu_params = CommonParams{
             .size = ulong2{matrix_size.x, matrix_size.y},
             .deltas = float2{del_x, del_y},
@@ -94,12 +93,6 @@ void CudaBackendV1::tick(float timestep) {
             (matrix_size.x + threads_per_block.x - 1) / threads_per_block.x,
             (matrix_size.y + threads_per_block.y - 1) / threads_per_block.y
             );
-    fprintf(stdout, "CudaBackendTick\n");
-    fprintf(stdout, "Gpu Params .size={%zu %zu}\n", gpu_params.size.x, gpu_params.size.y);
-    fprintf(stdout, "threads_per_block = {%u %u}\n", threads_per_block.x, threads_per_block.y);
-    fprintf(stdout, "num_blocks = {%u %u}\n", num_blocks.x, num_blocks.y);
-
-    //CudaUnified2DArray<float> rhs2({rhs.width, rhs.height});
 
     OriginalOptimized::computeTentativeVelocity(u.as_cpu(), v.as_cpu(), f.as_cpu(), g.as_cpu(), flag.as_cpu(),
                              imax, jmax, timestep, del_x, del_y, params.gamma, params.Re);
@@ -107,40 +100,10 @@ void CudaBackendV1::tick(float timestep) {
 //    OriginalOptimized::computeRhs(f.as_cpu(), g.as_cpu(), rhs2.as_cpu(), flag.as_cpu(),
 //               imax, jmax, timestep, del_x, del_y);
 
-//    cudaMemPrefetchAsync(f.raw_data, rhs.width*rhs.height*sizeof(float), 0, stream);
-//    cudaMemPrefetchAsync(g.raw_data, rhs.width*rhs.height*sizeof(float), 0, stream);
-//    cudaMemPrefetchAsync(fluidmask.raw_data, rhs.width*rhs.height*sizeof(int), 0, stream);
-//    cudaStreamSynchronize(stream);
-//    computeRHS_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.as_gpu().constify(), g.as_gpu().constify(), fluidmask.as_gpu().constify(),
-//                          rhs.as_gpu(), gpu_params);
-    //fprintf(stdout, "f 123: %f\n", f.raw_data[123]);
-//    fprintf(stdout, )
-
     computeRHS_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.raw_data, g.raw_data, fluidmask.raw_data, rhs.raw_data, gpu_params);
     //set<<<num_blocks, threads_per_block, 0, stream>>>(u.raw_data, 20.0, gpu_params);
     cudaStreamSynchronize(stream);
-    cudaDeviceSynchronize();
-//    cudaMemPrefetchAsync(rhs.raw_data, rhs.width*rhs.height*sizeof(float), cudaCpuDeviceId, stream);
 
-//    float** rhs_data = rhs.as_cpu();
-//    float** rhs2_data = rhs2.as_cpu();
-//    for (int i = 1; i <= imax; ++i){
-//        for (int j = 1; j <= jmax; ++j) {
-//            float diff = rhs2_data[i][j] - rhs_data[i][j];
-//            if (diff != 0)
-//                fprintf(stdout, "Diff at %03d %03d = %+g\n", i, j, diff);
-//        }
-//    }
-
-//    float** rhs_data = rhs.as_cpu();
-//    for (int i = 1; i <= imax; ++i){
-//        for (int j = 1; j <= jmax; ++j) {
-//            if (rhs_data[i][j] != 20.0)
-//                fprintf(stdout, "rhs[%03d][%03d] expected %f got %f\n", i, j, 20.0, rhs_data[i][j]);
-////            if (diff != 0)
-////                fprintf(stdout, "Diff at %03d %03d = %+g\n", i, j, diff);
-//        }
-//    }
 
     float res = 0;
     if (ifluid > 0) {
@@ -159,7 +122,6 @@ void CudaBackendV1::tick(float timestep) {
                        p.as_cpu(), flag.as_cpu(),
                        imax, jmax, timestep, del_x, del_y);
     OriginalOptimized::applyBoundaryConditions(u.as_cpu(), v.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
-    //u.memcpy_in(rhs.extract_data());
 }
 LegacySimDump CudaBackendV1::dumpStateAsLegacy() {
     auto dump = LegacySimDump(params.to_legacy());

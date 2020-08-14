@@ -13,7 +13,7 @@
 template<typename T, bool NativeMemOnly=false>
 class CudaUnified2DArray {
 public:
-    CudaUnified2DArray() : width(0), height(0) {}// = default;
+    CudaUnified2DArray() : width(0), height(0) {}
     explicit CudaUnified2DArray(Size<size_t> size) : width(size.x), height(size.y) {
         // TODO - pitch allocation
         if (NativeMemOnly) {
