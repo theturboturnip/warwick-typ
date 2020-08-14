@@ -2,7 +2,7 @@
 // Created by samuel on 28/06/2020.
 //
 
-#include "CpuOptimizedSimBackend.h"
+#include "CpuOptimizedAdaptedSimBackend.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -14,7 +14,7 @@
 
 #include "simulation/backends/original/simulation.h"
 
-CpuOptimizedSimBackend::CpuOptimizedSimBackend(const SimSnapshot& s) :
+CpuOptimizedAdaptedSimBackend::CpuOptimizedAdaptedSimBackend(const SimSnapshot& s) :
     CpuSimBackendBase(s),
     p_beta(imax+2, jmax+2, 0),
     p_beta_red(imax+2, (jmax+2)/2, 0),
@@ -38,11 +38,11 @@ CpuOptimizedSimBackend::CpuOptimizedSimBackend(const SimSnapshot& s) :
     OriginalOptimized::splitFluidmaskToSurroundedMask((const int **) (fluidmask.get_pointers()), surroundmask_red.get_pointers(), surroundmask_black.get_pointers(), imax, jmax);
 }
 
-void CpuOptimizedSimBackend::tick(float del_t) {
+void CpuOptimizedAdaptedSimBackend::tick(float del_t) {
     const int ifluid = (imax * jmax) - ibound;
 
-    // Use the <double> variant for bit-accuracy
-    OriginalOptimized::computeTentativeVelocity<double>(u.get_pointers(), v.get_pointers(), f.get_pointers(), g.get_pointers(), flag.get_pointers(),
+    // Use the <float> variant for slight inaccuracy but GPU bit-parity
+    OriginalOptimized::computeTentativeVelocity<float>(u.get_pointers(), v.get_pointers(), f.get_pointers(), g.get_pointers(), flag.get_pointers(),
                                        imax, jmax, del_t, delx, dely, gamma, Re);
     OriginalOptimized::computeRhs(f.get_pointers(), g.get_pointers(), rhs.get_pointers(), flag.get_pointers(),
                          imax, jmax, del_t, delx, dely);
@@ -66,7 +66,7 @@ void CpuOptimizedSimBackend::tick(float del_t) {
     OriginalOptimized::applyBoundaryConditions(u.get_pointers(), v.get_pointers(), flag.get_pointers(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
 }
 
-float CpuOptimizedSimBackend::findMaxTimestep() {
+float CpuOptimizedAdaptedSimBackend::findMaxTimestep() {
     float delta_t = -1;
     OriginalOptimized::setTimestepInterval(&delta_t,
                                            imax, jmax,

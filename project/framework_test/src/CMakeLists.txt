@@ -15,6 +15,8 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/CompareSubApp.h
         cmd_line/subapps/LegacyRenderPPMSubApp.cpp
         cmd_line/subapps/LegacyRenderPPMSubApp.h
+        simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp
+        simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.h
         simulation/backends/cpu_simple/CpuSimBackendBase.cpp

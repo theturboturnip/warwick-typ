@@ -15,9 +15,15 @@
 namespace OriginalOptimized {
 
 // Computation of tentative velocity field (f, g)
+template<typename Float>
 void computeTentativeVelocity(float ** const u, float ** const v, float ** const f, float ** const g,
                               char ** const flag, const int imax, const int jmax, const float del_t, const float delx, const float dely,
-                              const float gamma, const float Re)
+                              const float gamma, const float Re);
+
+template<>
+void computeTentativeVelocity<double>(float ** const u, float ** const v, float ** const f, float ** const g,
+                                      char ** const flag, const int imax, const int jmax, const float del_t, const float delx, const float dely,
+                                      const float gamma, const float Re)
 {
     int  i, j;
 
@@ -98,6 +104,85 @@ void computeTentativeVelocity(float ** const u, float ** const v, float ** const
     }
 }
 
+template<>
+void computeTentativeVelocity<float>(float ** const u, float ** const v, float ** const f, float ** const g,
+                                     char ** const flag, const int imax, const int jmax, const float del_t, const float delx, const float dely,
+                                     const float gamma, const float Re)
+{
+    int  i, j;
+
+    const float delx2 = 1.0f/(delx * delx);
+    const float dely2 = 1.0f/(dely * dely);
+
+    // The use of `double fabs(double);` in du2dx, duvdy etc. force the division by 4*dely to be performed at double precision
+    // However, the result is rounded down to single precision directly afterwards.
+    // This means we can multiply by the reciporical instead without any loss in accuracy on the given input data.
+    const float _4delx = 1.0f/(4.0f*delx);
+    const float _4dely = 1.0f/(4.0f*dely);
+
+#pragma omp parallel for schedule(static) private(j) default(none)
+    for (i=1; i<=imax-1; i++) {
+        for (j=1; j<=jmax; j++) {
+            // only if both adjacent cells are fluid cells
+            if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
+                float du2dx = ((u[i][j]+u[i+1][j])*(u[i][j]+u[i+1][j])+
+                               gamma*fabs(u[i][j]+u[i+1][j])*(u[i][j]-u[i+1][j])-
+                               (u[i-1][j]+u[i][j])*(u[i-1][j]+u[i][j])-
+                               gamma*fabs(u[i-1][j]+u[i][j])*(u[i-1][j]-u[i][j]))
+                              *_4delx;
+                float duvdy = ((v[i][j]+v[i+1][j])*(u[i][j]+u[i][j+1])+
+                               gamma*fabs(v[i][j]+v[i+1][j])*(u[i][j]-u[i][j+1])-
+                               (v[i][j-1]+v[i+1][j-1])*(u[i][j-1]+u[i][j])-
+                               gamma*fabs(v[i][j-1]+v[i+1][j-1])*(u[i][j-1]-u[i][j]))
+                              *_4dely;
+
+                float laplu = fmaf((fmaf(-2.0f, u[i][j], u[i+1][j])+u[i-1][j]), delx2,
+                                  (fmaf(-2.0f, u[i][j], u[i][j+1])+u[i][j-1])*dely2);
+
+                // This is not implicitly casted, so the division by Re cannot be converted to a multiplication.
+                f[i][j] = u[i][j]+del_t*(laplu/Re-du2dx-duvdy);
+            } else {
+                f[i][j] = u[i][j];
+            }
+        }
+    }
+
+#pragma omp parallel for schedule(static) private(j) default(none)
+    for (i=1; i<=imax; i++) {
+        for (j=1; j<=jmax-1; j++) {
+            // only if both adjacent cells are fluid cells
+            if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
+                float duvdx = ((u[i][j]+u[i][j+1])*(v[i][j]+v[i+1][j])+
+                               gamma*fabs(u[i][j]+u[i][j+1])*(v[i][j]-v[i+1][j])-
+                               (u[i-1][j]+u[i-1][j+1])*(v[i-1][j]+v[i][j])-
+                               gamma*fabs(u[i-1][j]+u[i-1][j+1])*(v[i-1][j]-v[i][j]))
+                              *_4delx;
+                float dv2dy = ((v[i][j]+v[i][j+1])*(v[i][j]+v[i][j+1])+
+                               gamma*fabs(v[i][j]+v[i][j+1])*(v[i][j]-v[i][j+1])-
+                               (v[i][j-1]+v[i][j])*(v[i][j-1]+v[i][j])-
+                               gamma*fabs(v[i][j-1]+v[i][j])*(v[i][j-1]-v[i][j]))
+                              *_4dely;
+
+                float laplv = fmaf((fmaf(-2.0f, v[i][j], v[i+1][j])+v[i-1][j]),delx2,
+                                  (fmaf(-2.0f, v[i][j], v[i][j+1])+v[i][j-1])*dely2);
+
+                g[i][j] = v[i][j]+del_t*(laplv/Re-duvdx-dv2dy);
+            } else {
+                g[i][j] = v[i][j];
+            }
+        }
+    }
+
+    // f & g at external boundaries
+    for (j=1; j<=jmax; j++) {
+        f[0][j]    = u[0][j];
+        f[imax][j] = u[imax][j];
+    }
+    for (i=1; i<=imax; i++) {
+        g[i][0]    = v[i][0];
+        g[i][jmax] = v[i][jmax];
+    }
+}
 
 // Calculate the right hand side of the pressure equation
 void computeRhs(float ** const f, float ** const g, float ** const rhs, char ** const flag, const int imax,

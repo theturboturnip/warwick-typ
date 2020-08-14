@@ -11,4 +11,5 @@ enum SimulationBackendEnum {
 #endif
     CpuSimple,
     CpuOptimized,
+    CpuAdapted,
 };

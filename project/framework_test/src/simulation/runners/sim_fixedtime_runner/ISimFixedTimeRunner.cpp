@@ -7,8 +7,9 @@
 #include "ISimFixedTimeRunner.h"
 #include "SimFixedTimeRunner.inl"
 
-#include "simulation/backends/cpu_simple/CpuSimpleSimBackend.h"
+#include "simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h"
 #include "simulation/backends/cpu_simple/CpuOptimizedSimBackend.h"
+#include "simulation/backends/cpu_simple/CpuSimpleSimBackend.h"
 #include "simulation/backends/null/NullSimulation.h"
 #if CUDA_ENABLED
 #include "simulation/backends/cuda/CudaBackendV1.cuh"
@@ -24,6 +25,8 @@ std::unique_ptr<ISimFixedTimeRunner> ISimFixedTimeRunner::getForBackend(Simulati
             return std::make_unique<SimFixedTimeRunner<CpuSimpleSimBackend>>();
         case CpuOptimized:
             return std::make_unique<SimFixedTimeRunner<CpuOptimizedSimBackend>>();
+        case CpuAdapted:
+            return std::make_unique<SimFixedTimeRunner<CpuOptimizedAdaptedSimBackend>>();
 #if CUDA_ENABLED
         case CUDA:
             return std::make_unique<SimFixedTimeRunner<CudaBackendV1>>();
