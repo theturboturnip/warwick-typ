@@ -15,12 +15,11 @@
 namespace OriginalOptimized {
 
 // Computation of tentative velocity field (f, g)
-void computeTentativeVelocity(float **u, float **v, float **f, float **g,
-                              char **flag, int imax, int jmax, float del_t, float delx, float dely,
-                              float gamma, float Re)
+void computeTentativeVelocity(float ** const u, float ** const v, float ** const f, float ** const g,
+                              char ** const flag, const int imax, const int jmax, const float del_t, const float delx, const float dely,
+                              const float gamma, const float Re)
 {
     int  i, j;
-    float du2dx, duvdy, duvdx, dv2dy, laplu, laplv;
 
     // laplu/laplv use double precision literals in the original code, so are calculated at double precision, but then
     // are rounded down to single precision.
@@ -35,23 +34,23 @@ void computeTentativeVelocity(float **u, float **v, float **f, float **g,
     const double _4delx = 1.0/(4.0*delx);
     const double _4dely = 1.0/(4.0*dely);
 
-#pragma omp parallel for schedule(static) private(j) default(shared)
+#pragma omp parallel for schedule(static) private(j) default(none)
     for (i=1; i<=imax-1; i++) {
         for (j=1; j<=jmax; j++) {
             // only if both adjacent cells are fluid cells
             if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
-                du2dx = ((u[i][j]+u[i+1][j])*(u[i][j]+u[i+1][j])+
+                float du2dx = ((u[i][j]+u[i+1][j])*(u[i][j]+u[i+1][j])+
                          gamma*fabs(u[i][j]+u[i+1][j])*(u[i][j]-u[i+1][j])-
                          (u[i-1][j]+u[i][j])*(u[i-1][j]+u[i][j])-
                          gamma*fabs(u[i-1][j]+u[i][j])*(u[i-1][j]-u[i][j]))
                         *_4delx;
-                duvdy = ((v[i][j]+v[i+1][j])*(u[i][j]+u[i][j+1])+
+                float duvdy = ((v[i][j]+v[i+1][j])*(u[i][j]+u[i][j+1])+
                          gamma*fabs(v[i][j]+v[i+1][j])*(u[i][j]-u[i][j+1])-
                          (v[i][j-1]+v[i+1][j-1])*(u[i][j-1]+u[i][j])-
                          gamma*fabs(v[i][j-1]+v[i+1][j-1])*(u[i][j-1]-u[i][j]))
                         *_4dely;
 
-                laplu = fma((fma(-2.0, u[i][j], u[i+1][j])+u[i-1][j]), delx2,
+                float laplu = fma((fma(-2.0, u[i][j], u[i+1][j])+u[i-1][j]), delx2,
                             (fma(-2.0, u[i][j], u[i][j+1])+u[i][j-1])*dely2);
 
                 // This is not implicitly casted, so the division by Re cannot be converted to a multiplication.
@@ -62,23 +61,23 @@ void computeTentativeVelocity(float **u, float **v, float **f, float **g,
         }
     }
 
-#pragma omp parallel for schedule(static) private(j) default(shared)
+#pragma omp parallel for schedule(static) private(j) default(none)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax-1; j++) {
             // only if both adjacent cells are fluid cells
             if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
-                duvdx = ((u[i][j]+u[i][j+1])*(v[i][j]+v[i+1][j])+
+                float duvdx = ((u[i][j]+u[i][j+1])*(v[i][j]+v[i+1][j])+
                          gamma*fabs(u[i][j]+u[i][j+1])*(v[i][j]-v[i+1][j])-
                          (u[i-1][j]+u[i-1][j+1])*(v[i-1][j]+v[i][j])-
                          gamma*fabs(u[i-1][j]+u[i-1][j+1])*(v[i-1][j]-v[i][j]))
                         *_4delx;
-                dv2dy = ((v[i][j]+v[i][j+1])*(v[i][j]+v[i][j+1])+
+                float dv2dy = ((v[i][j]+v[i][j+1])*(v[i][j]+v[i][j+1])+
                          gamma*fabs(v[i][j]+v[i][j+1])*(v[i][j]-v[i][j+1])-
                          (v[i][j-1]+v[i][j])*(v[i][j-1]+v[i][j])-
                          gamma*fabs(v[i][j-1]+v[i][j])*(v[i][j-1]-v[i][j]))
                         *_4dely;
 
-                laplv = fma((fma(-2.0, v[i][j], v[i+1][j])+v[i-1][j]),delx2,
+                float laplv = fma((fma(-2.0, v[i][j], v[i+1][j])+v[i-1][j]),delx2,
                             (fma(-2.0, v[i][j], v[i][j+1])+v[i][j-1])*dely2);
 
                 g[i][j] = v[i][j]+del_t*(laplv/Re-duvdx-dv2dy);
@@ -101,12 +100,12 @@ void computeTentativeVelocity(float **u, float **v, float **f, float **g,
 
 
 // Calculate the right hand side of the pressure equation
-void computeRhs(float **f, float **g, float **rhs, char **flag, int imax,
-                int jmax, float del_t, float delx, float dely)
+void computeRhs(float ** const f, float ** const g, float ** const rhs, char ** const flag, const int imax,
+                const int jmax, const float del_t, const float delx, const float dely)
 {
     int i, j;
 
-#pragma omp parallel for schedule(static) private(j) default(shared)
+#pragma omp parallel for schedule(static) private(j) default(none)
     for (i=1;i<=imax;i++) {
         for (j=1;j<=jmax;j++) {
             if (flag[i][j] & C_F) {
@@ -123,23 +122,23 @@ void computeRhs(float **f, float **g, float **rhs, char **flag, int imax,
 
 // Red/Black SOR to solve the poisson equation
 template<bool ErrorCheck>
-int poissonSolver(float **p, float **p_red, float **p_black,
-                  float **p_beta, float **p_beta_red, float **p_beta_black,
-                  float **rhs, float **rhs_red, float **rhs_black,
-                  int** fluidmask, int** surroundmask_black,
-                  char **flag, int imax, int jmax,
-                  float delx, float dely, float eps, int itermax, float omega,
-                  int ifull)
+int poissonSolver(float ** const p, float ** const p_red, float ** const p_black,
+                  float ** const p_beta, float ** const p_beta_red, float ** const p_beta_black,
+                  float ** const rhs, float ** const rhs_red, float ** const rhs_black,
+                  int ** const fluidmask, int ** const surroundmask_black,
+                  char ** const flag, const int imax, const int jmax,
+                  const float delx, const float dely, const float eps, const int itermax, const float omega,
+                  const int ifull)
 {
     int i, j, iter;
 
     int rb; // Red-black value.
 
-    float rdx2 = 1.0/(delx*delx);
+    const float rdx2 = 1.0/(delx*delx);
     const __m128 rdx2_v = _mm_set1_ps(rdx2);
-    float rdy2 = 1.0/(dely*dely);
+    const float rdy2 = 1.0/(dely*dely);
     const __m128 rdy2_v = _mm_set1_ps(rdy2);
-    float inv_omega = 1.0 - omega;
+    const float inv_omega = 1.0 - omega;
     const __m128 inv_omega_v = _mm_set1_ps(inv_omega);
 
     float p0 = 0.0;
@@ -176,11 +175,11 @@ int poissonSolver(float **p, float **p_red, float **p_black,
         for (rb = 0; rb <= 1; rb++) {
             float threadlocal_res = 0.0f;
 
-            float **this_color = rb ? p_black : p_red;
-            float **other_color = rb ? p_red : p_black;
+            float ** const this_color = rb ? p_black : p_red;
+            float ** const other_color = rb ? p_red : p_black;
 
             // This breaks res_stack - presumably the reduction keeps some internal variable which isn't reset
-#pragma omp parallel for schedule(static) private(j) firstprivate(threadlocal_res) default(shared)// reduction(+:res_stack)
+#pragma omp parallel for schedule(static) private(j) shared(rb) firstprivate(threadlocal_res) default(none)// reduction(+:res_stack)
             for (i = 1; i <= imax; i++) {
                 const float *const left_col = other_color[i-1];
                 const float *const right_col = other_color[i+1];
@@ -338,7 +337,7 @@ res_stack += add * add;
             // The rest of the code does not operate on split P matrices, so join them back up
             joinRedBlack(p, p_red, p_black, imax, jmax);
 
-#pragma omp parallel for private(j) reduction(+: res_stack) default(shared)
+#pragma omp parallel for private(j) default(none) reduction(+: res_stack)
             for (i = 1; i <= imax; i++) {
                 for (j = 1; j <= jmax; j++) {
                     //if ((i+j)%2 != 0) continue;
@@ -376,32 +375,32 @@ res_stack += add * add;
 
     return iter;
 }
-template int poissonSolver<true>(float **p, float **p_red, float **p_black,
-                                   float **p_beta, float **p_beta_red, float **p_beta_black,
-                                   float **rhs, float **rhs_red, float **rhs_black,
-                                   int** fluidmask, int** surroundmask_black,
-                                   char **flag, int imax, int jmax,
-                                   float delx, float dely, float eps, int itermax, float omega,
-                                   int ifull);
-template int poissonSolver<false>(float **p, float **p_red, float **p_black,
-                                    float **p_beta, float **p_beta_red, float **p_beta_black,
-                                    float **rhs, float **rhs_red, float **rhs_black,
-                                    int** fluidmask, int** surroundmask_black,
-                                    char **flag, int imax, int jmax,
-                                    float delx, float dely, float eps, int itermax, float omega,
-                                    int ifull);
+template int poissonSolver<true>(float ** const p, float ** const p_red, float ** const p_black,
+                                 float ** const p_beta, float ** const p_beta_red, float ** const p_beta_black,
+                                 float ** const rhs, float ** const rhs_red, float ** const rhs_black,
+                                 int ** const fluidmask, int ** const surroundmask_black,
+                                 char ** const flag, const int imax, const int jmax,
+                                 const float delx, const float dely, const float eps, const int itermax, const float omega,
+                                 const int ifull);
+template int poissonSolver<false>(float ** const p, float ** const p_red, float ** const p_black,
+                                  float ** const p_beta, float ** const p_beta_red, float ** const p_beta_black,
+                                  float ** const rhs, float ** const rhs_red, float ** const rhs_black,
+                                  int ** const fluidmask, int ** const surroundmask_black,
+                                  char ** const flag, const int imax, const int jmax,
+                                  const float delx, const float dely, const float eps, const int itermax, const float omega,
+                                  const int ifull);
 
-void calculatePBeta(float **p_beta,
-                    char **flag,
-                    int imax, int jmax,
-                    float delx, float dely, float eps, float omega) {
+void calculatePBeta(float ** const p_beta,
+                    char ** const flag,
+                    const int imax, const int jmax,
+                    const float delx, const float dely, const float eps, const float omega) {
     int i, j;
 
-    float rdx2 = 1.0/(delx*delx);
-    float rdy2 = 1.0/(dely*dely);
-    float beta_2 = -omega/(2.0*(rdx2+rdy2));
+    const float rdx2 = 1.0/(delx*delx);
+    const float rdy2 = 1.0/(dely*dely);
+    const float beta_2 = -omega/(2.0*(rdx2+rdy2));
 
-#pragma omp parallel for schedule(static) private(j) default(shared)
+#pragma omp parallel for schedule(static) private(j) default(none)
     for (i = 1; i <= imax; i++) {
         for (j = 1; j <= jmax; j++) {
             if (flag[i][j] == (C_F | B_NSEW)) {
@@ -418,11 +417,11 @@ void calculatePBeta(float **p_beta,
     }
 }
 
-void splitToRedBlack(float **joined, float **red, float **black,
-                     int imax, int jmax){
+void splitToRedBlack(float ** const joined, float ** const red, float ** const black,
+                     const int imax, const int jmax){
     int i,j;
 
-#pragma omp parallel for schedule(static) private(j) default(shared)
+#pragma omp parallel for schedule(static) private(j) default(none)
     for (i = 0; i < imax+2; i++) {
         for (j = 0; j < jmax+2; j++) {
             if ((i+j) % 2 == 0)
@@ -433,11 +432,11 @@ void splitToRedBlack(float **joined, float **red, float **black,
     }
 }
 
-void joinRedBlack(float **joined, float **red, float **black,
-                  int imax, int jmax) {
+void joinRedBlack(float ** const joined, float ** const red, float ** const black,
+                  const int imax, const int jmax) {
     int i,j;
 
-#pragma omp parallel for schedule(static) private(j) default(shared)
+#pragma omp parallel for schedule(static) private(j) default(none)
     for (i = 0; i < imax+2; i++) {
         for (j = 0; j < jmax+2; j++) {
             if ((i+j) % 2 == 0)
@@ -451,13 +450,13 @@ void joinRedBlack(float **joined, float **red, float **black,
 /* Update the velocity values based on the tentative
  * velocity values and the new pressure matrix
  */
-void updateVelocity(float **u, float **v, float **f, float **g, float **p,
-                    char **flag, int imax, int jmax, float del_t, float delx, float dely)
+void updateVelocity(float ** const u, float ** const v, float ** const f, float ** const g, float ** const p,
+                    char ** const flag, const int imax, const int jmax, const float del_t, const float delx, const float dely)
 {
     int i, j;
 
     // Loop was fused and parallelized
-#pragma omp parallel for schedule(static) private(j) default(shared)
+#pragma omp parallel for schedule(static) private(j) default(none)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax; j++) {
             // only if both adjacent cells are fluid cells
@@ -490,7 +489,7 @@ void setTimestepInterval(float *del_t, int imax, int jmax, float delx,
         vmax = 1.0e-10;
 
         // Loop was fused and parallelized
-#pragma omp parallel for schedule(static) private(j) reduction(max:umax) reduction(max:vmax) default(shared)
+#pragma omp parallel for schedule(static) private(j) shared(imax, jmax, u, v) default(none) reduction(max:umax) reduction(max:vmax)
         for (i=0; i<=imax+1; i++) {
             for (j=1; j<=jmax+1; j++) {
                 umax = max(fabs(u[i][j]), umax);
@@ -540,7 +539,7 @@ void applyBoundaryConditions(float **u, float **v, char **flag,
      * internal obstacle cells. This forces the u and v velocity to
      * tend towards zero in these cells.
      */
-#pragma omp parallel for schedule(static) private(j) default(shared)
+#pragma omp parallel for schedule(static) private(j) shared(u, v, flag, imax, jmax) default(none)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax; j++) {
             if (flag[i][j] & B_NSEW) {
