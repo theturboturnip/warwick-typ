@@ -12,9 +12,7 @@
 __device__ inline float fma_cuda(float a, float b, float c) {
     //return a * b + c;
 
-    // Using __fmaf_rn here makes it 1 bit out from computeTentativeVelocity normal
     // _rn = round to nearest, which is the default.
-    // _rz = round to zero
     return __fmaf_rn(a, b, c);
 }
 
