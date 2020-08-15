@@ -34,6 +34,7 @@ public:
           red(split_size),
           black(split_size)
     {}
+    virtual ~CudaUnifiedRedBlackArray() = default;
 
     template<RedBlack ToGet>
     ArrayType& get() {
@@ -43,7 +44,7 @@ public:
             return black;
     }
 
-    void zero_out() {
+    virtual void zero_out() {
         red.zero_out();
         black.zero_out();
     }
@@ -60,13 +61,13 @@ public:
             : Base(full_size),
               joined(full_size)
     {}
+    ~CudaUnifiedRedBlackArray() override = default;
 
     typename Base::ArrayType& get_joined() {
         return joined;
     }
 
-    // This hides Base::zero_out, but this class is non-virtual so that's OK
-    void zero_out() {
+    void zero_out() override {
         Base::zero_out();
         joined.zero_out();
     }
