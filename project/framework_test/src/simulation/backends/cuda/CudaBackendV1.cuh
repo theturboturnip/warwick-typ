@@ -8,6 +8,7 @@
 #include "simulation/file_format/SimSnapshot.h"
 
 #include <simulation/backends/cuda/utils/CudaUnified2DArray.cuh>
+#include <simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh>
 
 class CudaBackendV1 {
 public:
@@ -31,11 +32,12 @@ private:
 
     CudaUnified2DArray<float> u, v;
     CudaUnified2DArray<float> f, g;
-    CudaUnified2DArray<float> p, p_red, p_black;
-    CudaUnified2DArray<float> p_beta, p_beta_red, p_beta_black;
-    CudaUnified2DArray<float> rhs, rhs_red, rhs_black;
+    CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined> p;
+    CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined> p_beta;
+    CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined> rhs;
     CudaUnified2DArray<char> flag;
-    CudaUnified2DArray<uint> fluidmask, surroundmask_red, surroundmask_black;
+    CudaUnified2DArray<uint> fluidmask;
+    CudaUnifiedRedBlackArray<uint, RedBlackStorage::RedBlackOnly> surroundmask;
 
     cudaStream_t stream;
 };

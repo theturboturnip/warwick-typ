@@ -10,17 +10,22 @@
 #include <cuda_runtime.h>
 #include "simulation/backends/cuda/kernels/common.cuh"
 
-template<typename T, bool NativeMemOnly=false>
+enum class CudaMemoryType {
+    CudaManaged,
+    Native
+};
+
+template<typename T, CudaMemoryType MemoryType=CudaMemoryType::CudaManaged>
 class CudaUnified2DArray {
 public:
     CudaUnified2DArray() : width(0), height(0) {}
     explicit CudaUnified2DArray(Size<size_t> size) : width(size.x), height(size.y) {
         // TODO - pitch allocation
-        if (NativeMemOnly) {
-            raw_data = (T*)malloc(width * height * sizeof(T));
+        if (MemoryType == CudaMemoryType::CudaManaged) {
+            cudaMallocManaged(&raw_data, width * height * sizeof(T));
             col_pitch = height;
         } else {
-            cudaMallocManaged(&raw_data, width * height * sizeof(T));
+            raw_data = (T*)malloc(width * height * sizeof(T));
             col_pitch = height;
         }
 
@@ -32,17 +37,17 @@ public:
     CudaUnified2DArray(const CudaUnified2DArray<T>&) = delete;
     ~CudaUnified2DArray() {
         if (raw_data) {
-            if (NativeMemOnly) {
-                free(raw_data);
-            } else {
+            if (MemoryType == CudaMemoryType::CudaManaged) {
                 cudaFree(raw_data);
+            } else {
+                free(raw_data);
             }
         }
     }
 
-    template<typename = typename std::enable_if<!NativeMemOnly>::type>
+    template<typename = typename std::enable_if<MemoryType == CudaMemoryType::CudaManaged>::type>
     T* as_gpu() {
-        static_assert(!NativeMemOnly, "as_gpu() only exists when NativeMemOnly = false!");
+        static_assert(MemoryType == CudaMemoryType::CudaManaged, "as_gpu() only exists when NativeMemOnly = false!");
         return raw_data;
     }
     T** as_cpu() {
