@@ -61,6 +61,8 @@ target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/CudaBackendV1.cuh
         simulation/backends/cuda/kernels/simple.cu
         simulation/backends/cuda/kernels/simple.cuh
+        simulation/backends/cuda/kernels/redblack.cu
+        simulation/backends/cuda/kernels/redblack.cuh
         simulation/backends/cuda/kernels/common.cuh
         simulation/backends/cuda/utils/CudaUnified2DArray.cuh
         simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh

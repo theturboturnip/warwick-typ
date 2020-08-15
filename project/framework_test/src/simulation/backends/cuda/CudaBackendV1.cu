@@ -3,6 +3,7 @@
 //
 
 #include "CudaBackendV1.cuh"
+#include <simulation/backends/cuda/kernels/redblack.cuh>
 
 #include "simulation/backends/original/simulation.h"
 #include "simulation/backends/cuda/kernels/simple.cuh"
@@ -36,7 +37,7 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
 {
     u.memcpy_in(s.velocity_x);
     v.memcpy_in(s.velocity_y);
-    p.get_joined().memcpy_in(s.pressure);
+    p.joined.memcpy_in(s.pressure);
     flag.memcpy_in(s.get_legacy_cell_flags());
 
     rhs.zero_out();
@@ -47,18 +48,18 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
     cudaStreamCreate(&stream);
 
     // TODO - remove poisson_error_threshold from args
-    OriginalOptimized::calculatePBeta(p_beta.get_joined().as_cpu(), flag.as_cpu(),
+    OriginalOptimized::calculatePBeta(p_beta.joined.as_cpu(), flag.as_cpu(),
                                       imax, jmax, del_x, del_y,
                                       params.poisson_error_threshold, params.poisson_omega);
-    OriginalOptimized::splitToRedBlack(p.get_joined().as_cpu(),
-                                       p.get<RedBlack::Red>().as_cpu(), p.get<RedBlack::Black>().as_cpu(),
+    OriginalOptimized::splitToRedBlack(p.joined.as_cpu(),
+                                       p.red.as_cpu(), p.black.as_cpu(),
                                        imax, jmax);
-    OriginalOptimized::splitToRedBlack(p_beta.get_joined().as_cpu(),
-                                       p_beta.get<RedBlack::Red>().as_cpu(), p_beta.get<RedBlack::Black>().as_cpu(),
+    OriginalOptimized::splitToRedBlack(p_beta.joined.as_cpu(),
+                                       p_beta.red.as_cpu(), p_beta.black.as_cpu(),
                                        imax, jmax);
     OriginalOptimized::calculateFluidmask((int**)fluidmask.as_cpu(), (const char**)flag.as_cpu(), imax, jmax);
     OriginalOptimized::splitFluidmaskToSurroundedMask((const int **)(fluidmask.as_cpu()),
-                                                      (int**)surroundmask.get<RedBlack::Red>().as_cpu(), (int**)surroundmask.get<RedBlack::Black>().as_cpu(),
+                                                      (int**)surroundmask.red.as_cpu(), (int**)surroundmask.black.as_cpu(),
                                                       imax, jmax);
 }
 
@@ -84,7 +85,7 @@ void CudaBackendV1::tick(float timestep) {
     auto gpu_params = CommonParams{
             .size = ulong2{matrix_size.x, matrix_size.y},
             .col_pitch_4byte=u.col_pitch,
-            .col_pitch_redblack=rhs.get<RedBlack::Red>().col_pitch,
+            .col_pitch_redblack=rhs.red.col_pitch,
             .deltas = float2{del_x, del_y},
             .timestep = timestep,
     };
@@ -100,16 +101,6 @@ void CudaBackendV1::tick(float timestep) {
     dim3 horizontal_blocksize(32);
     dim3 horizontal_num_blocks((matrix_size.x + horizontal_blocksize.x - 1) / horizontal_blocksize.x);
 
-    CudaUnified2DArray<float> f2({u.width, u.height});
-    f2.memcpy_in(f.extract_data());
-
-    CudaUnified2DArray<float> g2({v.width, v.height});
-    g2.memcpy_in(g.extract_data());
-
-    OriginalOptimized::computeTentativeVelocity<float>(u.as_cpu(), v.as_cpu(), f2.as_cpu(), g2.as_cpu(), flag.as_cpu(),
-                             imax, jmax, timestep, del_x, del_y, params.gamma, params.Re);
-
-
     computeTentativeVelocity_apply<<<num_blocks, threads_per_block, 0, stream>>>(
             u.as_gpu(), v.as_gpu(), fluidmask.as_gpu(),
             f.as_gpu(), g.as_gpu(),
@@ -118,69 +109,81 @@ void CudaBackendV1::tick(float timestep) {
 
     computeTentativeVelocity_postproc_vertical<<<vertical_num_blocks, vertical_blocksize, 0, stream>>>(u.as_gpu(), f.as_gpu(), gpu_params);
     computeTentativeVelocity_postproc_horizontal<<<horizontal_num_blocks, horizontal_blocksize, 0, stream>>>(v.as_gpu(), g.as_gpu(), gpu_params);
-    cudaStreamSynchronize(stream);
-
-    float** f_data = f.as_cpu();
-    float** f2_data = f2.as_cpu();
-    for (int i = 0; i < f.width; i++) {
-        for (int j = 0; j < f.height; j++) {
-            //if (f_data[i][j] != f2_data[i][j]) {
-            //    fprintf(stdout, "%03d %03d exp %g (%a) got %g (%a) diff %g\n", i, j, f2_data[i][j], f2_data[i][j], f_data[i][j], f_data[i][j], f_data[i][j] - f2_data[i][j]);
-            //}
-        }
-    }
 
 //    OriginalOptimized::computeRhs(f.as_cpu(), g.as_cpu(), rhs2.as_cpu(), flag.as_cpu(),
 //               imax, jmax, timestep, del_x, del_y);
 
-    computeRHS_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.as_gpu(), g.as_gpu(), fluidmask.as_gpu(), rhs.get_joined().as_gpu(), gpu_params);
+    computeRHS_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.as_gpu(), g.as_gpu(), fluidmask.as_gpu(), rhs.joined.as_gpu(), gpu_params);
     cudaStreamSynchronize(stream);
 
 
     float res = 0;
     if (ifluid > 0) {
-        OriginalOptimized::poissonSolver<false>(p.get_joined().as_cpu(), p.get<RedBlack::Red>().as_cpu(), p.get<RedBlack::Black>().as_cpu(),
-                                                p_beta.get_joined().as_cpu(), p_beta.get<RedBlack::Red>().as_cpu(), p_beta.get<RedBlack::Black>().as_cpu(),
-                                                rhs.get_joined().as_cpu(), rhs.get<RedBlack::Red>().as_cpu(), rhs.get<RedBlack::Black>().as_cpu(),
-                                                (int**)fluidmask.as_cpu(), (int**)surroundmask.get<RedBlack::Black>().as_cpu(),
+        OriginalOptimized::poissonSolver<false>(p.joined.as_cpu(), p.red.as_cpu(), p.black.as_cpu(),
+                                                p_beta.joined.as_cpu(), p_beta.red.as_cpu(), p_beta.black.as_cpu(),
+                                                rhs.joined.as_cpu(), rhs.red.as_cpu(), rhs.black.as_cpu(),
+                                                (int**)fluidmask.as_cpu(), (int**)surroundmask.black.as_cpu(),
                                                 flag.as_cpu(), imax, jmax,
                                                 del_x, del_y,
                                                 params.poisson_error_threshold, params.poisson_max_iterations, params.poisson_omega,
                                                 ifluid);
     }
 
+    // Experiment
+    dispatch_splitRedBlackCUDA(p, threads_per_block, num_blocks, gpu_params);
+//    dispatch_joinRedBlackCUDA(p, threads_per_block, num_blocks, gpu_params);
+
 //    OriginalOptimized::updateVelocity(u.as_cpu(), v.as_cpu(),
 //                       f.as_cpu(), g.as_cpu(),
 //                       p.as_cpu(), flag.as_cpu(),
 //                       imax, jmax, timestep, del_x, del_y);
-    updateVelocity_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.as_gpu(), g.as_gpu(), p.get_joined().as_gpu(), fluidmask.as_gpu(),
+    updateVelocity_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.as_gpu(), g.as_gpu(), p.joined.as_gpu(), fluidmask.as_gpu(),
                                                                       u.as_gpu(), v.as_gpu(),
                                                                       gpu_params);
-//    cudaStreamSynchronize(stream);
-//
 
-    boundaryConditions_preproc_vertical<<<vertical_blocksize, vertical_num_blocks, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
-    boundaryConditions_preproc_horizontal<<<horizontal_blocksize, horizontal_num_blocks, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
+    boundaryConditions_preproc_vertical<<<vertical_num_blocks, vertical_blocksize, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
+    boundaryConditions_preproc_horizontal<<<horizontal_num_blocks, horizontal_blocksize, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
 
     boundaryConditions_apply<<<num_blocks, threads_per_block, 0, stream>>>( flag.as_gpu(),
                                                                            u.as_gpu(),  v.as_gpu(),
                                                                            gpu_params);
 
-    boundaryConditions_inputflow_west_vertical<<<vertical_blocksize, vertical_num_blocks, 0, stream>>>(
+    boundaryConditions_inputflow_west_vertical<<<vertical_num_blocks, vertical_blocksize, 0, stream>>>(
             u.as_gpu(),  v.as_gpu(),
             float2{params.initial_velocity_x, params.initial_velocity_y},
             gpu_params
             );
 
 //    OriginalOptimized::applyBoundaryConditions(u2.as_cpu(), v2.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
-
 }
+
+void CudaBackendV1::dispatch_splitRedBlackCUDA(CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined>& to_split,
+                                               dim3 blocksize_2d, dim3 gridsize_2d,
+                                               CommonParams params)
+{
+    split_redblack_simple<<<gridsize_2d, blocksize_2d, 0, stream>>>(
+            to_split.joined.as_gpu(),
+            to_split.red.as_gpu(), to_split.black.as_gpu(),
+            params
+    );
+}
+void CudaBackendV1::dispatch_joinRedBlackCUDA(CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined>& to_join,
+                                              dim3 blocksize_2d, dim3 gridsize_2d,
+                                              CommonParams params)
+{
+    join_redblack_simple<<<gridsize_2d, blocksize_2d,0, stream>>>(
+            to_join.red.as_gpu(), to_join.black.as_gpu(),
+            to_join.joined.as_gpu(),
+            params
+    );
+}
+
 LegacySimDump CudaBackendV1::dumpStateAsLegacy() {
     cudaStreamSynchronize(stream);
     auto dump = LegacySimDump(params.to_legacy());
     dump.u = u.extract_data();
     dump.v = v.extract_data();
-    dump.p = p.get_joined().extract_data();
+    dump.p = p.joined.extract_data();
     dump.flag = flag.extract_data();
     return dump;
 }

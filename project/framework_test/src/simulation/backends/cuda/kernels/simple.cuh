@@ -6,12 +6,6 @@
 
 #include "common.cuh"
 
-template<typename T>
-using in_matrix = const T* const __restrict__;
-
-template<typename T>
-using out_matrix = T* const __restrict__;
-
 __global__ void computeTentativeVelocity_apply(
         in_matrix<float> u, in_matrix<float> v, in_matrix<uint> is_fluid,
         out_matrix<float> f, out_matrix<float> g,

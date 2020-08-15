@@ -21,14 +21,13 @@ class CudaUnifiedRedBlackArray;
 
 template<typename T, CudaMemoryType MemoryType>
 class CudaUnifiedRedBlackArray<T, RedBlackStorage::RedBlackOnly, MemoryType> {
-protected:
+public:
     using ArrayType = CudaUnified2DArray<T, MemoryType>;
 
     Size<size_t> split_size;
     ArrayType red;
     ArrayType black;
 
-public:
     explicit CudaUnifiedRedBlackArray(Size<size_t> full_size)
         : split_size(full_size.x, full_size.y / 2),
           red(split_size),
@@ -54,18 +53,14 @@ template<typename T, CudaMemoryType MemoryType>
 class CudaUnifiedRedBlackArray<T, RedBlackStorage::WithJoined, MemoryType> : public CudaUnifiedRedBlackArray<T, RedBlackStorage::RedBlackOnly, MemoryType> {
     using Base = CudaUnifiedRedBlackArray<T, RedBlackStorage::RedBlackOnly, MemoryType>;
 
+public:
     typename Base::ArrayType joined;
 
-public:
     explicit CudaUnifiedRedBlackArray(Size<size_t> full_size)
             : Base(full_size),
               joined(full_size)
     {}
     ~CudaUnifiedRedBlackArray() override = default;
-
-    typename Base::ArrayType& get_joined() {
-        return joined;
-    }
 
     void zero_out() override {
         Base::zero_out();
