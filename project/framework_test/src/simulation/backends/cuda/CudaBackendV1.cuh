@@ -40,10 +40,10 @@ private:
     CudaUnifiedRedBlackArray<uint, RedBlackStorage::RedBlackOnly> surroundmask;
 
     void dispatch_splitRedBlackCUDA(CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined>& to_split,
-                                    dim3 blocksize_2d, dim3 gridsize_2d,
+                                    dim3 gridsize_2d, dim3 blocksize_2d,
                                     CommonParams gpu_params);
     void dispatch_joinRedBlackCUDA(CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined>& to_join,
-                                   dim3 blocksize_2d, dim3 gridsize_2d,
+                                   dim3 gridsize_2d, dim3 blocksize_2d,
                                    CommonParams gpu_params);
 
     template<RedBlack Kind>

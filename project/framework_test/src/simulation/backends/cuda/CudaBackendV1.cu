@@ -89,31 +89,31 @@ void CudaBackendV1::tick(float timestep) {
             .deltas = float2{del_x, del_y},
             .timestep = timestep,
     };
-    dim3 threads_per_block(16, 16);
-    dim3 num_blocks(
-            (matrix_size.x + threads_per_block.x - 1) / threads_per_block.x,
-            (matrix_size.y + threads_per_block.y - 1) / threads_per_block.y
+    dim3 blocksize_2d(16, 16);
+    dim3 gridsize_2d(
+            (matrix_size.x + blocksize_2d.x - 1) / blocksize_2d.x,
+            (matrix_size.y + blocksize_2d.y - 1) / blocksize_2d.y
             );
 
-    dim3 vertical_blocksize(32);
-    dim3 vertical_num_blocks((matrix_size.y + vertical_blocksize.x - 1) / vertical_blocksize.x);
+    dim3 blocksize_vertical(32);
+    dim3 gridsize_vertical((matrix_size.y + blocksize_vertical.x - 1) / blocksize_vertical.x);
 
-    dim3 horizontal_blocksize(32);
-    dim3 horizontal_num_blocks((matrix_size.x + horizontal_blocksize.x - 1) / horizontal_blocksize.x);
+    dim3 blocksize_horizontal(32);
+    dim3 gridsize_horizontal((matrix_size.x + blocksize_horizontal.x - 1) / blocksize_horizontal.x);
 
-    computeTentativeVelocity_apply<<<num_blocks, threads_per_block, 0, stream>>>(
+    computeTentativeVelocity_apply<<<gridsize_2d, blocksize_2d, 0, stream>>>(
             u.as_gpu(), v.as_gpu(), fluidmask.as_gpu(),
             f.as_gpu(), g.as_gpu(),
             gpu_params, params.gamma, params.Re
             );
 
-    computeTentativeVelocity_postproc_vertical<<<vertical_num_blocks, vertical_blocksize, 0, stream>>>(u.as_gpu(), f.as_gpu(), gpu_params);
-    computeTentativeVelocity_postproc_horizontal<<<horizontal_num_blocks, horizontal_blocksize, 0, stream>>>(v.as_gpu(), g.as_gpu(), gpu_params);
+    computeTentativeVelocity_postproc_vertical<<<gridsize_vertical, blocksize_vertical, 0, stream>>>(u.as_gpu(), f.as_gpu(), gpu_params);
+    computeTentativeVelocity_postproc_horizontal<<<gridsize_horizontal, blocksize_horizontal, 0, stream>>>(v.as_gpu(), g.as_gpu(), gpu_params);
 
 //    OriginalOptimized::computeRhs(f.as_cpu(), g.as_cpu(), rhs2.as_cpu(), flag.as_cpu(),
 //               imax, jmax, timestep, del_x, del_y);
 
-    computeRHS_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.as_gpu(), g.as_gpu(), fluidmask.as_gpu(), rhs.joined.as_gpu(), gpu_params);
+    computeRHS_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(f.as_gpu(), g.as_gpu(), fluidmask.as_gpu(), rhs.joined.as_gpu(), gpu_params);
     cudaStreamSynchronize(stream);
 
 
@@ -133,18 +133,18 @@ void CudaBackendV1::tick(float timestep) {
 //                       f.as_cpu(), g.as_cpu(),
 //                       p.as_cpu(), flag.as_cpu(),
 //                       imax, jmax, timestep, del_x, del_y);
-    updateVelocity_1per<<<num_blocks, threads_per_block, 0, stream>>>(f.as_gpu(), g.as_gpu(), p.joined.as_gpu(), fluidmask.as_gpu(),
+    updateVelocity_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(f.as_gpu(), g.as_gpu(), p.joined.as_gpu(), fluidmask.as_gpu(),
                                                                       u.as_gpu(), v.as_gpu(),
                                                                       gpu_params);
 
-    boundaryConditions_preproc_vertical<<<vertical_num_blocks, vertical_blocksize, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
-    boundaryConditions_preproc_horizontal<<<horizontal_num_blocks, horizontal_blocksize, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
+    boundaryConditions_preproc_vertical<<<gridsize_vertical, blocksize_vertical, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
+    boundaryConditions_preproc_horizontal<<<gridsize_horizontal, blocksize_horizontal, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
 
-    boundaryConditions_apply<<<num_blocks, threads_per_block, 0, stream>>>( flag.as_gpu(),
+    boundaryConditions_apply<<<gridsize_2d, blocksize_2d, 0, stream>>>( flag.as_gpu(),
                                                                            u.as_gpu(),  v.as_gpu(),
                                                                            gpu_params);
 
-    boundaryConditions_inputflow_west_vertical<<<vertical_num_blocks, vertical_blocksize, 0, stream>>>(
+    boundaryConditions_inputflow_west_vertical<<<gridsize_vertical, blocksize_vertical, 0, stream>>>(
             u.as_gpu(),  v.as_gpu(),
             float2{params.initial_velocity_x, params.initial_velocity_y},
             gpu_params
@@ -154,7 +154,7 @@ void CudaBackendV1::tick(float timestep) {
 }
 
 void CudaBackendV1::dispatch_splitRedBlackCUDA(CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined>& to_split,
-                                               dim3 blocksize_2d, dim3 gridsize_2d,
+                                               dim3 gridsize_2d, dim3 blocksize_2d,
                                                CommonParams params)
 {
     split_redblack_simple<<<gridsize_2d, blocksize_2d, 0, stream>>>(
@@ -164,7 +164,7 @@ void CudaBackendV1::dispatch_splitRedBlackCUDA(CudaUnifiedRedBlackArray<float, R
     );
 }
 void CudaBackendV1::dispatch_joinRedBlackCUDA(CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined>& to_join,
-                                              dim3 blocksize_2d, dim3 gridsize_2d,
+                                              dim3 gridsize_2d, dim3 blocksize_2d,
                                               CommonParams params)
 {
     join_redblack_simple<<<gridsize_2d, blocksize_2d,0, stream>>>(
