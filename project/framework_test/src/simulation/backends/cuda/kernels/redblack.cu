@@ -23,7 +23,7 @@ __global__ void split_redblack_simple(in_matrix<float> joined,
 //    }
 
     const uint idx_joined = params.flatten_4byte(i, j);
-    const uint idx_redblack = params.flatten_4byte(i, j >> 1u);
+    const uint idx_redblack = params.flatten_redblack(i, j >> 1u);
     // TODO - equivalent to (i&1) ^ (j&2) == 0 - does the compiler figure this out
     if ((i+j) % 2 == 0)
         red[idx_redblack] = joined[idx_joined];
@@ -50,7 +50,7 @@ __global__ void join_redblack_simple(in_matrix<float> red, in_matrix<float> blac
 //    }
 
     const uint idx_joined = params.flatten_4byte(i, j);
-    const uint idx_redblack = params.flatten_4byte(i, j >> 1u);
+    const uint idx_redblack = params.flatten_redblack(i, j >> 1u);
     // TODO - equivalent to (i&1) ^ (j&2) == 0 - does the compiler figure this out
     if ((i+j) % 2 == 0)
         joined[idx_joined] = red[idx_redblack];

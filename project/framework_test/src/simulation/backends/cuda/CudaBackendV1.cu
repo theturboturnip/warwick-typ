@@ -131,7 +131,7 @@ void CudaBackendV1::tick(float timestep) {
 
     // Experiment
     dispatch_splitRedBlackCUDA(p, threads_per_block, num_blocks, gpu_params);
-//    dispatch_joinRedBlackCUDA(p, threads_per_block, num_blocks, gpu_params);
+    dispatch_joinRedBlackCUDA(p, threads_per_block, num_blocks, gpu_params);
 
 //    OriginalOptimized::updateVelocity(u.as_cpu(), v.as_cpu(),
 //                       f.as_cpu(), g.as_cpu(),
