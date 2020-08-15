@@ -27,6 +27,7 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
       g(matrix_size),
 
       p(matrix_size),
+      p_sum_squares(matrix_size),
 
       p_beta(matrix_size),
 
@@ -47,16 +48,20 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
 
     cudaStreamCreate(&stream);
 
+    // Split pressure to red/black in preparation for poisson, which only operates on split matrices
+    OriginalOptimized::splitToRedBlack(p.joined.as_cpu(),
+                                       p.red.as_cpu(), p.black.as_cpu(),
+                                       imax, jmax);
+
     // TODO - remove poisson_error_threshold from args
     OriginalOptimized::calculatePBeta(p_beta.joined.as_cpu(), flag.as_cpu(),
                                       imax, jmax, del_x, del_y,
                                       params.poisson_error_threshold, params.poisson_omega);
-    OriginalOptimized::splitToRedBlack(p.joined.as_cpu(),
-                                       p.red.as_cpu(), p.black.as_cpu(),
-                                       imax, jmax);
     OriginalOptimized::splitToRedBlack(p_beta.joined.as_cpu(),
                                        p_beta.red.as_cpu(), p_beta.black.as_cpu(),
                                        imax, jmax);
+
+    // Calculate the fluidmask and surroundedmask items
     OriginalOptimized::calculateFluidmask((int**)fluidmask.as_cpu(), (const char**)flag.as_cpu(), imax, jmax);
     OriginalOptimized::splitFluidmaskToSurroundedMask((const int **)(fluidmask.as_cpu()),
                                                       (int**)surroundmask.red.as_cpu(), (int**)surroundmask.black.as_cpu(),
@@ -84,6 +89,7 @@ float CudaBackendV1::findMaxTimestep() {
 void CudaBackendV1::tick(float timestep) {
     auto gpu_params = CommonParams{
             .size = ulong2{matrix_size.x, matrix_size.y},
+            .redblack_size = ulong2{redblack_matrix_size.x, redblack_matrix_size.y},
             .col_pitch_4byte=u.col_pitch,
             .col_pitch_redblack=rhs.red.col_pitch,
             .deltas = float2{del_x, del_y},
@@ -94,6 +100,12 @@ void CudaBackendV1::tick(float timestep) {
             (matrix_size.x + blocksize_2d.x - 1) / blocksize_2d.x,
             (matrix_size.y + blocksize_2d.y - 1) / blocksize_2d.y
             );
+
+    dim3 blocksize_redblack(16, 16);
+    dim3 gridsize_redblack(
+            (redblack_matrix_size.x + blocksize_redblack.x - 1) / blocksize_redblack.x,
+            (redblack_matrix_size.y + blocksize_redblack.y - 1) / blocksize_redblack.y
+    );
 
     dim3 blocksize_vertical(32);
     dim3 gridsize_vertical((matrix_size.y + blocksize_vertical.x - 1) / blocksize_vertical.x);
@@ -114,19 +126,55 @@ void CudaBackendV1::tick(float timestep) {
 //               imax, jmax, timestep, del_x, del_y);
 
     computeRHS_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(f.as_gpu(), g.as_gpu(), fluidmask.as_gpu(), rhs.joined.as_gpu(), gpu_params);
-    cudaStreamSynchronize(stream);
+    //cudaStreamSynchronize(stream);
 
 
     float res = 0;
     if (ifluid > 0) {
-        OriginalOptimized::poissonSolver<false>(p.joined.as_cpu(), p.red.as_cpu(), p.black.as_cpu(),
-                                                p_beta.joined.as_cpu(), p_beta.red.as_cpu(), p_beta.black.as_cpu(),
-                                                rhs.joined.as_cpu(), rhs.red.as_cpu(), rhs.black.as_cpu(),
-                                                (int**)fluidmask.as_cpu(), (int**)surroundmask.black.as_cpu(),
-                                                flag.as_cpu(), imax, jmax,
-                                                del_x, del_y,
-                                                params.poisson_error_threshold, params.poisson_max_iterations, params.poisson_omega,
-                                                ifluid);
+        constexpr bool UseCPUPoisson = false;
+        if (UseCPUPoisson) {
+            OriginalOptimized::poissonSolver<false>(p.joined.as_cpu(), p.red.as_cpu(), p.black.as_cpu(),
+                                                    p_beta.joined.as_cpu(), p_beta.red.as_cpu(), p_beta.black.as_cpu(),
+                                                    rhs.joined.as_cpu(), rhs.red.as_cpu(), rhs.black.as_cpu(),
+                                                    (int **) fluidmask.as_cpu(), (int **) surroundmask.black.as_cpu(),
+                                                    flag.as_cpu(), imax, jmax,
+                                                    del_x, del_y,
+                                                    params.poisson_error_threshold, params.poisson_max_iterations, params.poisson_omega,
+                                                    ifluid);
+        } else {
+            // Sum of squares of pressure - reduction
+            // poisson_pSquareSumReduce(p.joined.as_gpu(), p_sum_squares.as_gpu())
+            // p0 = p_sum_squares.as_cpu(?????)???
+            // TODO - accessing memory like this is very convenient with managed memory
+            //  We *might* be able to us VK_EXT_external_memory_host to import CUDA Managed Memory as Vulkan, bypassing Vulkan allocations
+
+            //const float partial_res_sqr_thresh = params.poisson_error_threshold * p0 * params.poisson_error_threshold * p0 * (float)ifluid;
+
+            // Split RHS
+            dispatch_splitRedBlackCUDA(rhs, gridsize_2d, blocksize_2d, gpu_params);
+            // [NO CUDA STREAM SYNC NECESSARY]
+            // cudaStreamSynchronize(stream);
+
+            // Red/Black SOR-iteration
+            for (int iter = 0; iter < params.poisson_max_iterations; iter++) {
+            //  redblack<Red>();
+                dispatch_poissonRedBlackCUDA<RedBlack::Red>(blocksize_redblack, gridsize_redblack, gpu_params);
+            //  float approxRes = redblack<Black>(); (capture approximate residual here)
+                //float approxRes; // TODO - ???
+                dispatch_poissonRedBlackCUDA<RedBlack::Black>(blocksize_redblack, gridsize_redblack, gpu_params);//&approxRes);
+            //  [ IMPLICIT STREAM SYNC FOR RESIDUAL ]
+                // [ NOT NECESSARY WHEN NOT CALCULATING RESIDUAL ]
+            //  if (approxRes < partial_res_sqr_thresh)
+            //      TODO - necessary to capture full res at all? if the approxRes is actually accurate, then maybe not
+            //       If we have to calculate this we may have to merge pressure here
+            //      break;
+            //  TODO - dynamic error
+            }
+
+            // join p
+            dispatch_joinRedBlackCUDA(p, gridsize_2d, blocksize_2d, gpu_params);
+            // Stream sync not necessary here, because the rest is CUDA
+        }
     }
 
 //    OriginalOptimized::updateVelocity(u.as_cpu(), v.as_cpu(),
@@ -172,6 +220,24 @@ void CudaBackendV1::dispatch_joinRedBlackCUDA(CudaUnifiedRedBlackArray<float, Re
             to_join.joined.as_gpu(),
             params
     );
+}
+
+template<RedBlack Kind>
+void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 blocksize_redblack, CommonParams gpu_params) {
+    // TODO - Use HALF SIZE dimensions! the poisson kernel operates on redblack ONLY
+
+    poisson_single_tick<<<gridsize_redblack, blocksize_redblack, 0, stream>>>(
+            p.get<Kind>().as_gpu(), //out_matrix<float> this_pressure_rb,
+            p.get_other<Kind>().as_gpu(),//in_matrix<float> other_pressure_rb,
+            rhs.get<Kind>().as_gpu(),//in_matrix<float> this_rhs_rb,
+            p_beta.get<Kind>().as_gpu(), //in_matrix<float> this_beta_rb,
+
+            (Kind == RedBlack::Black) ? 1 : 0, // 0 if red, 1 if black
+
+            params.poisson_omega,
+
+            gpu_params
+                );
 }
 
 LegacySimDump CudaBackendV1::dumpStateAsLegacy() {

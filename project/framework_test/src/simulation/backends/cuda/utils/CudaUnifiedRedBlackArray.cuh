@@ -6,9 +6,9 @@
 
 #include "CudaUnified2DArray.cuh"
 
-enum class RedBlack {
-    Red,
-    Black
+enum class RedBlack : bool {
+    Red = true,
+    Black = false
 };
 
 enum class RedBlackStorage {
@@ -38,6 +38,14 @@ public:
     template<RedBlack ToGet>
     ArrayType& get() {
         if (ToGet == RedBlack::Red)
+            return red;
+        else
+            return black;
+    }
+
+    template<RedBlack ToGet>
+    ArrayType& get_other() {
+        if (ToGet == RedBlack::Black)
             return red;
         else
             return black;

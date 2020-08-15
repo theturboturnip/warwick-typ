@@ -20,6 +20,19 @@ __global__ void computeTentativeVelocity_postproc_horizontal(in_matrix<float> v,
 __global__ void computeRHS_1per(in_matrix<float> f, in_matrix<float> g, in_matrix<uint> is_fluid, out_matrix<float> rhs,
                                 const CommonParams params);
 
+// TODO - this should operate linearly, as 2D traversal is never performed
+// poisson_pSquareSumReduce(in_matrix<float> p, out_matrix<float> p_squares)
+__global__ void poisson_single_tick(out_matrix<float> this_pressure_rb,
+                                    in_matrix<float> other_pressure_rb,
+                                    in_matrix<float> this_rhs_rb,
+                                    in_matrix<float> this_beta_rb,
+
+                                    int is_black, // 0 if red, 1 if black
+                                    float poisson_omega,
+                                    const CommonParams params
+                                    );
+
+
 __global__ void updateVelocity_1per(in_matrix<float> f, in_matrix<float> g, in_matrix<float> p, in_matrix<uint> is_fluid,
                                     out_matrix<float> u, out_matrix<float> v,
                                     const CommonParams params);

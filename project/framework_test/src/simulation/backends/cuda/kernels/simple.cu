@@ -170,6 +170,106 @@ __global__ void computeRHS_1per(in_matrix<float> f, in_matrix<float> __restrict_
     rhs[idx] = new_rhs;
 }
 
+__global__ void poisson_single_tick(out_matrix<float> this_pressure_rb,
+                                    in_matrix<float> other_pressure_rb,
+                                    in_matrix<float> this_rhs_rb,
+                                    in_matrix<float> this_beta_rb,
+
+                                    int is_black, // 0 if red, 1 if black
+
+                                    float poisson_omega,
+
+                                    const CommonParams params
+) {
+
+//    // If the column is even, then the first red is p[i][0], which shouldn't be calculated, so start at index 1 in the red array
+//    const int j_start = (i % 2 == rb) ? 1 : 0;
+//    // In even columns, the "north" value is at p_red[i][j-1], but on odd columns, the "north" value is p_red[i][j].
+//    const int north_offset = -j_start;
+
+    // These are redblack offsets - not for normal matrices
+    const uint i = (blockIdx.x * blockDim.x) + threadIdx.x;
+    const uint j = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+    //if (!params.in_real_range(i, j)) return;
+    // i params are the same in redblack as they are in normal ones
+    if (i == 0 || i >= params.size.x - 1) return;
+    // j params have a start point based on i:
+    //  (0, 0) in absolute coords is red. (0,0) in absolute coords should not be processed, becuase it's on an edge.
+    //  this applies to all items on a horizontal edge - (0,0), (1,0), (2,0), (3,0), (4,0) in absolute coords shouldn't be processed.
+    //  if we're red, then on even columns, the top item (2n, 0) is on the edge, and we should start processing at 1.
+    //  if we're black, then on odd columns, the top item (2n+1, 0) is on the edge, and we should start processing at 1.
+    const int j_start = (i % 2 == is_black) ? 1 : 0;
+    // redblack_size.y = (jmax+2)/2 = (jmax/2) + 1
+    // (jmax/2) items must be processed
+    // => if j_start == 0, don't process elements >= (jmax/2) = redblack_size.y - 1 + 0
+    //      if j_start == 1, don't process elements >= (jmax/2) + 1 = redblack_size.y - 1 + 1
+    if (j < j_start || j >= (params.redblack_size.y - 1 + j_start)) return;
+
+    // if we're red, the position of the corresponding "south" square in the *other* array is dependent on the column just like j_start.
+    // In even columns, the "south" value is at p_red[i][j-1], but on odd columns, the "south" value is p_red[i][j].
+    const int south_offset_in_other = -j_start;
+
+    // The index of our current value in *this* matrix, applicable to p, p_beta, rhs
+    const uint curr_idx = params.flatten_redblack(i, j);
+    // Offset the indices for the north/south values in the *other* matrix
+    const uint north_idx_other = params.flatten_redblack(i, j+south_offset_in_other+1);
+    const uint south_idx_other = params.flatten_redblack(i, j+south_offset_in_other);
+    // In adjacent columns in the *other* matrix, j-values are equivalent
+    const uint east_idx_other = params.flatten_redblack(i+1, j);
+    const uint west_idx_other = params.flatten_redblack(i-1, j);
+
+    // These reads are not contiguous with each other, but they should be contiguous with the other accesses in this warp
+    const float north = other_pressure_rb[north_idx_other];
+    const float south = other_pressure_rb[south_idx_other];
+    const float east = other_pressure_rb[east_idx_other];
+    const float west = other_pressure_rb[west_idx_other];
+
+    const float centre = this_pressure_rb[curr_idx];
+    const float beta = this_beta_rb[curr_idx];
+    const float rhs = this_rhs_rb[curr_idx];
+
+//    __m128 north = _mm_loadu_ps(&updown_col[j+north_offset]);
+//    __m128 south = _mm_loadu_ps(&updown_col[j+north_offset+1]);
+//    __m128 east = _mm_loadu_ps(&right_col[j]);
+//    __m128 west = _mm_loadu_ps(&left_col[j]);
+//
+//    __m128 centre = _mm_loadu_ps(&mid_col[j]);
+//
+//    __m128 beta_mod = _mm_loadu_ps(&mid_beta[j]);
+//
+//    __m128 rhs = _mm_loadu_ps(&mid_rhs[j]);
+//
+
+    // TODO - pass as params
+    const float rdx2 = 1.0f/(params.deltas.x*params.deltas.x);
+    const float rdy2 = 1.0f/(params.deltas.y*params.deltas.y);
+    const float inv_omega = 1.0f - poisson_omega;
+
+    const float horiz = (east + west) * rdx2;
+    const float vertical = (north + south) * rdy2;
+
+    const float sum = beta * (horiz + vertical - rhs);
+
+    const float final = (inv_omega * centre) - sum;
+
+    // TODO Sync threads here to make sure all writers write at the same time.
+    // This isn't necessary for race conditions but I feel like it's nice?
+    //__syncthreads();
+    this_pressure_rb[curr_idx] = final;
+//    __m128 horiz = _mm_add_ps(east, west);
+//    __m128 vertical = _mm_add_ps(north, south);
+//    //
+//
+//    horiz = _mm_mul_ps(horiz, rdx2_v);
+//    vertical = _mm_mul_ps(vertical, rdy2_v);
+//    __m128 sum = _mm_mul_ps(beta_mod, _mm_sub_ps(_mm_add_ps(horiz, vertical), rhs));
+//
+//    __m128 final = _mm_fmsub_ps(inv_omega_v, centre, sum);
+//
+//    _mm_storeu_ps(&mid_col[j], final);
+}
+
 __global__ void updateVelocity_1per(in_matrix<float> f, in_matrix<float> g, in_matrix<float> p, in_matrix<uint> is_fluid,
                                     out_matrix<float> u, out_matrix<float> v,
                                     const CommonParams params)

@@ -33,6 +33,7 @@ private:
     CudaUnified2DArray<float> u, v;
     CudaUnified2DArray<float> f, g;
     CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined> p;
+    CudaUnified2DArray<float> p_sum_squares;
     CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined> p_beta;
     CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined> rhs;
     CudaUnified2DArray<char> flag;
@@ -47,7 +48,7 @@ private:
                                    CommonParams gpu_params);
 
     template<RedBlack Kind>
-    void dispatch_poissonIterCUDA();
+    void dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 blocksize_redblack, CommonParams gpu_params);
 
     cudaStream_t stream;
 };

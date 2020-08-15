@@ -268,6 +268,7 @@ int poissonSolver(float ** const p, float ** const p_red, float ** const p_black
             float threadlocal_res = 0.0f;
 
             float ** const this_color = rb ? p_black : p_red;
+            // This could be const float ** const, but it complains about casting
             float ** const other_color = rb ? p_red : p_black;
 
             // This breaks res_stack - presumably the reduction keeps some internal variable which isn't reset
