@@ -22,13 +22,16 @@ SingleDataDifference::SingleDataDifference(const std::vector<float> &a, const st
     DASSERT(a.size() == b.size());
 
     double errorSum = 0;
+    double errorAbsSum = 0;
     const int N = a.size();
     for (int i = 0; i < N; i++) {
         error[i] = a[i] - b[i];
         errorSum += error[i];
+        errorAbsSum += fabs(error[i]);
     }
 
     errorMean = errorSum / N;
+    errorAbsMean = errorAbsSum / N;
 
     double sumDiffSquared = 0;
     for (const auto e : error) {

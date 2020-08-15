@@ -11,6 +11,7 @@
 struct SingleDataDifference {
     std::vector<float> error;
     double errorMean;
+    double errorAbsMean;
     double errorVariance;
     double errorStdDev;
 
