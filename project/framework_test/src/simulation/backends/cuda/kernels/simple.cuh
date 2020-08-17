@@ -29,6 +29,7 @@ __global__ void poisson_single_tick(out_matrix<float> this_pressure_rb,
 
                                     int is_black, // 0 if red, 1 if black
                                     float poisson_omega,
+                                    int iter,
                                     const CommonParams params
                                     );
 

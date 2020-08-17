@@ -158,10 +158,10 @@ void CudaBackendV1::tick(float timestep) {
             // Red/Black SOR-iteration
             for (int iter = 0; iter < params.poisson_max_iterations; iter++) {
             //  redblack<Red>();
-                dispatch_poissonRedBlackCUDA<RedBlack::Red>(blocksize_redblack, gridsize_redblack, gpu_params);
+                dispatch_poissonRedBlackCUDA<RedBlack::Red>(blocksize_redblack, gridsize_redblack, iter, gpu_params);
             //  float approxRes = redblack<Black>(); (capture approximate residual here)
                 //float approxRes; // TODO - ???
-                dispatch_poissonRedBlackCUDA<RedBlack::Black>(blocksize_redblack, gridsize_redblack, gpu_params);//&approxRes);
+                dispatch_poissonRedBlackCUDA<RedBlack::Black>(blocksize_redblack, gridsize_redblack, iter, gpu_params);//&approxRes);
             //  [ IMPLICIT STREAM SYNC FOR RESIDUAL ]
                 // [ NOT NECESSARY WHEN NOT CALCULATING RESIDUAL ]
             //  if (approxRes < partial_res_sqr_thresh)
@@ -223,7 +223,7 @@ void CudaBackendV1::dispatch_joinRedBlackCUDA(CudaUnifiedRedBlackArray<float, Re
 }
 
 template<RedBlack Kind>
-void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 blocksize_redblack, CommonParams gpu_params) {
+void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 blocksize_redblack, int iter, CommonParams gpu_params) {
     // TODO - Use HALF SIZE dimensions! the poisson kernel operates on redblack ONLY
 
     poisson_single_tick<<<gridsize_redblack, blocksize_redblack, 0, stream>>>(
@@ -235,6 +235,8 @@ void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 bl
             (Kind == RedBlack::Black) ? 1 : 0, // 0 if red, 1 if black
 
             params.poisson_omega,
+
+            iter,
 
             gpu_params
                 );

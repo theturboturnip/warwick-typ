@@ -272,7 +272,7 @@ int poissonSolver(float ** const p, float ** const p_red, float ** const p_black
             float ** const other_color = rb ? p_red : p_black;
 
             // This breaks res_stack - presumably the reduction keeps some internal variable which isn't reset
-#pragma omp parallel for schedule(static) private(j) shared(rb) firstprivate(threadlocal_res) default(none)// reduction(+:res_stack)
+#pragma omp parallel for schedule(static) private(j) shared(rb, iter) firstprivate(threadlocal_res) default(none)// reduction(+:res_stack)
             for (i = 1; i <= imax; i++) {
                 const float *const left_col = other_color[i-1];
                 const float *const right_col = other_color[i+1];
@@ -381,10 +381,44 @@ res_stack += add * add;
                         __m128 horiz = _mm_add_ps(east, west);
                         __m128 vertical = _mm_add_ps(north, south);
 
+                        // CUDA DISCREPANCY - In CUDA horiz*rdx2 + vertical is turned into an FMA, here it is not.
+                        // The FMA was purposefully avoided in this code, but it seems like it doesn't have an impact on bit-accuracy in CUDA?
                         horiz = _mm_mul_ps(horiz, rdx2_v);
                         vertical = _mm_mul_ps(vertical, rdy2_v);
                         __m128 sum = _mm_mul_ps(beta_mod, _mm_sub_ps(_mm_add_ps(horiz, vertical), rhs));
+                        // This is not contracted to FMA by default on CUDA
                         __m128 final = _mm_fmsub_ps(inv_omega_v, centre, sum);
+
+//                        if ((i == 100) && j == (0 + j_start) && iter == 50 && rb == 0) {
+//                            printf("CPU REPORT %d\n", rb);
+//
+//                            printf("n: %a\ts: %a\te: %a\tw: %a\n",
+//                                   _mm_cvtss_f32(north),
+//                                   _mm_cvtss_f32(south),
+//                                   _mm_cvtss_f32(east),
+//                                   _mm_cvtss_f32(west)
+//                            );
+//
+//                            printf("c: %a\tbeta: %a\trhs: %a\n",
+//                                   _mm_cvtss_f32(centre),
+//                                   _mm_cvtss_f32(beta_mod),
+//                                   _mm_cvtss_f32(rhs)
+//                            );
+//
+//                            printf("rdx2: %a\trdy2: %a\tinv_omega: %a\n",
+//                                   _mm_cvtss_f32(rdx2_v),
+//                                   _mm_cvtss_f32(rdy2_v),
+//                                   _mm_cvtss_f32(inv_omega_v)
+//                            );
+//
+//                            printf("horiz: %a\tvertical: %a\tsum: %a\n",
+//                                   _mm_cvtss_f32(horiz),
+//                                   _mm_cvtss_f32(vertical),
+//                                   _mm_cvtss_f32(sum)
+//                            );
+//
+//                            printf("final: %a\n", _mm_cvtss_f32(final));
+//                        }
 
                         _mm_storeu_ps(&mid_col[j], final);
                     }  // end of j

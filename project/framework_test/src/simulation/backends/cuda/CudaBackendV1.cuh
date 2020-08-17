@@ -48,7 +48,7 @@ private:
                                    CommonParams gpu_params);
 
     template<RedBlack Kind>
-    void dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 blocksize_redblack, CommonParams gpu_params);
+    void dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 blocksize_redblack, int iter, CommonParams gpu_params);
 
     cudaStream_t stream;
 };

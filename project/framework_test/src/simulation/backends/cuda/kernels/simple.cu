@@ -179,6 +179,8 @@ __global__ void poisson_single_tick(out_matrix<float> this_pressure_rb,
 
                                     float poisson_omega,
 
+                                    int iter,
+
                                     const CommonParams params
 ) {
 
@@ -251,7 +253,39 @@ __global__ void poisson_single_tick(out_matrix<float> this_pressure_rb,
 
     const float sum = beta * (horiz + vertical - rhs);
 
-    const float final = (inv_omega * centre) - sum;
+    // On CPU this is an FMSUB, fma of negative should translate to a proper GPU fmsub
+    const float final = fma_cuda(inv_omega, centre, (-sum));//(inv_omega * centre) - sum;
+
+//    if ((i == 100) && j == (0 + j_start) && iter == 50 && is_black == 0) {
+//        printf("GPU REPORT %d\n", is_black);
+//
+//        printf("n: %a\ts: %a\te: %a\tw: %a\n",
+//                (north),
+//                (south),
+//                (east),
+//                (west)
+//        );
+//
+//        printf("c: %a\tbeta: %a\trhs: %a\n",
+//                (centre),
+//                (beta),
+//                (rhs)
+//        );
+//
+//        printf("rdx2: %a\trdy2: %a\tinv_omega: %a\n",
+//               (rdx2),
+//               (rdy2),
+//               (inv_omega)
+//        );
+//
+//        printf("horiz: %a\tvertical: %a\tsum: %a\n",
+//                (horiz),
+//                (vertical),
+//                (sum)
+//        );
+//
+//        printf("final: %a\n", (final));
+//    }
 
     // TODO Sync threads here to make sure all writers write at the same time.
     // This isn't necessary for race conditions but I feel like it's nice?
