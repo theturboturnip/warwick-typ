@@ -176,10 +176,11 @@ __global__ void computeRHS_1per(in_matrix<float> f, in_matrix<float> __restrict_
     rhs[idx] = new_rhs;
 }
 
-__global__ void poisson_single_tick(out_matrix<float> this_pressure_rb,
+__global__ void poisson_single_tick(in_matrix<float> this_pressure_rb,
                                     in_matrix<float> other_pressure_rb,
                                     in_matrix<float> this_rhs_rb,
                                     in_matrix<float> this_beta_rb,
+                                    out_matrix<float> this_pressure_rb_out,
 
                                     int is_black, // 0 if red, 1 if black
 
@@ -228,10 +229,14 @@ __global__ void poisson_single_tick(out_matrix<float> this_pressure_rb,
     const uint west_idx_other = params.flatten_redblack(i-1, j);
 
     // These reads are not contiguous with each other, but they should be contiguous with the other accesses in this warp
-    const float north = other_pressure_rb[north_idx_other];
-    const float south = other_pressure_rb[south_idx_other];
-    const float east = other_pressure_rb[east_idx_other];
-    const float west = other_pressure_rb[west_idx_other];
+//    const float north = other_pressure_rb[north_idx_other];
+//    const float south = other_pressure_rb[south_idx_other];
+//    const float east = other_pressure_rb[east_idx_other];
+//    const float west = other_pressure_rb[west_idx_other];
+    const float north = other_pressure_rb[curr_idx+south_offset_in_other+1];
+    const float south = other_pressure_rb[curr_idx+south_offset_in_other];
+    const float east = 0.6;//other_pressure_rb[curr_idx - params.col_pitch_redblack];
+    const float west = 0.4;//other_pressure_rb[curr_idx + params.col_pitch_redblack];
 
     const float centre = this_pressure_rb[curr_idx];
     const float beta = this_beta_rb[curr_idx];
@@ -262,38 +267,7 @@ __global__ void poisson_single_tick(out_matrix<float> this_pressure_rb,
     // On CPU this is an FMSUB, fma of negative should translate to a proper GPU fmsub
     const float final = fma_cuda(inv_omega, centre, (-sum));//(inv_omega * centre) - sum;
 
-//    if ((i == 100) && j == (0 + j_start) && iter == 50 && is_black == 0) {
-//        printf("GPU REPORT %d\n", is_black);
-//
-//        printf("n: %a\ts: %a\te: %a\tw: %a\n",
-//                (north),
-//                (south),
-//                (east),
-//                (west)
-//        );
-//
-//        printf("c: %a\tbeta: %a\trhs: %a\n",
-//                (centre),
-//                (beta),
-//                (rhs)
-//        );
-//
-//        printf("rdx2: %a\trdy2: %a\tinv_omega: %a\n",
-//               (rdx2),
-//               (rdy2),
-//               (inv_omega)
-//        );
-//
-//        printf("horiz: %a\tvertical: %a\tsum: %a\n",
-//                (horiz),
-//                (vertical),
-//                (sum)
-//        );
-//
-//        printf("final: %a\n", (final));
-//    }
-
-    this_pressure_rb[curr_idx] = final;
+    this_pressure_rb_out[curr_idx] = final;
 //    __m128 horiz = _mm_add_ps(east, west);
 //    __m128 vertical = _mm_add_ps(north, south);
 //    //

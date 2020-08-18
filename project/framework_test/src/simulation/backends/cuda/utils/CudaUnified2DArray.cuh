@@ -69,7 +69,16 @@ public:
     }
     void memcpy_in(const std::vector<T>& new_data) {
         DASSERT(new_data.size() == raw_length);
+        // TODO - Use cudaMemcpy here?
         memcpy(raw_data, new_data.data(), raw_length * sizeof(T));
+    }
+    void memcpy_in(const CudaUnified2DArray<T>& other) {
+        DASSERT(other.raw_length == raw_length);
+        cudaMemcpy(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault);
+    }
+    void dispatch_memcpy_in(const CudaUnified2DArray<T>& other, cudaStream_t stream) {
+        DASSERT(other.raw_length == raw_length);
+        cudaMemcpyAsync(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault, stream);
     }
     std::vector<T> extract_data() {
         return std::vector<T>(raw_data, raw_data + raw_length);

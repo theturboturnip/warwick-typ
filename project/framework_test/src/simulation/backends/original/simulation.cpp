@@ -638,11 +638,6 @@ void setTimestepInterval(float *del_t, int imax, int jmax, float delx,
             *del_t = min(deltv, deltRe);
         }
         *del_t = tau * (*del_t); // multiply by safety factor
-
-        printf("CPU del_t\n");
-        printf("u_max: %a\tv_max: %a\n", umax, vmax);
-        printf("delt_u: %a\tdelt_v: %a\tdelt_re: %a\n", deltu, deltv, deltRe);
-        printf("delta_t: %a\n", *del_t);
     }
 }
 

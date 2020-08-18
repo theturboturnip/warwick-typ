@@ -22,10 +22,12 @@ __global__ void computeRHS_1per(in_matrix<float> f, in_matrix<float> g, in_matri
 
 // TODO - this should operate linearly, as 2D traversal is never performed
 // poisson_pSquareSumReduce(in_matrix<float> p, out_matrix<float> p_squares)
-__global__ void poisson_single_tick(out_matrix<float> this_pressure_rb,
+__global__ void poisson_single_tick(in_matrix<float> this_pressure_rb,
                                     in_matrix<float> other_pressure_rb,
                                     in_matrix<float> this_rhs_rb,
                                     in_matrix<float> this_beta_rb,
+
+                                    out_matrix<float> this_pressure_rb_out,
 
                                     int is_black, // 0 if red, 1 if black
                                     float poisson_omega,

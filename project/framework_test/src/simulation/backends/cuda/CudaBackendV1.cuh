@@ -34,6 +34,7 @@ private:
     CudaUnified2DArray<float> u, v;
     CudaUnified2DArray<float> f, g;
     CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined> p;
+    CudaUnifiedRedBlackArray<float, RedBlackStorage::RedBlackOnly> p_buffered;
     CudaUnified2DArray<float> p_sum_squares;
     CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined> p_beta;
     CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined> rhs;

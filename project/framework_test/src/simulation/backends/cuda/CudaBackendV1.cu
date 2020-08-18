@@ -35,6 +35,7 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
       g(matrix_size),
 
       p(matrix_size),
+      p_buffered(matrix_size),
       p_sum_squares(matrix_size),
 
       p_beta(matrix_size),
@@ -49,6 +50,8 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
     u.memcpy_in(s.velocity_x);
     v.memcpy_in(s.velocity_y);
     p.joined.memcpy_in(s.pressure);
+    p_buffered.red.memcpy_in(p.red);
+    p_buffered.black.memcpy_in(p.black);
     flag.memcpy_in(s.get_legacy_cell_flags());
 
     rhs.zero_out();
@@ -85,6 +88,7 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
     u.dispatch_gpu_prefetch(dstDevice, stream);
     v.dispatch_gpu_prefetch(dstDevice, stream);
     p.dispatch_gpu_prefetch(dstDevice, stream);
+    p_buffered.dispatch_gpu_prefetch(dstDevice, stream);
     rhs.dispatch_gpu_prefetch(dstDevice, stream);
     f.dispatch_gpu_prefetch(dstDevice, stream);
     g.dispatch_gpu_prefetch(dstDevice, stream);
@@ -149,13 +153,13 @@ void CudaBackendV1::tick(float timestep) {
             .deltas = float2{del_x, del_y},
             .timestep = timestep,
     };
-    dim3 blocksize_2d(1, 32);
+    dim3 blocksize_2d(1, 64);
     dim3 gridsize_2d(
             (matrix_size.x + blocksize_2d.x - 1) / blocksize_2d.x,
             (matrix_size.y + blocksize_2d.y - 1) / blocksize_2d.y
             );
 
-    dim3 blocksize_redblack(1, 32);
+    dim3 blocksize_redblack(1, 64);
     dim3 gridsize_redblack(
             (redblack_matrix_size.x + blocksize_redblack.x - 1) / blocksize_redblack.x,
             (redblack_matrix_size.y + blocksize_redblack.y - 1) / blocksize_redblack.y
@@ -281,11 +285,16 @@ template<RedBlack Kind>
 void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 blocksize_redblack, int iter, CommonParams gpu_params) {
     // TODO - Use HALF SIZE dimensions! the poisson kernel operates on redblack ONLY
 
+    // For a p_red computation: do p_red/p_buffered_black into p_buffered_red, while copying p_buffered_black into p_black.
+    // Modern Nvidia GPUs can do parallel memcpy and compute, so this shouldn't take longer
+
     poisson_single_tick<<<gridsize_redblack, blocksize_redblack, 0, stream>>>(
             p.get<Kind>().as_gpu(), //out_matrix<float> this_pressure_rb,
-            p.get_other<Kind>().as_gpu(),//in_matrix<float> other_pressure_rb,
+            p_buffered.get_other<Kind>().as_gpu(),//in_matrix<float> other_pressure_rb,
             rhs.get<Kind>().as_gpu(),//in_matrix<float> this_rhs_rb,
             p_beta.get<Kind>().as_gpu(), //in_matrix<float> this_beta_rb,
+
+            p_buffered.get<Kind>().as_gpu(),
 
             (Kind == RedBlack::Black) ? 1 : 0, // 0 if red, 1 if black
 
@@ -294,7 +303,10 @@ void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 bl
             iter,
 
             gpu_params
-                );
+    );
+
+    // TODO - this needs to be done in a separate stream to overlap
+    p.get_other<Kind>().dispatch_memcpy_in(p_buffered.get_other<Kind>(), stream);
 
 //    cudaError_t error = (cudaPeekAtLastError());
 //    if (error != cudaSuccess) {
