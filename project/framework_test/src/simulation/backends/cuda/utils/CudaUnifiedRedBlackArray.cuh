@@ -51,6 +51,11 @@ public:
             return black;
     }
 
+    virtual void dispatch_gpu_prefetch(int deviceId, cudaStream_t stream) {
+        red.dispatch_gpu_prefetch(deviceId, stream);
+        black.dispatch_gpu_prefetch(deviceId, stream);
+    }
+
     virtual void zero_out() {
         red.zero_out();
         black.zero_out();
@@ -73,5 +78,10 @@ public:
     void zero_out() override {
         Base::zero_out();
         joined.zero_out();
+    }
+
+    void dispatch_gpu_prefetch(int deviceId, cudaStream_t stream) override {
+        Base::dispatch_gpu_prefetch(deviceId, stream);
+        joined.dispatch_gpu_prefetch(deviceId, stream);
     }
 };

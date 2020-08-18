@@ -618,15 +618,19 @@ void setTimestepInterval(float *del_t, int imax, int jmax, float delx,
         // Loop was fused and parallelized
 #pragma omp parallel for schedule(static) private(j) shared(imax, jmax, u, v) default(none) reduction(max:umax) reduction(max:vmax)
         for (i=0; i<=imax+1; i++) {
+            // TODO - check if j=1 is right here?
             for (j=1; j<=jmax+1; j++) {
-                umax = max(fabs(u[i][j]), umax);
-                vmax = max(fabs(v[i][j]), vmax);
+                umax = max(fabsf(u[i][j]), umax);
+                vmax = max(fabsf(v[i][j]), vmax);
             }
         }
 
         deltu = delx/umax;
         deltv = dely/vmax;
-        deltRe = 1/(1/(delx*delx)+1/(dely*dely))*Re/2.0;
+        // This used to be deltRe = 1/(1/(delx*delx)+1/(dely*dely))*Re/2.0;
+        // the original version has 2.0 at the end, but this only ends up doing the rest of the equation, promoting it to double, dividing it, and demoting back to int.
+        // this is equivalent to dividing by 2.0f without any double-promotions.
+        deltRe = 1.0f/(1.0f/(delx*delx)+1.0f/(dely*dely))*Re/2.0f;
 
         if (deltu<deltv) {
             *del_t = min(deltu, deltRe);
@@ -634,6 +638,11 @@ void setTimestepInterval(float *del_t, int imax, int jmax, float delx,
             *del_t = min(deltv, deltRe);
         }
         *del_t = tau * (*del_t); // multiply by safety factor
+
+        printf("CPU del_t\n");
+        printf("u_max: %a\tv_max: %a\n", umax, vmax);
+        printf("delt_u: %a\tdelt_v: %a\tdelt_re: %a\n", deltu, deltv, deltRe);
+        printf("delta_t: %a\n", *del_t);
     }
 }
 

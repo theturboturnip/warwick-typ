@@ -8,6 +8,11 @@
 
 #include <cstdio>
 
+// TODO - the current paradigm for kernels is to return early, but this prevents __syncthreads() from working.
+//  https://stackoverflow.com/a/6667067
+//  In a non-cooperative context this is fine, and all of these kernels are for embarassingly parallel tasks with no intra-task dependencies,
+//  but if any of these were to be made cooperative then this would need to be considered.
+
 // This is used to simulate a fma() C call - nvcc should optimize this down to a single FMA instr
 __device__ inline float fma_cuda(float a, float b, float c) {
     //return a * b + c;
@@ -54,6 +59,7 @@ __global__ void computeTentativeVelocity_apply(
 
     // TODO - could be worth splitting into two kernels for idx_east, idx_south?
     // In large majority of cases both will be true - only false when directly on a boundary
+    // This means the % of warps that diverge here is small, so this should be OK.
 //    for (i=1; i<=imax-1; i++) { <- we should reject i >= imax == params.size.x - 2
 //        for (j=1; j<=jmax; j++) {
     if ((i < params.size.x - 2) && is_fluid[idx_east]) {
@@ -287,9 +293,6 @@ __global__ void poisson_single_tick(out_matrix<float> this_pressure_rb,
 //        printf("final: %a\n", (final));
 //    }
 
-    // TODO Sync threads here to make sure all writers write at the same time.
-    // This isn't necessary for race conditions but I feel like it's nice?
-    //__syncthreads();
     this_pressure_rb[curr_idx] = final;
 //    __m128 horiz = _mm_add_ps(east, west);
 //    __m128 vertical = _mm_add_ps(north, south);

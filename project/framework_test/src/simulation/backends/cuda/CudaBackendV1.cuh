@@ -9,6 +9,7 @@
 
 #include <simulation/backends/cuda/utils/CudaUnified2DArray.cuh>
 #include <simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh>
+#include <simulation/backends/cuda/utils/CudaUnifiedReducer.cuh>
 
 class CudaBackendV1 {
 public:
@@ -39,6 +40,8 @@ private:
     CudaUnified2DArray<char> flag;
     CudaUnified2DArray<uint> fluidmask;
     CudaUnifiedRedBlackArray<uint, RedBlackStorage::RedBlackOnly> surroundmask;
+
+    CudaReducer<128> reducer_fullsize;
 
     void dispatch_splitRedBlackCUDA(CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined>& to_split,
                                     dim3 gridsize_2d, dim3 blocksize_2d,

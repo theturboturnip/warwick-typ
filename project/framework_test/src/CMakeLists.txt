@@ -64,6 +64,8 @@ target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/kernels/redblack.cu
         simulation/backends/cuda/kernels/redblack.cuh
         simulation/backends/cuda/kernels/common.cuh
+        simulation/backends/cuda/kernels/reduction.cuh
         simulation/backends/cuda/utils/CudaUnified2DArray.cuh
         simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh
+        simulation/backends/cuda/utils/CudaUnifiedReducer.cuh
         )

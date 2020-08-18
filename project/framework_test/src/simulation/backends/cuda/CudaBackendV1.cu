@@ -8,6 +8,14 @@
 #include "simulation/backends/original/simulation.h"
 #include "simulation/backends/cuda/kernels/simple.cuh"
 
+inline float host_min(float x, float y) {
+    return (x<y) ? x : y;
+}
+
+inline float host_max(float x, float y) {
+    return (x>y) ? x : y;
+}
+
 CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
     : params(s.params),
       matrix_size(s.params.pixel_size.x + 2, s.params.pixel_size.y + 2),
@@ -34,7 +42,9 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
       rhs(matrix_size),
       flag(matrix_size),
       fluidmask(matrix_size),
-      surroundmask(matrix_size)
+      surroundmask(matrix_size),
+
+      reducer_fullsize(u.raw_length)
 {
     u.memcpy_in(s.velocity_x);
     v.memcpy_in(s.velocity_y);
@@ -66,6 +76,21 @@ CudaBackendV1::CudaBackendV1(const SimSnapshot &s)
     OriginalOptimized::splitFluidmaskToSurroundedMask((const int **)(fluidmask.as_cpu()),
                                                       (int**)surroundmask.red.as_cpu(), (int**)surroundmask.black.as_cpu(),
                                                       imax, jmax);
+
+    int dstDevice = -1;
+    cudaGetDevice(&dstDevice);// TODO
+    cudaDeviceProp thisDevice;
+    cudaGetDeviceProperties(&thisDevice, dstDevice);
+    printf("device num: %d device name: %s\n", dstDevice, thisDevice.name);
+    u.dispatch_gpu_prefetch(dstDevice, stream);
+    v.dispatch_gpu_prefetch(dstDevice, stream);
+    p.dispatch_gpu_prefetch(dstDevice, stream);
+    rhs.dispatch_gpu_prefetch(dstDevice, stream);
+    f.dispatch_gpu_prefetch(dstDevice, stream);
+    g.dispatch_gpu_prefetch(dstDevice, stream);
+    p_beta.dispatch_gpu_prefetch(dstDevice, stream);
+
+    cudaStreamSynchronize(stream);
 }
 
 CudaBackendV1::~CudaBackendV1() {
@@ -75,13 +100,42 @@ CudaBackendV1::~CudaBackendV1() {
 
 float CudaBackendV1::findMaxTimestep() {
     float delta_t = -1;
-    OriginalOptimized::setTimestepInterval(&delta_t,
-                        imax, jmax,
-                        del_x, del_y,
-                        u.as_cpu(), v.as_cpu(),
-                        params.Re,
-                        params.timestep_safety
-                        );
+    auto fabsf_lambda = [] __device__ (float x) { return fabsf(x); };
+    auto max_lambda = [] __device__ (float x, float y) { return max(x, y); };
+    // TODO - having multiple reducers here would be more efficient - could dispatch both, and then wait for one then the other?
+    float u_max = reducer_fullsize.get_preproc_reduction(u, fabsf_lambda, max_lambda, stream);
+    u_max = host_max(u_max, 1.0e-10);
+    float v_max = reducer_fullsize.get_preproc_reduction(v, fabsf_lambda, max_lambda, stream);
+    v_max = host_max(v_max, 1.0e-10);
+
+    float delt_u = del_x/u_max;
+    float delt_v = del_y/v_max;
+    // This used to be deltRe = 1/(1/(delx*delx)+1/(dely*dely))*Re/2.0;
+    // the original version has 2.0 at the end, but this only ends up doing the rest of the equation, promoting it to double, dividing it, and demoting back to int.
+    // this is equivalent to dividing by 2.0f without any double-promotions.
+    float deltRe = 1.0f/(1.0f/(del_x*del_x)+1.0f/(del_y*del_y))*params.Re/2.0f;
+
+    if (delt_u<delt_v) {
+        delta_t = host_min(delt_u, deltRe);
+    } else {
+        delta_t = host_min(delt_v, deltRe);
+    }
+    delta_t = params.timestep_safety * (delta_t); // multiply by safety factor
+
+//    printf("GPU del_t\n");
+//    printf("u_max: %a\tv_max: %a\n", u_max, v_max);
+//    printf("delt_u: %a\tdelt_v: %a\tdelt_re: %a\n", delt_u, delt_v, deltRe);
+//    printf("delta_t: %a\n", delta_t);
+
+//    float cpu_delta_t = -1;
+//    OriginalOptimized::setTimestepInterval(&cpu_delta_t,
+//                        imax, jmax,
+//                        del_x, del_y,
+//                        u.as_cpu(), v.as_cpu(),
+//                        params.Re,
+//                        params.timestep_safety
+//                        );
+
     DASSERT(delta_t != -1);
     return delta_t;
 }
@@ -95,17 +149,18 @@ void CudaBackendV1::tick(float timestep) {
             .deltas = float2{del_x, del_y},
             .timestep = timestep,
     };
-    dim3 blocksize_2d(16, 16);
+    dim3 blocksize_2d(1, 32);
     dim3 gridsize_2d(
             (matrix_size.x + blocksize_2d.x - 1) / blocksize_2d.x,
             (matrix_size.y + blocksize_2d.y - 1) / blocksize_2d.y
             );
 
-    dim3 blocksize_redblack(16, 16);
+    dim3 blocksize_redblack(1, 32);
     dim3 gridsize_redblack(
             (redblack_matrix_size.x + blocksize_redblack.x - 1) / blocksize_redblack.x,
             (redblack_matrix_size.y + blocksize_redblack.y - 1) / blocksize_redblack.y
     );
+    //printf("blksize_redblack: %d %d, gridsize: %d %d\n", blocksize_redblack.x, blocksize_redblack.y, gridsize_redblack.x, gridsize_redblack.y);
 
     dim3 blocksize_vertical(32);
     dim3 gridsize_vertical((matrix_size.y + blocksize_vertical.x - 1) / blocksize_vertical.x);
@@ -158,10 +213,10 @@ void CudaBackendV1::tick(float timestep) {
             // Red/Black SOR-iteration
             for (int iter = 0; iter < params.poisson_max_iterations; iter++) {
             //  redblack<Red>();
-                dispatch_poissonRedBlackCUDA<RedBlack::Red>(blocksize_redblack, gridsize_redblack, iter, gpu_params);
+                dispatch_poissonRedBlackCUDA<RedBlack::Red>(gridsize_redblack, blocksize_redblack, iter, gpu_params);
             //  float approxRes = redblack<Black>(); (capture approximate residual here)
                 //float approxRes; // TODO - ???
-                dispatch_poissonRedBlackCUDA<RedBlack::Black>(blocksize_redblack, gridsize_redblack, iter, gpu_params);//&approxRes);
+                dispatch_poissonRedBlackCUDA<RedBlack::Black>(gridsize_redblack, blocksize_redblack, iter, gpu_params);//&approxRes);
             //  [ IMPLICIT STREAM SYNC FOR RESIDUAL ]
                 // [ NOT NECESSARY WHEN NOT CALCULATING RESIDUAL ]
             //  if (approxRes < partial_res_sqr_thresh)
@@ -240,6 +295,11 @@ void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 bl
 
             gpu_params
                 );
+
+//    cudaError_t error = (cudaPeekAtLastError());
+//    if (error != cudaSuccess) {
+//        FATAL_ERROR("CUDA ERROR %s\n", cudaGetErrorString(error));
+//    }
 }
 
 LegacySimDump CudaBackendV1::dumpStateAsLegacy() {

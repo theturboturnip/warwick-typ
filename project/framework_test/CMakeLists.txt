@@ -45,7 +45,7 @@ else()
     set(CXX_DEBUG_LIBS)
 endif()
 set(CXX_OVERALL_OPT ${CXX_SIMD_OPT} ${CXX_WARNING_OPT} ${CXX_GENERAL_OPT} ${CXX_DEBUG_OPT})
-set(CUDA_OVERALL_OPT -G)# -arch compute_70)
+set(CUDA_OVERALL_OPT -G --extended-lambda)# -arch compute_70)
 
 # Set up external dependencies
 add_subdirectory(external)

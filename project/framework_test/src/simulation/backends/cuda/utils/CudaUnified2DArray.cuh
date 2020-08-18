@@ -16,22 +16,28 @@ enum class CudaMemoryType {
 };
 
 template<typename T, CudaMemoryType MemoryType=CudaMemoryType::CudaManaged>
+// TODO - Type erasure for MemoryType? It could be feasible to expect all things to use the same MemoryType
 class CudaUnified2DArray {
+    //static_assert(!PitchedAlloc, "PitchedAlloc hasn't been implemented yet");
 public:
     CudaUnified2DArray() : width(0), height(0) {}
-    explicit CudaUnified2DArray(Size<size_t> size) : width(size.x), height(size.y) {
+    explicit CudaUnified2DArray(Size<size_t> size) : CudaUnified2DArray(size.x, size.y) {}
+    explicit CudaUnified2DArray(size_t width, size_t height) : width(width), height(height) {
         // TODO - pitch allocation
+        //  pitched arrays MUST have zeroes in the padding for reductions to work - note this
         if (MemoryType == CudaMemoryType::CudaManaged) {
             cudaMallocManaged(&raw_data, width * height * sizeof(T));
             col_pitch = height;
+            raw_length = width * height;
         } else {
             raw_data = (T*)malloc(width * height * sizeof(T));
             col_pitch = height;
+            raw_length = width * height;
         }
 
         cpu_pointers = std::vector<T*>();
         for (int i = 0; i < width; i++) {
-            cpu_pointers.push_back(raw_data + (i * height));
+            cpu_pointers.push_back(raw_data + (i * col_pitch));
         }
     }
     CudaUnified2DArray(const CudaUnified2DArray<T>&) = delete;
@@ -45,6 +51,10 @@ public:
         }
     }
 
+    void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) {
+        cudaMemPrefetchAsync(raw_data, raw_length*sizeof(T), dstDevice, stream);
+    }
+
     template<typename = typename std::enable_if<MemoryType == CudaMemoryType::CudaManaged>::type>
     T* as_gpu() {
         static_assert(MemoryType == CudaMemoryType::CudaManaged, "as_gpu() only exists when NativeMemOnly = false!");
@@ -55,21 +65,21 @@ public:
     }
 
     void zero_out() {
-        memset(raw_data, 0, width*height*sizeof(T));
+        memset(raw_data, 0, raw_length*sizeof(T));
     }
     void memcpy_in(const std::vector<T>& new_data) {
-        DASSERT(new_data.size() == width * height);
-        memcpy(raw_data, new_data.data(), width * height * sizeof(T));
+        DASSERT(new_data.size() == raw_length);
+        memcpy(raw_data, new_data.data(), raw_length * sizeof(T));
     }
     std::vector<T> extract_data() {
-        return std::vector<T>(raw_data, raw_data + (width * height));
+        return std::vector<T>(raw_data, raw_data + raw_length);
     }
 
     const size_t width, height;
     size_t col_pitch;
+    size_t raw_length;
 private:
     T* raw_data = nullptr;
 
-    size_t raw_data_pitch = 0;
     std::vector<T*> cpu_pointers;
 };
