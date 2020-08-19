@@ -83,15 +83,17 @@ __global__ void computeTentativeVelocity_apply(
         float laplu = fma_cuda((fma_cuda(-2.0f, u[idx], u[idx_east])+u[idx_west]), delx2,
                           (fma_cuda(-2.0f, u[idx], u[idx_north])+u[idx_south])*dely2);
 
-//        if (i == 100 && j == 100) {
-//            printf("100/100 GPU\n");
-//            //printf("%.9g %.9g %.9g\n", u[idx_west], u[idx], u[idx_east]);
-//            printf("%a %a %a\n", du2dx, duvdy, laplu);
-//            //printf("%.9g %.9g\n", _4delx, gamma);
-//        }
 
         // This is not implicitly casted, so the division by Re cannot be converted to a multiplication.
         f[idx] = u[idx]+params.timestep*(laplu/Re-du2dx-duvdy);
+//
+//        if (i == 100 && j == 2) {
+//            printf("100/2 GPU f\n");
+//            printf("%a %a %a\n", u[idx_west], u[idx], u[idx_east]);
+//            printf("%a %a %a\n", du2dx, duvdy, laplu);
+//            printf("%a %a\n", _4delx, gamma);
+//            printf("%a = %a %a\n", f[idx], u[idx], params.timestep);
+//        }
     } else {
         f[idx] = u[idx];
     }
@@ -113,6 +115,13 @@ __global__ void computeTentativeVelocity_apply(
 
         float laplv = fma_cuda((fma_cuda(-2.0f, v[idx], v[idx_east])+v[idx_west]),delx2,
                           (fma_cuda(-2.0f, v[idx], v[idx_north])+v[idx_south])*dely2);
+
+//        if (i == 100 && j == 2) {
+//            printf("100/2 GPU g\n");
+////            printf("%a %a %a\n", u[idx_west], u[idx], u[idx_east]);
+//            printf("%a %a %a\n", duvdx, dv2dy, laplv);
+//            printf("%a %a\n", _4delx, gamma);
+//        }
 
         g[idx] = v[idx]+params.timestep*(laplv/Re-duvdx-dv2dy);
     } else {
@@ -147,7 +156,7 @@ __global__ void computeTentativeVelocity_postproc_horizontal(in_matrix<float> v,
 //        g[i][jmax] = v[i][jmax];
 //    }
 
-    const uint idx_0 = params.flatten_4byte(1, 0);
+    const uint idx_0 = params.flatten_4byte(i, 0);
     g[idx_0] = v[idx_0];
 
     // TODO - why is this at jmax? there's another element just after
@@ -172,6 +181,14 @@ __global__ void computeRHS_1per(in_matrix<float> f, in_matrix<float> __restrict_
     const float g_south = g[params.flatten_4byte(i, j - 1)];
 
     const float new_rhs = ((f_this-f_west)/params.deltas.x + (g_this-g_south)/params.deltas.y) / params.timestep;
+
+    if (i == 100 && j == 2) {
+        printf("GPU RHS %dx%d\n", i, j);
+
+        printf("f: %a\t%a\n", f_this, f_west);
+        printf("g: %a\t%a\n", g_this, g_south);
+        printf("new_rhs: %a\n", new_rhs);
+    }
 
     rhs[idx] = new_rhs;
 }
@@ -235,8 +252,8 @@ __global__ void poisson_single_tick(in_matrix<float> this_pressure_rb,
 //    const float west = other_pressure_rb[west_idx_other];
     const float north = other_pressure_rb[curr_idx+south_offset_in_other+1];
     const float south = other_pressure_rb[curr_idx+south_offset_in_other];
-    const float east = 0.6;//other_pressure_rb[curr_idx - params.col_pitch_redblack];
-    const float west = 0.4;//other_pressure_rb[curr_idx + params.col_pitch_redblack];
+    const float east = other_pressure_rb[curr_idx + params.col_pitch_redblack];
+    const float west = other_pressure_rb[curr_idx - params.col_pitch_redblack];
 
     const float centre = this_pressure_rb[curr_idx];
     const float beta = this_beta_rb[curr_idx];
@@ -267,6 +284,37 @@ __global__ void poisson_single_tick(in_matrix<float> this_pressure_rb,
     // On CPU this is an FMSUB, fma of negative should translate to a proper GPU fmsub
     const float final = fma_cuda(inv_omega, centre, (-sum));//(inv_omega * centre) - sum;
 
+    if ((i == 100) && j == (0 + j_start) && iter == 0 && is_black == 0) {
+        printf("GPU REPORT %d %dx%d\n", is_black, i, j);
+
+        printf("n: %a\ts: %a\te: %a\tw: %a\n",
+               (north),
+               (south),
+               (east),
+               (west)
+        );
+
+        printf("c: %a\tbeta: %a\trhs: %a\n",
+               (centre),
+               (beta),
+               (rhs)
+        );
+
+        printf("rdx2: %a\trdy2: %a\tinv_omega: %a\n",
+               (rdx2),
+               (rdy2),
+               (inv_omega)
+        );
+
+        printf("horiz: %a\tvertical: %a\tsum: %a\n",
+               (horiz),
+               (vertical),
+               (sum)
+        );
+
+        printf("final: %a\n", (final));
+    }
+    
     this_pressure_rb_out[curr_idx] = final;
 //    __m128 horiz = _mm_add_ps(east, west);
 //    __m128 vertical = _mm_add_ps(north, south);

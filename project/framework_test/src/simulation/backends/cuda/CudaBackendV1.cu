@@ -134,14 +134,16 @@ float CudaBackendV1::findMaxTimestep() {
 //    printf("delt_u: %a\tdelt_v: %a\tdelt_re: %a\n", delt_u, delt_v, deltRe);
 //    printf("delta_t: %a\n", delta_t);
 
-//    float cpu_delta_t = -1;
-//    OriginalOptimized::setTimestepInterval(&cpu_delta_t,
-//                        imax, jmax,
-//                        del_x, del_y,
-//                        u.as_cpu(), v.as_cpu(),
-//                        params.Re,
-//                        params.timestep_safety
-//                        );
+    float cpu_delta_t = -1;
+    OriginalOptimized::setTimestepInterval(&cpu_delta_t,
+                        imax, jmax,
+                        del_x, del_y,
+                        u.as_cpu(), v.as_cpu(),
+                        params.Re,
+                        params.timestep_safety
+                        );
+
+//    printf("CPU del_t\ndelta_t: %a\n", delta_t);
 
     DASSERT(delta_t != -1);
     return delta_t;
@@ -291,25 +293,44 @@ void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 bl
     // For a p_red computation: do p_red/p_buffered_black into p_buffered_red, while copying p_buffered_black into p_black.
     // Modern Nvidia GPUs can do parallel memcpy and compute, so this shouldn't take longer
 
-    poisson_single_tick<<<gridsize_redblack, blocksize_redblack, 0, stream>>>(
-            p.get<Kind>().as_gpu(), //out_matrix<float> this_pressure_rb,
-            p_buffered.get_other<Kind>().as_gpu(),//in_matrix<float> other_pressure_rb,
-            rhs.get<Kind>().as_gpu(),//in_matrix<float> this_rhs_rb,
-            p_beta.get<Kind>().as_gpu(), //in_matrix<float> this_beta_rb,
+    constexpr bool DoubleBuffer = false;
 
-            p_buffered.get<Kind>().as_gpu(),
+    if (DoubleBuffer) {
+        poisson_single_tick<<<gridsize_redblack, blocksize_redblack, 0, stream>>>(
+                p.get<Kind>().as_gpu(),
+                p_buffered.get_other<Kind>().as_gpu(),
+                rhs.get<Kind>().as_gpu(),
+                p_beta.get<Kind>().as_gpu(),
 
-            (Kind == RedBlack::Black) ? 1 : 0, // 0 if red, 1 if black
+                p_buffered.get<Kind>().as_gpu(),
 
-            params.poisson_omega,
+                (Kind == RedBlack::Black) ? 1 : 0,// 0 if red, 1 if black
 
-            iter,
+                params.poisson_omega,
 
-            gpu_params
-    );
+                iter,
 
-    // TODO - this needs to be done in a separate stream to overlap
-    p.get_other<Kind>().dispatch_memcpy_in(p_buffered.get_other<Kind>(), stream);
+                gpu_params);
+
+        // TODO - this needs to be done in a separate stream to overlap
+        p.get_other<Kind>().dispatch_memcpy_in(p_buffered.get_other<Kind>(), stream);
+    } else {
+        poisson_single_tick<<<gridsize_redblack, blocksize_redblack, 0, stream>>>(
+                p.get<Kind>().as_gpu(),
+                p.get_other<Kind>().as_gpu(),
+                rhs.get<Kind>().as_gpu(),
+                p_beta.get<Kind>().as_gpu(),
+
+                p.get<Kind>().as_gpu(),
+
+                (Kind == RedBlack::Black) ? 1 : 0,// 0 if red, 1 if black
+
+                params.poisson_omega,
+
+                iter,
+
+                gpu_params);
+    }
 
 //    cudaError_t error = (cudaPeekAtLastError());
 //    if (error != cudaSuccess) {
