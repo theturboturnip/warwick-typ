@@ -26,26 +26,31 @@ add_custom_target(copy_assets ALL
         ${CMAKE_BINARY_DIR}
         )
 
+string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_LOWER)
+if (BUILD_TYPE_LOWER MATCHES ".*debug.*")
+    set(IS_DEBUG TRUE)
+else()
+    set(IS_DEBUG FALSE)
+endif()
+
 # Set up CXX flags
 # TODO: -O2 on debug?
 # NOTE: Right now the simple sim is compiled with vectorization, so auto-vectorization will take place
 # These work on GCC-8 with the optimized version
 set(CXX_SIMD_OPT -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx -mavx2 -mfma -ffp-contract=off)
 set(CXX_WARNING_OPT -Wall -Werror -Wextra -Wno-error=extra -Wno-error=unused-parameter -Wno-error=unused-result -Wno-error=unused-but-set-variable -Wno-error=unused-variable -Wno-error=comment)
-if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
-    set(CXX_GENERAL_OPT)
-else()
-    set(CXX_GENERAL_OPT -flto)
-endif()
-if(CMAKE_BUILD_TYPE MATCHES Debug)
-    set(CXX_DEBUG_OPT)# -fsanitize=address)
+if (IS_DEBUG)
+    message("DEBUG MODE")
+    set(CXX_GENERAL_OPT -g -Og) # -fsanitize=address)
     set(CXX_DEBUG_LIBS)# -lasan)
+    set(CUDA_DEBUG_OPT -G)
 else()
-    set(CXX_DEBUG_OPT)
+    set(CXX_GENERAL_OPT -flto -O2)
     set(CXX_DEBUG_LIBS)
+    set(CUDA_DEBUG_OPT)
 endif()
-set(CXX_OVERALL_OPT ${CXX_SIMD_OPT} ${CXX_WARNING_OPT} ${CXX_GENERAL_OPT} ${CXX_DEBUG_OPT})
-set(CUDA_OVERALL_OPT --extended-lambda)# -G -arch compute_70)
+set(CXX_OVERALL_OPT ${CXX_SIMD_OPT} ${CXX_WARNING_OPT} ${CXX_GENERAL_OPT})
+set(CUDA_OVERALL_OPT --extended-lambda ${CUDA_DEBUG_OPT})# -G -arch compute_70)
 
 # Set up external dependencies
 add_subdirectory(external)
