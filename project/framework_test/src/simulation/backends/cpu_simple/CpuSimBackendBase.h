@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "simulation/file_format/LegacySimulationParameters.h"
-#include "util/LegacyCompat2DBackingArray.h"
 #include "simulation/file_format/LegacySimDump.h"
+#include "simulation/file_format/LegacySimulationParameters.h"
 #include "simulation/file_format/SimSnapshot.h"
+#include "util/LegacyCompat2DBackingArray.h"
+#include <simulation/file_format/SimParams.h>
 
 class CpuSimBackendBase {
 public:
@@ -16,7 +17,7 @@ public:
 
 protected:
     //CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep);
-    explicit CpuSimBackendBase(const SimSnapshot& s);
+    explicit CpuSimBackendBase(const SimParams& params, const SimSnapshot& s);
 
     const SimParams params;
     // Copies of the simulation parameter data for the C model

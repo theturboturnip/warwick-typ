@@ -4,7 +4,7 @@
 
 #include "NullSimulation.h"
 
-NullSimulation::NullSimulation(const SimSnapshot& dump)
+NullSimulation::NullSimulation(const SimParams& params, const SimSnapshot& dump)
     : m_state(dump)
 {}
 

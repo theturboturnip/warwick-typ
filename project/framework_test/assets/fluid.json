@@ -1,0 +1,12 @@
+{
+    "Re": 150.0,
+    "initial_velocity_x": 1.0,
+    "initial_velocity_y": 0.0,
+    "timestep_divisor": 60,
+    "max_timestep_divisor": 480,
+    "timestep_safety": 0.5,
+    "gamma": 0.9,
+    "poisson_max_iterations": 100,
+    "poisson_error_threshold": 0.001,
+    "poisson_omega": 1.7
+}

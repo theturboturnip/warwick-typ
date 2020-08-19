@@ -5,11 +5,9 @@
 #pragma once
 
 #include <cstdint>
-#include <nlohmann/json_fwd.hpp>
-#include <nlohmann/adl_serializer.hpp>
 
 #include "LegacySimDump.h"
-#include "SimParams.h"
+#include "util/Size.h"
 
 enum class CellType : uint8_t {
     Boundary,
@@ -17,11 +15,27 @@ enum class CellType : uint8_t {
 };
 
 struct SimSnapshot {
-    explicit SimSnapshot(const SimParams& params);
-    static SimSnapshot from_legacy(const SimParams& params, const LegacySimDump& from_legacy_dump);
+    explicit SimSnapshot(Size<size_t> pixel_size, Size<float> physical_size);
+    static SimSnapshot from_legacy(const LegacySimDump& from_legacy_dump);
     static SimSnapshot from_file(std::string path);
+    void to_file(std::string path) const;
 
-    const SimParams params;
+    // Size of the simulation grid in pixels
+    const Size<size_t> pixel_size;
+    // Size of the simulation grid in meters
+    const Size<float> physical_size;
+
+    [[nodiscard]] inline size_t pixel_count() const {
+        return (pixel_size.x+2) * (pixel_size.y+2);
+    }
+
+    // Meters/pixel for x and y
+    [[nodiscard]] inline float del_x() const {
+        return physical_size.x/pixel_size.x;
+    }
+    [[nodiscard]] inline float del_y() const {
+        return physical_size.y/pixel_size.y;
+    }
 
     // TODO - Allow this to be templated on float/double?
     std::vector<float> velocity_x;
@@ -33,15 +47,8 @@ struct SimSnapshot {
     [[nodiscard]] std::vector<char> get_legacy_cell_flags() const;
     [[nodiscard]] int get_boundary_cell_count() const;
 
+    [[nodiscard]] static std::vector<CellType> cell_type_from_legacy(const std::vector<char> legacyFlags);
+
+    [[nodiscard]] LegacySimulationParameters params_to_legacy() const;
     [[nodiscard]] LegacySimDump to_legacy() const;
 };
-
-// SimSnapshot has a const field, which means you can't use the normal to_json/from_json functions.
-// You have to implement a serializer in the nohlmann namespace
-namespace nlohmann {
-    template<>
-    struct adl_serializer<SimSnapshot> {
-        static SimSnapshot from_json(const nlohmann::ordered_json& j);
-        static void to_json(nlohmann::ordered_json& j, const SimSnapshot& s);
-    };
-}

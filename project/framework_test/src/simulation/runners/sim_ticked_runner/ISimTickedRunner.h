@@ -9,6 +9,7 @@
 #include "simulation/file_format/LegacySimDump.h"
 #include "simulation/file_format/SimSnapshot.h"
 
+/*
 class ISimTickedRunner {
 protected:
     ISimTickedRunner() = default;
@@ -34,3 +35,4 @@ public:
 
     static std::unique_ptr<ISimTickedRunner> getForBackend(SimulationBackendEnum backendType);
 };
+ */

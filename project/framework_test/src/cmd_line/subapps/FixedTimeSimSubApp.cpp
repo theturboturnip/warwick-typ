@@ -5,39 +5,39 @@
 #include "FixedTimeSimSubApp.h"
 
 #include <chrono>
+#include <simulation/file_format/SimParams.h>
 
 #include "simulation/file_format/SimSnapshot.h"
 #include "simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.h"
 
 void FixedTimeSimSubApp::run() {
-    nlohmann::json initial_json;
-    std::ifstream(inputFile) >> initial_json;
-    auto initial = initial_json.get<SimSnapshot>();
+    auto fluid_props = SimParams::from_file(fluid_properties_file);
+    auto initial = SimSnapshot::from_file(inputFile);
+
+    fprintf(stdout, "initial %zu %zu %f %f\n", initial.pixel_size.x, initial.pixel_size.y, initial.physical_size.x, initial.physical_size.y);
 
     auto sim = ISimFixedTimeRunner::getForBackend(backend);
 
-
     auto start = std::chrono::steady_clock::now();
 
-    auto output = sim->runForTime(initial, timeToRun);
+    auto output = sim->runForTime(fluid_props, initial, timeToRun);
 
     auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff = end - start;
     double timeTaken = diff.count();
 
 
-    nlohmann::ordered_json output_json = output;
-    std::string pretty_output_json = output_json.dump(4);
     fprintf(stderr, "performed calc in %f seconds\n", timeTaken);
     //fprintf(stderr, "enddump: %s", pretty_output_json.c_str());
     if (outputFile.has_value()){
-        std::ofstream output_stream;
-        output_stream.open(outputFile.value());
-        output_stream << pretty_output_json;
+        output.to_file(outputFile.value());
     }
 }
 
 void FixedTimeSimSubApp::setupArgumentsForSubcommand(CLI::App *subcommand, const CommandLineConverters& converters) {
+    subcommand->add_option("fluid_properties", fluid_properties_file, "Fluid properties file")
+            ->check(CLI::ExistingFile)
+            ->required(true);
     subcommand->add_option("input_file", inputFile, "Initial simulation state file")
         ->check(CLI::ExistingFile)
         ->required(true);

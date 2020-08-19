@@ -9,27 +9,13 @@
 #include "LegacySimulationParameters.h"
 #include "util/Size.h"
 
+// TODO - Rename to FluidParams
 struct SimParams {
     SimParams() = default;
-    //explicit SimParams(const LegacySimulationParameters& from_legacy, int timestep_divisor, int max_timestep_divisor);
-    static SimParams make_aca_default(Size<size_t> pixel_size, Size<float> physical_size);
+    static SimParams make_aca_default();
 
-    // Size of the simulation grid in pixels
-    Size<size_t> pixel_size;
-    // Size of the simulation grid in meters
-    Size<float> physical_size;
-
-    [[nodiscard]] inline size_t pixel_count() const {
-        return (pixel_size.x+2) * (pixel_size.y+2);
-    }
-
-    // Meters/pixel for x and y
-    [[nodiscard]] inline float del_x() const {
-        return physical_size.x/pixel_size.x;
-    }
-    [[nodiscard]] inline float del_y() const {
-        return physical_size.y/pixel_size.y;
-    }
+    static SimParams from_file(std::string path);
+    void to_file(std::string path) const;
 
     float Re; // Reynolds Number - 150 in old sim
 
@@ -75,8 +61,6 @@ struct SimParams {
     float poisson_error_threshold;
     // Relaxation parameter for SOR - between [0, 2] and usually chosen as 1.7.
     float poisson_omega;
-
-    [[nodiscard]] LegacySimulationParameters to_legacy() const;
 };
 
 void to_json(nlohmann::ordered_json& j, const SimParams& p);

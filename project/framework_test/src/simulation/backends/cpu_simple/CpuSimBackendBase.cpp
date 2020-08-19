@@ -6,20 +6,20 @@
 #include <algorithm>
 
 LegacySimDump CpuSimBackendBase::dumpStateAsLegacy() {
-    auto dump = LegacySimDump();
-
-    dump.params = params.to_legacy();
-
-    dump.u = u.getBacking();
-    dump.v = v.getBacking();
-    dump.p = p.getBacking();
-    dump.flag = flag.getBacking();
-
-    return dump;
+    return get_snapshot().to_legacy();
 }
 
 SimSnapshot CpuSimBackendBase::get_snapshot() {
-    return SimSnapshot::from_legacy(params, dumpStateAsLegacy());
+    //return SimSnapshot::from_legacy(dumpStateAsLegacy());
+    auto snap = SimSnapshot(
+            {(size_t)imax, (size_t)jmax},
+            {xlength, ylength}
+    );
+    snap.velocity_x = u.getBacking();
+    snap.velocity_y = v.getBacking();
+    snap.pressure = p.getBacking();
+    snap.cell_type = SimSnapshot::cell_type_from_legacy(flag.getBacking());
+    return snap;
 }
 
 /*CpuSimBackendBase::CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep) :
@@ -49,26 +49,26 @@ SimSnapshot CpuSimBackendBase::get_snapshot() {
     flag(dump.flag, imax+2, jmax+2)
 {}*/
 
-CpuSimBackendBase::CpuSimBackendBase(const SimSnapshot &s)
-    : params(s.params),
-      imax(s.params.pixel_size.x),
-      jmax(s.params.pixel_size.y),
-      xlength(s.params.physical_size.x),
-      ylength(s.params.physical_size.y),
-      delx(s.params.del_x()),
-      dely(s.params.del_y()),
+CpuSimBackendBase::CpuSimBackendBase(const SimParams& params, const SimSnapshot &s)
+    : params(params),
+      imax(s.pixel_size.x),
+      jmax(s.pixel_size.y),
+      xlength(s.physical_size.x),
+      ylength(s.physical_size.y),
+      delx(s.del_x()),
+      dely(s.del_y()),
 
       ibound(s.get_boundary_cell_count()),
 
-      ui(s.params.initial_velocity_x),
-      vi(s.params.initial_velocity_y),
-      Re(s.params.Re),
-      tau(s.params.timestep_safety),
-      itermax(s.params.poisson_max_iterations),
-      eps(s.params.poisson_error_threshold),
-      omega(s.params.poisson_omega),
-      gamma(s.params.gamma),
-      baseTimestep(1.0f/s.params.timestep_divisor),
+      ui(params.initial_velocity_x),
+      vi(params.initial_velocity_y),
+      Re(params.Re),
+      tau(params.timestep_safety),
+      itermax(params.poisson_max_iterations),
+      eps(params.poisson_error_threshold),
+      omega(params.poisson_omega),
+      gamma(params.gamma),
+      baseTimestep(1.0f/params.timestep_divisor),
 
       u(s.velocity_x, imax+2, jmax+2),
       v(s.velocity_y, imax+2, jmax+2),

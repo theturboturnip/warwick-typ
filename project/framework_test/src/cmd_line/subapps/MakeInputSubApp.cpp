@@ -20,10 +20,9 @@ void MakeInputSubApp::run() {
 //    };
 
     if (exportType == ExportType::Empty) {
-        auto params = SimParams::make_aca_default(Size(resolution), Size(dimensions));
-        auto snapshot = SimSnapshot(params);
+        auto snapshot = SimSnapshot(Size(resolution), Size(dimensions));
 
-        std::ofstream(outputPath) << nlohmann::ordered_json(snapshot).dump(4);
+        snapshot.to_file(outputPath);
     } else {
         FATAL_ERROR("Unimplemented exportType %d\n", exportType);
     }

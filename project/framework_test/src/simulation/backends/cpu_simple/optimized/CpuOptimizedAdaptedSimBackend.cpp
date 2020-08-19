@@ -14,8 +14,8 @@
 
 #include "simulation/backends/original/simulation.h"
 
-CpuOptimizedAdaptedSimBackend::CpuOptimizedAdaptedSimBackend(const SimSnapshot& s) :
-    CpuSimBackendBase(s),
+CpuOptimizedAdaptedSimBackend::CpuOptimizedAdaptedSimBackend(const SimParams& params, const SimSnapshot& s) :
+    CpuSimBackendBase(params, s),
     p_beta(imax+2, jmax+2, 0),
     p_beta_red(imax+2, (jmax+2)/2, 0),
     p_beta_black(imax+2, (jmax+2)/2, 0),

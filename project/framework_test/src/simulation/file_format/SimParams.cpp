@@ -8,10 +8,6 @@
 
 void to_json(nlohmann::ordered_json& j, const SimParams& p){
     j = nlohmann::ordered_json{};
-    j["pixel_size"]["x"] = p.pixel_size.x;
-    j["pixel_size"]["y"] = p.pixel_size.y;
-    j["physical_size"]["x"] = p.physical_size.x;
-    j["physical_size"]["y"] = p.physical_size.y;
     j["Re"] = p.Re;
     j["initial_velocity_x"] = p.initial_velocity_x;
     j["initial_velocity_y"] = p.initial_velocity_y;
@@ -25,11 +21,6 @@ void to_json(nlohmann::ordered_json& j, const SimParams& p){
 }
 
 void from_json(const nlohmann::ordered_json &j, SimParams &p) {
-    j.at("pixel_size").at("x").get_to(p.pixel_size.x);
-    j.at("pixel_size").at("y").get_to(p.pixel_size.y);
-    j.at("physical_size").at("x").get_to(p.physical_size.x);
-    j.at("physical_size").at("y").get_to(p.physical_size.y);
-
     j.at("Re").get_to(p.Re);
     j.at("initial_velocity_x").get_to(p.initial_velocity_x);
     j.at("initial_velocity_y").get_to(p.initial_velocity_y);
@@ -42,20 +33,8 @@ void from_json(const nlohmann::ordered_json &j, SimParams &p) {
     j.at("poisson_omega").get_to(p.poisson_omega);
 }
 
-LegacySimulationParameters SimParams::to_legacy() const {
-    return LegacySimulationParameters {
-            .imax=int(pixel_size.x),
-            .jmax=int(pixel_size.y),
-
-            .xlength=physical_size.x,
-            .ylength=physical_size.y,
-    };
-}
-SimParams SimParams::make_aca_default(Size<size_t> pixel_size, Size<float> physical_size) {
+SimParams SimParams::make_aca_default() {
     return SimParams{
-            .pixel_size = pixel_size,
-            .physical_size = physical_size,
-
             .Re = 150.0f,
             .initial_velocity_x = 1.0,
             .initial_velocity_y = 0.0,
@@ -70,6 +49,16 @@ SimParams SimParams::make_aca_default(Size<size_t> pixel_size, Size<float> physi
             .poisson_error_threshold = 0.001f,
             .poisson_omega = 1.7f,
     };
+}
+SimParams SimParams::from_file(std::string path) {
+    nlohmann::json initial_json;
+    std::ifstream(path) >> initial_json;
+    return initial_json.get<SimParams>();
+}
+void SimParams::to_file(std::string path) const {
+    std::ofstream output_file;
+    output_file.open(path);
+    output_file << nlohmann::ordered_json(*this).dump(4);
 }
 /*SimParams::SimParams(const LegacySimulationParameters &from_legacy, int timestep_divisor, int max_timestep_divisor)
     : pixel_size(from_legacy.imax, from_legacy.jmax),

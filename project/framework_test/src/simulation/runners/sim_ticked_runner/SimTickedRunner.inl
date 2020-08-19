@@ -13,6 +13,7 @@
  *
  * @tparam SimBackend Backend for the simulation. Must have makeUniquePtrFromLegacy, get_snapshot, tick
  */
+/*
 template<typename SimBackend>
 class SimTickedRunner : public ISimTickedRunner {
 public:
@@ -44,3 +45,4 @@ public:
 private:
     std::unique_ptr<SimBackend> m_backendData = nullptr;
 };
+*/
