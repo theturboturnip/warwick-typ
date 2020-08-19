@@ -25,9 +25,9 @@ public:
           second(next_reduction_size(first.raw_length), 1){}
 
     template<typename Preproc, typename Func>
-    float get_preproc_reduction(ArrayType& input, Preproc pre, Func func, cudaStream_t stream);
+    float map_reduce(ArrayType& input, Preproc pre, Func func, cudaStream_t stream);
     template<typename Func>
-    float get_reduction(ArrayType& input, Func func, cudaStream_t stream);
+    float reduce(ArrayType& input, Func func, cudaStream_t stream);
 
     static size_t next_reduction_size(size_t input_size) {
         return (input_size + BlockSize - 1) / BlockSize;

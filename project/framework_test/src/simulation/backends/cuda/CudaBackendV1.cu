@@ -107,9 +107,9 @@ float CudaBackendV1::findMaxTimestep() {
     auto fabsf_lambda = [] __device__ (float x) { return fabsf(x); };
     auto max_lambda = [] __device__ (float x, float y) { return max(x, y); };
     // TODO - having multiple reducers here would be more efficient - could dispatch both, and then wait for one then the other?
-    float u_max = reducer_fullsize.get_preproc_reduction(u, fabsf_lambda, max_lambda, stream);
+    float u_max = reducer_fullsize.map_reduce(u, fabsf_lambda, max_lambda, stream);
     u_max = host_max(u_max, 1.0e-10);
-    float v_max = reducer_fullsize.get_preproc_reduction(v, fabsf_lambda, max_lambda, stream);
+    float v_max = reducer_fullsize.map_reduce(v, fabsf_lambda, max_lambda, stream);
     v_max = host_max(v_max, 1.0e-10);
 
     float delt_u = del_x/u_max;
