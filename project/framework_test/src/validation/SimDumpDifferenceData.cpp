@@ -18,57 +18,47 @@ SimDumpDifferenceData::SimDumpDifferenceData(const SimSnapshot &a, const SimSnap
         p(a.pressure, b.pressure)
 {}
 
-SingleDataDifference::SingleDataDifference(const std::vector<float> &a, const std::vector<float> &b) : error(a.size(), 0) {
+SingleDataDifference::SingleDataDifference(const std::vector<float> &a, const std::vector<float> &b) : sqError(a.size(), 0) {
     DASSERT(a.size() == b.size());
 
     const size_t N = a.size();
 
-    for (size_t i = 0; i < N; i += BUCKET_SIZE) {
-        buckets.push_back(ErrorBucket(i));
-    }
-
     double errorSum = 0;
     for (size_t i = 0; i < N; i++) {
-        error[i] = a[i] - b[i];
-        errorSum += error[i];
-
-        auto& bucket = buckets[i / BUCKET_SIZE];
-        bucket.sumAbsError += fabs(error[i]);
-        bucket.N++;
+        double error = a[i] - b[i];
+        sqError[i] = error * error;
+        errorSum += sqError[i];
     }
-    errorMean = errorSum / N;
-    errorVariance = varianceOf(error, errorMean);
-    errorStdDev = std::sqrt(errorVariance);
+    sqErrorMean = errorSum / N;
+    sqErrorVariance = varianceOf(sqError, sqErrorMean);
+    sqErrorStdDev = std::sqrt(sqErrorVariance);
 
-    // Generate the means for all buckets
-    std::vector<double> bucketMeanErrors;
-    double bucketMeanErrorMean = 0;
-    for (auto& bucket : buckets) {
-        bucket.meanAbsError = bucket.sumAbsError/N;
-        bucketMeanErrorMean += bucket.meanAbsError;
-        bucketMeanErrors.push_back(bucket.meanAbsError);
-    }
-    bucketMeanErrorMean /= buckets.size();
-    bucketMeanErrorVariance = varianceOf(bucketMeanErrors, bucketMeanErrorMean);
-    bucketMeanErrorStdDev = std::sqrt(bucketMeanErrorVariance);
-
-    // Sort the buckets by meanError
-    std::sort(buckets.begin(), buckets.end(), [](const ErrorBucket& b1, const ErrorBucket& b2){
-        return b1.meanAbsError > b2.meanAbsError;
-    });
+    isAccurate = sqErrorMean < MeanSquareErrorHeuristic;
+    isPrecise = sqErrorStdDev < StdDevSquareErrorHeuristic;
 }
 double SingleDataDifference::varianceOf(std::vector<double> values, double mean) {
     double sumDiffSquared = 0;
-    for (const auto e : error) {
-        double diff = e - errorMean;
+    for (const auto e : values) {
+        double diff = e - mean;
         sumDiffSquared += (diff * diff);
     }
     return sumDiffSquared/(values.size()-1);
 }
 void SingleDataDifference::print_details() {
-    printf("\tMean:\t\t\t%g\n\tStd. Dev:\t\t%g\n\tBucket Std. Dev:\t%g\nBuckets by Mean Error\n", errorMean, errorStdDev, bucketMeanErrorStdDev);
-    for (size_t b_idx = 0; b_idx < 5 && b_idx < buckets.size(); b_idx++) {
-        const auto& b = buckets[b_idx];
-        printf("\t\t#%lu - [%5lu]\t%g\n", b_idx+1, b.i, b.meanAbsError);
-    }
+#define GREEN_TEXT "\e[92;1m"
+#define RED_TEXT "\e[91;1m"
+#define CLEAR_TEXT "\e[0m"
+
+    printf("\tSq. Error Mean:\t\t%11g\t%s\n",
+           sqErrorMean,
+           (isAccurate ? (GREEN_TEXT "ACCURATE" CLEAR_TEXT) : (RED_TEXT "INACCURATE" CLEAR_TEXT))
+           );
+    printf("\tSq. Error Std. Dev:\t%11g\t%s\n",
+           sqErrorStdDev,
+           (isPrecise ? (GREEN_TEXT "PRECISE" CLEAR_TEXT) : (RED_TEXT "IMPRECISE" CLEAR_TEXT))
+           );
+
+#undef GREEN_TEXT
+#undef RED_TEXT
+#undef CLEAR_TEXT
 }
