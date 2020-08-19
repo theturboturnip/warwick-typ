@@ -30,9 +30,10 @@ target_sources(generic_sources INTERFACE
         simulation/backends/original/simulation.cpp
         simulation/file_format/LegacySimDump.cpp
         simulation/file_format/LegacySimDump.h
-        simulation/file_format/LegacySimulationParameters.h
+        simulation/file_format/LegacySimSize.h
         simulation/file_format/FluidParams.h
         simulation/file_format/FluidParams.cpp
+        simulation/file_format/SimSize.h
         simulation/file_format/SimSnapshot.h
         simulation/file_format/SimSnapshot.cpp
         simulation/runners

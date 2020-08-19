@@ -5,7 +5,7 @@
 #pragma once
 
 #include "simulation/file_format/LegacySimDump.h"
-#include "simulation/file_format/LegacySimulationParameters.h"
+#include "simulation/file_format/LegacySimSize.h"
 #include "simulation/file_format/SimSnapshot.h"
 #include "util/LegacyCompat2DBackingArray.h"
 #include <simulation/file_format/FluidParams.h>
@@ -20,6 +20,7 @@ protected:
     explicit CpuSimBackendBase(const FluidParams & params, const SimSnapshot& s);
 
     const FluidParams params;
+    const SimSize simSize;
     // Copies of the simulation parameter data for the C model
     const int imax, jmax;
     const float xlength, ylength;

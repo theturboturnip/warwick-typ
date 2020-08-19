@@ -11,10 +11,7 @@ LegacySimDump CpuSimBackendBase::dumpStateAsLegacy() {
 
 SimSnapshot CpuSimBackendBase::get_snapshot() {
     //return SimSnapshot::from_legacy(dumpStateAsLegacy());
-    auto snap = SimSnapshot(
-            {(size_t)imax, (size_t)jmax},
-            {xlength, ylength}
-    );
+    auto snap = SimSnapshot(simSize);
     snap.velocity_x = u.getBacking();
     snap.velocity_y = v.getBacking();
     snap.pressure = p.getBacking();
@@ -49,14 +46,15 @@ SimSnapshot CpuSimBackendBase::get_snapshot() {
     flag(dump.flag, imax+2, jmax+2)
 {}*/
 
-CpuSimBackendBase::CpuSimBackendBase(const FluidParams & params, const SimSnapshot &s)
+CpuSimBackendBase::CpuSimBackendBase(const FluidParams& params, const SimSnapshot& s)
     : params(params),
-      imax(s.pixel_size.x),
-      jmax(s.pixel_size.y),
-      xlength(s.physical_size.x),
-      ylength(s.physical_size.y),
-      delx(s.del_x()),
-      dely(s.del_y()),
+      simSize(s.simSize),
+      imax(simSize.pixel_size.x),
+      jmax(simSize.pixel_size.y),
+      xlength(simSize.physical_size.x),
+      ylength(simSize.physical_size.y),
+      delx(simSize.del_x()),
+      dely(simSize.del_y()),
 
       ibound(s.get_boundary_cell_count()),
 

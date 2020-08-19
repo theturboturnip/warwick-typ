@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "simulation/file_format/LegacySimulationParameters.h"
+#include "simulation/file_format/LegacySimSize.h"
 #include <string>
 #include <vector>
 
@@ -12,9 +12,9 @@
 
 struct LegacySimDump {
     LegacySimDump() = default;
-    explicit LegacySimDump(LegacySimulationParameters params);
+    explicit LegacySimDump(LegacySimSize params);
 
-    LegacySimulationParameters params;
+    LegacySimSize simSize;
 
     std::vector<float> u;
     std::vector<float> v;

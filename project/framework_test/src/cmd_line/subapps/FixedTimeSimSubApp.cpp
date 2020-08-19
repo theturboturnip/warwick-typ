@@ -14,8 +14,6 @@ void FixedTimeSimSubApp::run() {
     auto fluid_props = FluidParams::from_file(fluid_properties_file);
     auto initial = SimSnapshot::from_file(inputFile);
 
-    fprintf(stdout, "initial %zu %zu %f %f\n", initial.pixel_size.x, initial.pixel_size.y, initial.physical_size.x, initial.physical_size.y);
-
     auto sim = ISimFixedTimeRunner::getForBackend(backend);
 
     auto start = std::chrono::steady_clock::now();

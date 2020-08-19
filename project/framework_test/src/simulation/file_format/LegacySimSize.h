@@ -4,10 +4,10 @@
 
 #pragma once
 
-struct LegacySimulationParameters {
+struct LegacySimSize {
     // Simulation block resolution
-    int imax, jmax;
-    inline int totalElements() const {
+    size_t imax, jmax;
+    inline size_t totalElements() const {
         return (imax+2) * (jmax+2);
     }
     // Simulation size in meters

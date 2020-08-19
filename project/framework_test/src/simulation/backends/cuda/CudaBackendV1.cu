@@ -18,15 +18,16 @@ inline float host_max(float x, float y) {
 
 CudaBackendV1::CudaBackendV1(const FluidParams & params, const SimSnapshot &s)
     : params(params),
-      matrix_size(s.pixel_size.x + 2, s.pixel_size.y + 2),
+      simSize(s.simSize),
+      matrix_size(simSize.pixel_size.x + 2, simSize.pixel_size.y + 2),
       redblack_matrix_size(matrix_size.x, matrix_size.y / 2),
 
-      imax(s.pixel_size.x),
-      jmax(s.pixel_size.y),
-      x_length(s.physical_size.x),
-      y_length(s.physical_size.y),
-      del_x(s.del_x()),
-      del_y(s.del_y()),
+      imax(simSize.pixel_size.x),
+      jmax(simSize.pixel_size.y),
+      x_length(simSize.physical_size.x),
+      y_length(simSize.physical_size.y),
+      del_x(simSize.del_x()),
+      del_y(simSize.del_y()),
       ibound(s.get_boundary_cell_count()),
       ifluid(imax * jmax - ibound),
 
@@ -318,12 +319,7 @@ void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 bl
 
 LegacySimDump CudaBackendV1::dumpStateAsLegacy() {
     cudaStreamSynchronize(stream);
-    auto dump = LegacySimDump(LegacySimulationParameters{
-            .imax=imax,
-            .jmax=jmax,
-            .xlength=x_length,
-            .ylength=y_length,
-    });
+    auto dump = LegacySimDump(simSize.to_legacy());
     dump.u = u.extract_data();
     dump.v = v.extract_data();
     dump.p = p.joined.extract_data();

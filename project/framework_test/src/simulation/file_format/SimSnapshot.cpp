@@ -5,28 +5,16 @@
 
 #include "util/fatal_error.h"
 
-SimSnapshot::SimSnapshot(Size<size_t> pixel_size, Size<float> physical_size)
-    : pixel_size(pixel_size),
-      physical_size(physical_size),
-      velocity_x(pixel_count(), 0.0),
-      velocity_y(pixel_count(), 0.0),
-      pressure(pixel_count(), 0.0),
-      cell_type(pixel_count(), CellType::Fluid)
-{
-}
-
-LegacySimulationParameters SimSnapshot::params_to_legacy() const {
-    return LegacySimulationParameters {
-            .imax=int(pixel_size.x),
-            .jmax=int(pixel_size.y),
-
-            .xlength=physical_size.x,
-            .ylength=physical_size.y,
-    };
-}
+SimSnapshot::SimSnapshot(SimSize simSize)
+    : simSize(simSize),
+      velocity_x(simSize.pixel_count(), 0.0),
+      velocity_y(simSize.pixel_count(), 0.0),
+      pressure(simSize.pixel_count(), 0.0),
+      cell_type(simSize.pixel_count(), CellType::Fluid)
+{}
 
 LegacySimDump SimSnapshot::to_legacy() const {
-    LegacySimulationParameters legacy_params = params_to_legacy();
+    LegacySimSize legacy_params = simSize.to_legacy();
 
     auto dump = LegacySimDump(legacy_params);
 
@@ -48,10 +36,10 @@ int SimSnapshot::get_boundary_cell_count() const {
 }
 
 std::vector<char> SimSnapshot::get_legacy_cell_flags() const {
-    auto legacy = std::vector<char>(pixel_count(), 0);
+    auto legacy = std::vector<char>(simSize.pixel_count(), 0);
 
-    const size_t width = pixel_size.x+2;
-    const size_t height = pixel_size.y+2;
+    const size_t width = simSize.pixel_size.x+2;
+    const size_t height = simSize.pixel_size.y+2;
     for (size_t i = 0; i < width; ++i) {
         for (size_t j = 0; j < height; ++j) {
             int pixel_idx = i * height + j;
@@ -86,10 +74,7 @@ std::vector<char> SimSnapshot::get_legacy_cell_flags() const {
     return legacy;
 }
 SimSnapshot SimSnapshot::from_legacy(const LegacySimDump &from_legacy_dump) {
-    auto snapshot = SimSnapshot(
-            {(size_t)from_legacy_dump.params.imax, (size_t)from_legacy_dump.params.jmax},
-            {from_legacy_dump.params.xlength, from_legacy_dump.params.ylength}
-    );
+    auto snapshot = SimSnapshot(SimSize::from_legacy(from_legacy_dump.simSize));
 
     snapshot.velocity_x = from_legacy_dump.u;
     snapshot.velocity_y = from_legacy_dump.v;

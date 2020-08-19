@@ -7,7 +7,7 @@
 #include <simulation/file_format/SimSnapshot.h>
 
 #include "simulation/file_format/LegacySimDump.h"
-#include "simulation/file_format/LegacySimulationParameters.h"
+#include "simulation/file_format/LegacySimSize.h"
 #include "util/fatal_error.h"
 
 MakeInputSubApp::MakeInputSubApp() : exportType(ExportType::Empty) {}
@@ -20,7 +20,7 @@ void MakeInputSubApp::run() {
 //    };
 
     if (exportType == ExportType::Empty) {
-        auto snapshot = SimSnapshot(Size(resolution), Size(dimensions));
+        auto snapshot = SimSnapshot(SimSize(Size(resolution), Size(dimensions)));
 
         snapshot.to_file(outputPath);
     } else {

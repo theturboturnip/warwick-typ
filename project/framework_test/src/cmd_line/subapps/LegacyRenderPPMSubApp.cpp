@@ -13,9 +13,9 @@ void LegacyRenderPPMSubApp::run() {
     FILE* fout = fopen(outputFile.c_str(), "wb");
     FATAL_ERROR_IF(fout == nullptr, "Could not open '%s'\n", outputFile.c_str());
 
-    const int imax = dump.params.imax, jmax = dump.params.jmax;
-    const float delx = dump.params.xlength/imax;
-    const float dely = dump.params.ylength/jmax;
+    const int imax = dump.simSize.imax, jmax = dump.simSize.jmax;
+    const float delx = dump.simSize.xlength/imax;
+    const float dely = dump.simSize.ylength/jmax;
     const auto u = LegacyCompat2DBackingArray<float>(dump.u, imax+2, jmax+2);
     const auto v = LegacyCompat2DBackingArray<float>(dump.v, imax+2, jmax+2);
     const auto p = LegacyCompat2DBackingArray<float>(dump.p, imax+2, jmax+2);

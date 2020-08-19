@@ -25,10 +25,11 @@ public:
 
 private:
     const FluidParams params;
+    const SimSize simSize;
     const Size<size_t> matrix_size;
     const Size<size_t> redblack_matrix_size;
 
-    const int imax, jmax;
+    const size_t imax, jmax;
     const float x_length, y_length;
     const float del_x, del_y;
     const int ibound, ifluid;

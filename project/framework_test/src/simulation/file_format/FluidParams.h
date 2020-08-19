@@ -6,7 +6,7 @@
 
 #include <nlohmann/json_fwd.hpp>
 
-#include "LegacySimulationParameters.h"
+#include "LegacySimSize.h"
 #include "util/Size.h"
 
 struct FluidParams {
