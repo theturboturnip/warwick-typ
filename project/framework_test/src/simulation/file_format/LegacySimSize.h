@@ -6,7 +6,7 @@
 
 struct LegacySimSize {
     // Simulation block resolution
-    size_t imax, jmax;
+    uint32_t imax, jmax;
     inline size_t totalElements() const {
         return (imax+2) * (jmax+2);
     }

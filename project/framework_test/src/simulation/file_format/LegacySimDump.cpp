@@ -19,8 +19,8 @@ LegacySimDump LegacySimDump::fromFile(std::string path) {
         FATAL_ERROR("Couldn't open file '%s': %s\n", path.c_str(), strerror(errno));
     }
 
-    fread(&dump.simSize.imax, sizeof(int), 1, fp);
-    fread(&dump.simSize.jmax, sizeof(int), 1, fp);
+    fread(&dump.simSize.imax, sizeof(uint32_t), 1, fp);
+    fread(&dump.simSize.jmax, sizeof(uint32_t), 1, fp);
     fread(&dump.simSize.xlength, sizeof(float), 1, fp);
     fread(&dump.simSize.ylength, sizeof(float), 1, fp);
 
@@ -84,8 +84,8 @@ void LegacySimDump::saveToFile(std::string path) {
         FATAL_ERROR("Couldn't open file '%s': %s\n", path.c_str(), strerror(errno));
     }
 
-    fwrite(&simSize.imax, sizeof(int), 1, fp);
-    fwrite(&simSize.jmax, sizeof(int), 1, fp);
+    fwrite(&simSize.imax, sizeof(uint32_t), 1, fp);
+    fwrite(&simSize.jmax, sizeof(uint32_t), 1, fp);
     fwrite(&simSize.xlength, sizeof(float), 1, fp);
     fwrite(&simSize.ylength, sizeof(float), 1, fp);
 

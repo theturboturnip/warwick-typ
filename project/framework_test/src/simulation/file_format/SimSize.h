@@ -38,8 +38,8 @@ struct SimSize {
 
     [[nodiscard]] LegacySimSize to_legacy() const {
         return LegacySimSize {
-                .imax=pixel_size.x,
-                .jmax=pixel_size.y,
+                .imax=(uint32_t)pixel_size.x,
+                .jmax=(uint32_t)pixel_size.y,
                 .xlength=physical_size.x,
                 .ylength=physical_size.y,
         };
