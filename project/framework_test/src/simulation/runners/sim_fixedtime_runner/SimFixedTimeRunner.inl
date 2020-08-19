@@ -11,7 +11,7 @@ class SimFixedTimeRunner : public ISimFixedTimeRunner {
 public:
     ~SimFixedTimeRunner() override = default;
 
-    SimSnapshot runForTime(const SimParams& simParams, const SimSnapshot& start, float timeToRun) override {
+    SimSnapshot runForTime(const FluidParams & simParams, const SimSnapshot& start, float timeToRun) override {
         auto sim = T(simParams, start);
         float currentTime = 0;
         while(currentTime < timeToRun) {

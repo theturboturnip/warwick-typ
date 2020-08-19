@@ -8,7 +8,7 @@
 #include "simulation/file_format/LegacySimulationParameters.h"
 #include "simulation/file_format/SimSnapshot.h"
 #include "util/LegacyCompat2DBackingArray.h"
-#include <simulation/file_format/SimParams.h>
+#include <simulation/file_format/FluidParams.h>
 
 class CpuSimBackendBase {
 public:
@@ -17,9 +17,9 @@ public:
 
 protected:
     //CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep);
-    explicit CpuSimBackendBase(const SimParams& params, const SimSnapshot& s);
+    explicit CpuSimBackendBase(const FluidParams & params, const SimSnapshot& s);
 
-    const SimParams params;
+    const FluidParams params;
     // Copies of the simulation parameter data for the C model
     const int imax, jmax;
     const float xlength, ylength;

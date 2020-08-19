@@ -3,7 +3,7 @@
 //
 
 #include "MakeInputSubApp.h"
-#include <simulation/file_format/SimParams.h>
+#include <simulation/file_format/FluidParams.h>
 #include <simulation/file_format/SimSnapshot.h>
 
 #include "simulation/file_format/LegacySimDump.h"

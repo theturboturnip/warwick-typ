@@ -9,12 +9,11 @@
 #include "LegacySimulationParameters.h"
 #include "util/Size.h"
 
-// TODO - Rename to FluidParams
-struct SimParams {
-    SimParams() = default;
-    static SimParams make_aca_default();
+struct FluidParams {
+    FluidParams() = default;
+    static FluidParams make_aca_default();
 
-    static SimParams from_file(std::string path);
+    static FluidParams from_file(std::string path);
     void to_file(std::string path) const;
 
     float Re; // Reynolds Number - 150 in old sim
@@ -63,5 +62,5 @@ struct SimParams {
     float poisson_omega;
 };
 
-void to_json(nlohmann::ordered_json& j, const SimParams& p);
-void from_json(const nlohmann::ordered_json& j, SimParams& p);
+void to_json(nlohmann::ordered_json& j, const FluidParams & p);
+void from_json(const nlohmann::ordered_json& j, FluidParams & p);

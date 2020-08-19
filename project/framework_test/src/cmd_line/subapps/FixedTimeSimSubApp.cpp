@@ -5,13 +5,13 @@
 #include "FixedTimeSimSubApp.h"
 
 #include <chrono>
-#include <simulation/file_format/SimParams.h>
+#include <simulation/file_format/FluidParams.h>
 
 #include "simulation/file_format/SimSnapshot.h"
 #include "simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.h"
 
 void FixedTimeSimSubApp::run() {
-    auto fluid_props = SimParams::from_file(fluid_properties_file);
+    auto fluid_props = FluidParams::from_file(fluid_properties_file);
     auto initial = SimSnapshot::from_file(inputFile);
 
     fprintf(stdout, "initial %zu %zu %f %f\n", initial.pixel_size.x, initial.pixel_size.y, initial.physical_size.x, initial.physical_size.y);

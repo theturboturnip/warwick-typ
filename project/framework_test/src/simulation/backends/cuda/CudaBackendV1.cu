@@ -16,7 +16,7 @@ inline float host_max(float x, float y) {
     return (x>y) ? x : y;
 }
 
-CudaBackendV1::CudaBackendV1(const SimParams& params, const SimSnapshot &s)
+CudaBackendV1::CudaBackendV1(const FluidParams & params, const SimSnapshot &s)
     : params(params),
       matrix_size(s.pixel_size.x + 2, s.pixel_size.y + 2),
       redblack_matrix_size(matrix_size.x, matrix_size.y / 2),

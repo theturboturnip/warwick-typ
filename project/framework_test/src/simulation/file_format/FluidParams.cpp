@@ -1,12 +1,12 @@
 //
 // Created by samuel on 09/08/2020.
 //
-#include "SimParams.h"
+#include "FluidParams.h"
 
 #include <nlohmann/json.hpp>
 
 
-void to_json(nlohmann::ordered_json& j, const SimParams& p){
+void to_json(nlohmann::ordered_json& j, const FluidParams & p){
     j = nlohmann::ordered_json{};
     j["Re"] = p.Re;
     j["initial_velocity_x"] = p.initial_velocity_x;
@@ -20,7 +20,7 @@ void to_json(nlohmann::ordered_json& j, const SimParams& p){
     j["poisson_omega"] = p.poisson_omega;
 }
 
-void from_json(const nlohmann::ordered_json &j, SimParams &p) {
+void from_json(const nlohmann::ordered_json &j, FluidParams &p) {
     j.at("Re").get_to(p.Re);
     j.at("initial_velocity_x").get_to(p.initial_velocity_x);
     j.at("initial_velocity_y").get_to(p.initial_velocity_y);
@@ -33,8 +33,8 @@ void from_json(const nlohmann::ordered_json &j, SimParams &p) {
     j.at("poisson_omega").get_to(p.poisson_omega);
 }
 
-SimParams SimParams::make_aca_default() {
-    return SimParams{
+FluidParams FluidParams::make_aca_default() {
+    return FluidParams{
             .Re = 150.0f,
             .initial_velocity_x = 1.0,
             .initial_velocity_y = 0.0,
@@ -50,12 +50,12 @@ SimParams SimParams::make_aca_default() {
             .poisson_omega = 1.7f,
     };
 }
-SimParams SimParams::from_file(std::string path) {
+FluidParams FluidParams::from_file(std::string path) {
     nlohmann::json initial_json;
     std::ifstream(path) >> initial_json;
-    return initial_json.get<SimParams>();
+    return initial_json.get<FluidParams>();
 }
-void SimParams::to_file(std::string path) const {
+void FluidParams::to_file(std::string path) const {
     std::ofstream output_file;
     output_file.open(path);
     output_file << nlohmann::ordered_json(*this).dump(4);

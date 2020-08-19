@@ -49,7 +49,7 @@ SimSnapshot CpuSimBackendBase::get_snapshot() {
     flag(dump.flag, imax+2, jmax+2)
 {}*/
 
-CpuSimBackendBase::CpuSimBackendBase(const SimParams& params, const SimSnapshot &s)
+CpuSimBackendBase::CpuSimBackendBase(const FluidParams & params, const SimSnapshot &s)
     : params(params),
       imax(s.pixel_size.x),
       jmax(s.pixel_size.y),

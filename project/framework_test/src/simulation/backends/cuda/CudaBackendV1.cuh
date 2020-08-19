@@ -10,11 +10,11 @@
 #include <simulation/backends/cuda/utils/CudaUnified2DArray.cuh>
 #include <simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh>
 #include <simulation/backends/cuda/utils/CudaUnifiedReducer.cuh>
-#include <simulation/file_format/SimParams.h>
+#include <simulation/file_format/FluidParams.h>
 
 class CudaBackendV1 {
 public:
-    explicit CudaBackendV1(const SimParams& params, const SimSnapshot& s);
+    explicit CudaBackendV1(const FluidParams & params, const SimSnapshot& s);
     ~CudaBackendV1();
 
     float findMaxTimestep();
@@ -24,7 +24,7 @@ public:
     SimSnapshot get_snapshot();
 
 private:
-    const SimParams params;
+    const FluidParams params;
     const Size<size_t> matrix_size;
     const Size<size_t> redblack_matrix_size;
 
