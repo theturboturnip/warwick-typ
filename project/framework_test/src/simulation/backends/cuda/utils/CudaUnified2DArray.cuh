@@ -26,7 +26,9 @@ public:
         // TODO - pitch allocation
         //  pitched arrays MUST have zeroes in the padding for reductions to work - note this
         if (MemoryType == CudaMemoryType::CudaManaged) {
-            cudaMallocManaged(&raw_data, width * height * sizeof(T));
+            auto error = cudaMallocManaged(&raw_data, width * height * sizeof(T));
+            if (error != cudaSuccess)
+                FATAL_ERROR("CUDA Alloc Error: %s\n", cudaGetErrorString(error));
             col_pitch = height;
             raw_length = width * height;
         } else {
