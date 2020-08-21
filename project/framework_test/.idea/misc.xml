@@ -8,6 +8,7 @@
       <file path="$PROJECT_DIR$/external/gsl" />
       <file path="$PROJECT_DIR$/external/imgui" />
       <file path="$PROJECT_DIR$/external/nlohmann-json" />
+      <file path="$PROJECT_DIR$/external/stb" />
     </libraryRoots>
   </component>
   <component name="JavaScriptSettings">

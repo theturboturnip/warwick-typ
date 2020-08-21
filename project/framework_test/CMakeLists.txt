@@ -59,7 +59,11 @@ find_package(SDL2 REQUIRED)
 find_package(OpenMP REQUIRED)
 
 # Create a list of libraries used in both CUDA and non-CUDA
-set(GLOBAL_LINKED_LIBS ${Vulkan_LIBRARIES} ${SDL2_LIBRARIES} OpenMP::OpenMP_CXX glm imgui GSL CLI11 nlohmann_json ${CXX_DEBUG_LIBS})
+set(GLOBAL_LINKED_LIBS
+        ${Vulkan_LIBRARIES} ${SDL2_LIBRARIES}
+        OpenMP::OpenMP_CXX glm imgui GSL CLI11 nlohmann_json stb
+        ${CXX_DEBUG_LIBS}
+        )
 set(GLOBAL_INCLUDE_DIRS ./src/)
 set(GLOBAL_SYSTEM_INCLUDE_DIRS ${Vulkan_INCLUDE_DIRS} ${SDL2_INCLUDE_DIRS})
 
