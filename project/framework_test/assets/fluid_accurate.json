@@ -6,7 +6,7 @@
     "max_timestep_divisor": 480,
     "timestep_safety": 0.5,
     "gamma": 0.9,
-    "poisson_max_iterations": 10000,
+    "poisson_max_iterations": 1000,
     "poisson_error_threshold": 0.001,
     "poisson_omega": 1.7
 }
