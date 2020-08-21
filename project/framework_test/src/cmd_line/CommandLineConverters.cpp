@@ -16,8 +16,9 @@ std::map<Y,X> flip_map(std::map<X, Y> map) {
 CommandLineConverters::CommandLineConverters()
     : backendMap({
                  {"null", SimulationBackendEnum::Null},
-                 {"cpu_simple", SimulationBackendEnum::CpuSimple},
-                 {"cpu_fast", SimulationBackendEnum::CpuOptimized},
+                 {"cpu_old_slow", SimulationBackendEnum::CpuSimple},
+                 {"cpu_old_fast", SimulationBackendEnum::CpuOptimized},
+                 {"cpu", SimulationBackendEnum::CpuAdapted},
 #if CUDA_ENABLED
                  {"cuda", SimulationBackendEnum::CUDA}
 #endif
@@ -27,7 +28,7 @@ CommandLineConverters::CommandLineConverters()
 #if false && CUDA_ENABLED
       defaultBackend(SimulationBackendEnum::CUDA)
 #else
-      defaultBackend(SimulationBackendEnum::CpuOptimized)
+      defaultBackend(SimulationBackendEnum::CpuAdapted)
 #endif
 {}
 

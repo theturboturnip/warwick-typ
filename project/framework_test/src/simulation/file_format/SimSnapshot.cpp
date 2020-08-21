@@ -5,17 +5,16 @@
 
 #include "util/fatal_error.h"
 
-SimSnapshot::SimSnapshot(const SimParams &params)
-    : params(params),
-      velocity_x(params.pixel_count(), 0.0),
-      velocity_y(params.pixel_count(), 0.0),
-      pressure(params.pixel_count(), 0.0),
-      cell_type(params.pixel_count(), CellType::Fluid)
-{
-}
+SimSnapshot::SimSnapshot(SimSize simSize)
+    : simSize(simSize),
+      velocity_x(simSize.pixel_count(), 0.0),
+      velocity_y(simSize.pixel_count(), 0.0),
+      pressure(simSize.pixel_count(), 0.0),
+      cell_type(simSize.pixel_count(), CellType::Fluid)
+{}
 
 LegacySimDump SimSnapshot::to_legacy() const {
-    LegacySimulationParameters legacy_params = params.to_legacy();
+    LegacySimSize legacy_params = simSize.to_legacy();
 
     auto dump = LegacySimDump(legacy_params);
 
@@ -37,12 +36,12 @@ int SimSnapshot::get_boundary_cell_count() const {
 }
 
 std::vector<char> SimSnapshot::get_legacy_cell_flags() const {
-    auto legacy = std::vector<char>(params.pixel_count(), 0);
+    auto legacy = std::vector<char>(simSize.pixel_count(), 0);
 
-    const int width = params.pixel_size.x+2;
-    const int height = params.pixel_size.y+2;
-    for (int i = 0; i < width; ++i) {
-        for (int j = 0; j < height; ++j) {
+    const size_t width = simSize.pixel_size.x+2;
+    const size_t height = simSize.pixel_size.y+2;
+    for (size_t i = 0; i < width; ++i) {
+        for (size_t j = 0; j < height; ++j) {
             int pixel_idx = i * height + j;
             if (cell_type[pixel_idx] == CellType::Fluid) {
                 legacy[pixel_idx] = C_F;
@@ -74,51 +73,32 @@ std::vector<char> SimSnapshot::get_legacy_cell_flags() const {
 
     return legacy;
 }
-SimSnapshot SimSnapshot::from_legacy(const SimParams& params, const LegacySimDump &from_legacy_dump) {
-    auto snapshot = SimSnapshot(params);
+SimSnapshot SimSnapshot::from_legacy(const LegacySimDump &from_legacy_dump) {
+    auto snapshot = SimSnapshot(SimSize::from_legacy(from_legacy_dump.simSize));
 
     snapshot.velocity_x = from_legacy_dump.u;
     snapshot.velocity_y = from_legacy_dump.v;
     snapshot.pressure = from_legacy_dump.p;
 
-    for (size_t i = 0; i < from_legacy_dump.flag.size(); i++) {
-        if (from_legacy_dump.flag[i] & C_F)
-            snapshot.cell_type[i] = CellType::Fluid;
-        else
-            snapshot.cell_type[i] = CellType::Boundary;
-    }
+    snapshot.cell_type = cell_type_from_legacy(from_legacy_dump.flag);
 
     return snapshot;
 }
-
-namespace nlohmann{
-    void adl_serializer<SimSnapshot>::to_json(ordered_json& j, const SimSnapshot& s) {
-        j["params"] = s.params;
-        j["velocity_x"] = nlohmann::json(s.velocity_x).dump();
-        j["velocity_y"] = nlohmann::json(s.velocity_y).dump();
-        j["pressure"] = nlohmann::json(s.pressure).dump();
-        j["cell_type"] = nlohmann::json(s.cell_type).dump();
+SimSnapshot SimSnapshot::from_file(std::string path) {
+    // TODO - implement this without Legacy data
+    auto legacy = LegacySimDump::fromFile(path);
+    return SimSnapshot::from_legacy(legacy);
+}
+void SimSnapshot::to_file(std::string path) const {
+    to_legacy().saveToFile(path);
+}
+std::vector<CellType> SimSnapshot::cell_type_from_legacy(const std::vector<char> legacyFlags) {
+    std::vector<CellType> cell_type(legacyFlags.size(), CellType::Fluid);
+    for (size_t i = 0; i < legacyFlags.size(); i++) {
+        if (legacyFlags[i] & C_F)
+            cell_type[i] = CellType::Fluid;
+        else
+            cell_type[i] = CellType::Boundary;
     }
-
-    SimSnapshot adl_serializer<SimSnapshot>::from_json(const ordered_json &j) {
-        SimParams params{};
-        j.at("params").get_to(params);
-
-        auto snapshot = SimSnapshot(params);
-
-        auto extract_vector = [&j, &params](std::string key, auto& vec_ref) {
-            std::string array_dump;
-            j.at(key).get_to(array_dump);
-            auto array_json = nlohmann::json::parse(array_dump);
-            array_json.get_to(vec_ref);
-            DASSERT_M(vec_ref.size() == params.pixel_count(), "Size mismatch for %s - expected %zu got %zu\n", key.c_str(), params.pixel_count(), array_json.size());
-        };
-
-        extract_vector("velocity_x", snapshot.velocity_x);
-        extract_vector("velocity_y", snapshot.velocity_y);
-        extract_vector("pressure", snapshot.pressure);
-        extract_vector("cell_type", snapshot.cell_type);
-
-        return snapshot;
-    }
+    return cell_type;
 }

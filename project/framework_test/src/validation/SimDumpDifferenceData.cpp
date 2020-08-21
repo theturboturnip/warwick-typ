@@ -18,23 +18,47 @@ SimDumpDifferenceData::SimDumpDifferenceData(const SimSnapshot &a, const SimSnap
         p(a.pressure, b.pressure)
 {}
 
-SingleDataDifference::SingleDataDifference(const std::vector<float> &a, const std::vector<float> &b) : error(a.size(), 0) {
+SingleDataDifference::SingleDataDifference(const std::vector<float> &a, const std::vector<float> &b) : sqError(a.size(), 0) {
     DASSERT(a.size() == b.size());
 
+    const size_t N = a.size();
+
     double errorSum = 0;
-    const int N = a.size();
-    for (int i = 0; i < N; i++) {
-        error[i] = a[i] - b[i];
-        errorSum += error[i];
+    for (size_t i = 0; i < N; i++) {
+        double error = a[i] - b[i];
+        sqError[i] = error * error;
+        errorSum += sqError[i];
     }
+    sqErrorMean = errorSum / N;
+    sqErrorVariance = varianceOf(sqError, sqErrorMean);
+    sqErrorStdDev = std::sqrt(sqErrorVariance);
 
-    errorMean = errorSum / N;
-
+    isAccurate = sqErrorMean < MeanSquareErrorHeuristic;
+    isPrecise = sqErrorStdDev < StdDevSquareErrorHeuristic;
+}
+double SingleDataDifference::varianceOf(std::vector<double> values, double mean) {
     double sumDiffSquared = 0;
-    for (const auto e : error) {
-        double diff = e - errorMean;
+    for (const auto e : values) {
+        double diff = e - mean;
         sumDiffSquared += (diff * diff);
     }
-    errorVariance = sumDiffSquared/(N-1);
-    errorStdDev = std::sqrt(errorVariance);
+    return sumDiffSquared/(values.size()-1);
+}
+void SingleDataDifference::print_details() {
+#define GREEN_TEXT "\e[92;1m"
+#define RED_TEXT "\e[91;1m"
+#define CLEAR_TEXT "\e[0m"
+
+    printf("\tSq. Error Mean:\t\t%11g\t%s\n",
+           sqErrorMean,
+           (isAccurate ? (GREEN_TEXT "ACCURATE" CLEAR_TEXT) : (RED_TEXT "INACCURATE" CLEAR_TEXT))
+           );
+    printf("\tSq. Error Std. Dev:\t%11g\t%s\n",
+           sqErrorStdDev,
+           (isPrecise ? (GREEN_TEXT "PRECISE" CLEAR_TEXT) : (RED_TEXT "IMPRECISE" CLEAR_TEXT))
+           );
+
+#undef GREEN_TEXT
+#undef RED_TEXT
+#undef CLEAR_TEXT
 }

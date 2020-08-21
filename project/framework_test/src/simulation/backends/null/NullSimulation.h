@@ -5,15 +5,16 @@
 #pragma once
 
 #include "simulation/file_format/LegacySimDump.h"
-#include <memory>
 #include "simulation/file_format/SimSnapshot.h"
+#include <memory>
+#include <simulation/file_format/FluidParams.h>
 
 /**
  * Simulation that does not actually do any simulation. Used for testing legacy state stuff etc.
  */
 class NullSimulation {
 public:
-    explicit NullSimulation(const SimSnapshot& dump);
+    explicit NullSimulation(const FluidParams & params, const SimSnapshot& dump);
 
     // findMaxTimestep() is called first, to determine the upper bound of the timestep.
     // return <0 if the runner can do anything

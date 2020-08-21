@@ -7,13 +7,19 @@
 #include "validation/SimDumpDifferenceData.h"
 
 void CompareSubApp::run() {
-    LegacySimDump a = LegacySimDump::fromFile(fileA);
-    LegacySimDump b = LegacySimDump::fromFile(fileB);
+    auto a = SimSnapshot::from_file(fileA);
+    auto b = SimSnapshot::from_file(fileB);
 
     auto diff = SimDumpDifferenceData(a, b);
-    fprintf(stderr, "u:\n\tmean: \t%g\n\tvariance: \t%g\n\tstddev: \t%g\n", diff.u.errorMean, diff.u.errorVariance, diff.u.errorStdDev);
-    fprintf(stderr, "v:\n\tmean: \t%g\n\tvariance: \t%g\n\tstddev: \t%g\n", diff.v.errorMean, diff.v.errorVariance, diff.v.errorStdDev);
-    fprintf(stderr, "p:\n\tmean: \t%g\n\tvariance: \t%g\n\tstddev: \t%g\n", diff.p.errorMean, diff.p.errorVariance, diff.p.errorStdDev);
+    printf("Velocity X:\n");
+    diff.u.print_details();
+    printf("Velocity Y:\n");
+    diff.v.print_details();
+    printf("Pressure:\n");
+    diff.p.print_details();
+    //fprintf(stderr, "u:\n\tmean: \t%g\n\tvariance: \t%g\n\tstddev: \t%g\n", diff.u.errorMean, diff.u.errorVariance, diff.u.errorStdDev);
+    //fprintf(stderr, "v:\n\tmean: \t%g\n\tvariance: \t%g\n\tstddev: \t%g\n", diff.v.errorMean, diff.v.errorVariance, diff.v.errorStdDev);
+    //fprintf(stderr, "p:\n\tmean: \t%g\n\tvariance: \t%g\n\tstddev: \t%g\n", diff.p.errorMean, diff.p.errorVariance, diff.p.errorStdDev);
 }
 
 void CompareSubApp::setupArgumentsForSubcommand(CLI::App *subcommand, const CommandLineConverters &converters) {

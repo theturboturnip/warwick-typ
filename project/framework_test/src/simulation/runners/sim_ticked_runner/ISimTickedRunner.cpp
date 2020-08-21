@@ -12,7 +12,7 @@
 #include "simulation/backends/null/NullSimulation.h"
 #include "util/fatal_error.h"
 
-
+/*
 std::unique_ptr<ISimTickedRunner> ISimTickedRunner::getForBackend(SimulationBackendEnum backendType) {
     switch(backendType) {
         case Null:
@@ -26,3 +26,4 @@ std::unique_ptr<ISimTickedRunner> ISimTickedRunner::getForBackend(SimulationBack
     }
     return nullptr;
 }
+*/

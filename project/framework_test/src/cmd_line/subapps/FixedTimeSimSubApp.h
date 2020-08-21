@@ -21,6 +21,7 @@ public:
     }
     void setupArgumentsForSubcommand(CLI::App *subcommand, const CommandLineConverters& converters) override;
 
+    std::string fluid_properties_file;
     std::string inputFile;
     float timeToRun;
     std::optional<std::string> outputFile;

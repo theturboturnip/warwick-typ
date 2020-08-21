@@ -19,23 +19,23 @@ LegacySimDump LegacySimDump::fromFile(std::string path) {
         FATAL_ERROR("Couldn't open file '%s': %s\n", path.c_str(), strerror(errno));
     }
 
-    fread(&dump.params.imax, sizeof(int), 1, fp);
-    fread(&dump.params.jmax, sizeof(int), 1, fp);
-    fread(&dump.params.xlength, sizeof(float), 1, fp);
-    fread(&dump.params.ylength, sizeof(float), 1, fp);
+    fread(&dump.simSize.imax, sizeof(uint32_t), 1, fp);
+    fread(&dump.simSize.jmax, sizeof(uint32_t), 1, fp);
+    fread(&dump.simSize.xlength, sizeof(float), 1, fp);
+    fread(&dump.simSize.ylength, sizeof(float), 1, fp);
 
-    const int totalElements = dump.params.totalElements();
+    const int totalElements = dump.simSize.totalElements();
     // TODO: Check if the file has enough data for totalElements
     dump.u = std::vector<float>(totalElements);
     dump.v = std::vector<float>(totalElements);
     dump.p = std::vector<float>(totalElements);
     dump.flag = std::vector<char>(totalElements);
 
-    for (int i=0; i < dump.params.imax+2; i++) {
-        fread(&dump.u[i * (dump.params.jmax+2)], sizeof(float), dump.params.jmax+2, fp);
-        fread(&dump.v[i * (dump.params.jmax+2)], sizeof(float), dump.params.jmax+2, fp);
-        fread(&dump.p[i * (dump.params.jmax+2)], sizeof(float), dump.params.jmax+2, fp);
-        fread(&dump.flag[i * (dump.params.jmax+2)], sizeof(uint8_t), dump.params.jmax+2, fp);
+    for (size_t i=0; i < dump.simSize.imax+2; i++) {
+        fread(&dump.u[i * (dump.simSize.jmax+2)], sizeof(float), dump.simSize.jmax+2, fp);
+        fread(&dump.v[i * (dump.simSize.jmax+2)], sizeof(float), dump.simSize.jmax+2, fp);
+        fread(&dump.p[i * (dump.simSize.jmax+2)], sizeof(float), dump.simSize.jmax+2, fp);
+        fread(&dump.flag[i * (dump.simSize.jmax+2)], sizeof(uint8_t), dump.simSize.jmax+2, fp);
     }
     fclose(fp);
 
@@ -84,28 +84,28 @@ void LegacySimDump::saveToFile(std::string path) {
         FATAL_ERROR("Couldn't open file '%s': %s\n", path.c_str(), strerror(errno));
     }
 
-    fwrite(&params.imax, sizeof(int), 1, fp);
-    fwrite(&params.jmax, sizeof(int), 1, fp);
-    fwrite(&params.xlength, sizeof(float), 1, fp);
-    fwrite(&params.ylength, sizeof(float), 1, fp);
+    fwrite(&simSize.imax, sizeof(uint32_t), 1, fp);
+    fwrite(&simSize.jmax, sizeof(uint32_t), 1, fp);
+    fwrite(&simSize.xlength, sizeof(float), 1, fp);
+    fwrite(&simSize.ylength, sizeof(float), 1, fp);
 
-    for (int i = 0; i < params.imax+2; i++) {
-        fwrite(&u[i * (params.jmax+2)], sizeof(float), params.jmax+2, fp);
-        fwrite(&v[i * (params.jmax+2)], sizeof(float), params.jmax+2, fp);
-        fwrite(&p[i * (params.jmax+2)], sizeof(float), params.jmax+2, fp);
-        fwrite(&flag[i * (params.jmax+2)], sizeof(char), params.jmax+2, fp);
+    for (size_t i = 0; i < simSize.imax+2; i++) {
+        fwrite(&u[i * (simSize.jmax+2)], sizeof(float), simSize.jmax+2, fp);
+        fwrite(&v[i * (simSize.jmax+2)], sizeof(float), simSize.jmax+2, fp);
+        fwrite(&p[i * (simSize.jmax+2)], sizeof(float), simSize.jmax+2, fp);
+        fwrite(&flag[i * (simSize.jmax+2)], sizeof(char), simSize.jmax+2, fp);
     }
     fclose(fp);
 }
 
 std::string LegacySimDump::debugString() {
     std::stringstream str;
-    str << "imax: " << params.imax << " jmax: " << params.jmax << '\n';
-    str << "xlength: " << params.xlength << " ylength: " << params.ylength << '\n';
+    str << "imax: " << simSize.imax << " jmax: " << simSize.jmax << '\n';
+    str << "xlength: " << simSize.xlength << " ylength: " << simSize.ylength << '\n';
     return str.str();
 }
-LegacySimDump::LegacySimDump(LegacySimulationParameters params)
-    : params(params),
+LegacySimDump::LegacySimDump(LegacySimSize params)
+    : simSize(params),
       u(params.totalElements(), 0),
       v(params.totalElements(), 0),
       p(params.totalElements(), 0),

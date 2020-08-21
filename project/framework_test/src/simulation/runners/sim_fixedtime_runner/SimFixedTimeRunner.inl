@@ -11,16 +11,18 @@ class SimFixedTimeRunner : public ISimFixedTimeRunner {
 public:
     ~SimFixedTimeRunner() override = default;
 
-    SimSnapshot runForTime(const SimSnapshot& start, float timeToRun) override {
-        auto sim = T(start);
+    SimSnapshot runForTime(const FluidParams & simParams, const SimSnapshot& start, float timeToRun) override {
+        auto sim = T(simParams, start);
         float currentTime = 0;
         while(currentTime < timeToRun) {
             float maxTimestep = sim.findMaxTimestep();
+            if (currentTime + maxTimestep > timeToRun)
+                maxTimestep = timeToRun - currentTime;
+            fprintf(stdout, "t: %f\tts: %f\r", currentTime, maxTimestep);
             sim.tick(maxTimestep);
             currentTime += maxTimestep;
-            //fprintf(stderr, "Current Time: %5g\r", currentTime);
         }
-        //fprintf(stderr, "\n");
+        fprintf(stdout, "\n");
         return sim.get_snapshot();
     }
 };

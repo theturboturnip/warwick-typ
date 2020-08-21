@@ -18,12 +18,8 @@ public:
     }
     void setupArgumentsForSubcommand(CLI::App* subcommand, const CommandLineConverters& converters) override;
 
-    enum ExportType {
-        Empty
-    };
-    ExportType exportType;
-    std::pair<size_t, size_t> resolution;
-    std::pair<float, float> dimensions;
+    std::pair<float, float> physicalSize;
+    std::string inputPath;
     std::string outputPath;
 };
 

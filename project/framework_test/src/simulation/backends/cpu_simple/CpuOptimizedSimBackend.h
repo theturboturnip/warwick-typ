@@ -11,7 +11,7 @@
 
 class CpuOptimizedSimBackend : public CpuSimBackendBase {
 public:
-    explicit CpuOptimizedSimBackend(const SimSnapshot& s);
+    explicit CpuOptimizedSimBackend(const FluidParams & params, const SimSnapshot& s);
 
     float findMaxTimestep();
     void tick(float timestep);
@@ -28,22 +28,4 @@ private:
     LegacyCompat2DBackingArray<int> fluidmask;
     LegacyCompat2DBackingArray<int> surroundmask_red;
     LegacyCompat2DBackingArray<int> surroundmask_black;
-
-    void computeTentativeVelocity(float del_t);
-
-    void computeRhs(float del_t);
-
-    int poissonSolver(float *res, int ifull);
-
-    void calculatePBeta();
-
-    void splitToRedBlack(const LegacyCompat2DBackingArray<float>& joined, LegacyCompat2DBackingArray<float>& red, LegacyCompat2DBackingArray<float>& black);
-    void joinRedBlack(LegacyCompat2DBackingArray<float>& joined, const LegacyCompat2DBackingArray<float>& red, const LegacyCompat2DBackingArray<float>& black);
-
-    void updateVelocity(float del_t);
-
-    void applyBoundaryConditions();
-
-    void calculateFluidmask();
-    void splitFluidmaskToSurroundedMask();
 };

@@ -12,5 +12,5 @@ struct Size {
 
     Size() : x(-1), y(-1) {}
     Size(T x, T y) : x(x), y(y) {}
-    explicit Size(std::pair<T, T> pair) : x(pair.first), y(pair.second) {}
+    Size(std::pair<T, T> pair) : x(pair.first), y(pair.second) {}
 };

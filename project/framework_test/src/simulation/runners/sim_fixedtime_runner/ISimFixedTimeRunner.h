@@ -8,6 +8,7 @@
 #include "simulation/file_format/LegacySimDump.h"
 #include "simulation/file_format/SimSnapshot.h"
 #include <memory>
+#include <simulation/file_format/FluidParams.h>
 
 class ISimFixedTimeRunner {
 protected:
@@ -15,7 +16,7 @@ protected:
 
 public:
     virtual ~ISimFixedTimeRunner() = default;
-    virtual SimSnapshot runForTime(const SimSnapshot& start, float timeToRun) = 0;
+    virtual SimSnapshot runForTime(const FluidParams & simParams, const SimSnapshot& start, float timeToRun) = 0;
 
     static std::unique_ptr<ISimFixedTimeRunner> getForBackend(SimulationBackendEnum backendType);
 };

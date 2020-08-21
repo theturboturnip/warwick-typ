@@ -7,14 +7,16 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/ISubApp.h
         cmd_line/subapps/MakeInputSubApp.cpp
         cmd_line/subapps/MakeInputSubApp.h
-        cmd_line/subapps/ConvertBinaryToJSONSubApp.cpp
-        cmd_line/subapps/ConvertBinaryToJSONSubApp.h
+        cmd_line/subapps/ConvertOldBinaryToNewBinarySubApp.cpp
+        cmd_line/subapps/ConvertOldBinaryToNewBinarySubApp.h
         cmd_line/subapps/FixedTimeSimSubApp.cpp
         cmd_line/subapps/FixedTimeSimSubApp.h
         cmd_line/subapps/CompareSubApp.cpp
         cmd_line/subapps/CompareSubApp.h
         cmd_line/subapps/LegacyRenderPPMSubApp.cpp
         cmd_line/subapps/LegacyRenderPPMSubApp.h
+        simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp
+        simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.h
         simulation/backends/cpu_simple/CpuSimBackendBase.cpp
@@ -23,11 +25,15 @@ target_sources(generic_sources INTERFACE
         simulation/backends/cpu_simple/CpuSimpleSimBackend.h
         simulation/backends/null/NullSimulation.cpp
         simulation/backends/null/NullSimulation.h
+        simulation/backends/original/constants.h
+        simulation/backends/original/simulation.h
+        simulation/backends/original/simulation.cpp
         simulation/file_format/LegacySimDump.cpp
         simulation/file_format/LegacySimDump.h
-        simulation/file_format/LegacySimulationParameters.h
-        simulation/file_format/SimParams.h
-        simulation/file_format/SimParams.cpp
+        simulation/file_format/LegacySimSize.h
+        simulation/file_format/FluidParams.h
+        simulation/file_format/FluidParams.cpp
+        simulation/file_format/SimSize.h
         simulation/file_format/SimSnapshot.h
         simulation/file_format/SimSnapshot.cpp
         simulation/runners
@@ -52,4 +58,15 @@ target_sources(generic_sources INTERFACE
 
 add_library(cuda_sources INTERFACE)
 target_sources(cuda_sources INTERFACE
+        simulation/backends/cuda/CudaBackendV1.cu
+        simulation/backends/cuda/CudaBackendV1.cuh
+        simulation/backends/cuda/kernels/simple.cu
+        simulation/backends/cuda/kernels/simple.cuh
+        simulation/backends/cuda/kernels/redblack.cu
+        simulation/backends/cuda/kernels/redblack.cuh
+        simulation/backends/cuda/kernels/common.cuh
+        simulation/backends/cuda/kernels/reduction.cuh
+        simulation/backends/cuda/utils/CudaUnified2DArray.cuh
+        simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh
+        simulation/backends/cuda/utils/CudaUnifiedReducer.cuh
         )
