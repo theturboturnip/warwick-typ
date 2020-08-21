@@ -89,10 +89,10 @@ __global__ void computeTentativeVelocity_apply(
 //
 //        if (i == 100 && j == 2) {
 //            printf("100/2 GPU f\n");
-//            printf("%a %a %a\n", u[idx_west], u[idx], u[idx_east]);
-//            printf("%a %a %a\n", du2dx, duvdy, laplu);
-//            printf("%a %a\n", _4delx, gamma);
-//            printf("%a = %a %a\n", f[idx], u[idx], params.timestep);
+//            printf("%.9g %.9g %.9g\n", u[idx_west], u[idx], u[idx_east]);
+//            printf("%.9g %.9g %.9g\n", du2dx, duvdy, laplu);
+//            printf("%.9g %.9g\n", _4delx, gamma);
+//            printf("%.9g = %.9g %.9g\n", f[idx], u[idx], params.timestep);
 //        }
     } else {
         f[idx] = u[idx];
@@ -182,13 +182,14 @@ __global__ void computeRHS_1per(in_matrix<float> f, in_matrix<float> __restrict_
 
     const float new_rhs = ((f_this-f_west)/params.deltas.x + (g_this-g_south)/params.deltas.y) / params.timestep;
 
-    if (i == 100 && j == 2) {
-        printf("GPU RHS %dx%d\n", i, j);
-
-        printf("f: %a\t%a\n", f_this, f_west);
-        printf("g: %a\t%a\n", g_this, g_south);
-        printf("new_rhs: %a\n", new_rhs);
-    }
+//    if (i == 100 && j == 2) {
+//        printf("GPU RHS %dx%d\n", i, j);
+//
+//        printf("f: %.9g\t%.9g\n", f_this, f_west);
+//        printf("g: %.9g\t%.9g\n", g_this, g_south);
+//        printf("new_rhs: %.9g\n", new_rhs);
+//        printf("dx: %.9g\tdy: %.9g\tdt: %.9g\n", params.deltas.x, params.deltas.y, params.timestep);
+//    }
 
     rhs[idx] = new_rhs;
 }
@@ -284,36 +285,36 @@ __global__ void poisson_single_tick(in_matrix<float> this_pressure_rb,
     // On CPU this is an FMSUB, fma of negative should translate to a proper GPU fmsub
     const float final = fma_cuda(inv_omega, centre, (-sum));//(inv_omega * centre) - sum;
 
-    if ((i == 100) && j == (0 + j_start) && iter == 0 && is_black == 0) {
-        printf("GPU REPORT %d %dx%d\n", is_black, i, j);
-
-        printf("n: %a\ts: %a\te: %a\tw: %a\n",
-               (north),
-               (south),
-               (east),
-               (west)
-        );
-
-        printf("c: %a\tbeta: %a\trhs: %a\n",
-               (centre),
-               (beta),
-               (rhs)
-        );
-
-        printf("rdx2: %a\trdy2: %a\tinv_omega: %a\n",
-               (rdx2),
-               (rdy2),
-               (inv_omega)
-        );
-
-        printf("horiz: %a\tvertical: %a\tsum: %a\n",
-               (horiz),
-               (vertical),
-               (sum)
-        );
-
-        printf("final: %a\n", (final));
-    }
+//    if ((i == 100) && j == (0 + j_start) && iter == 0 && is_black == 0) {
+//        printf("GPU REPORT %d %dx%d\n", is_black, i, j);
+//
+//        printf("n: %a\ts: %a\te: %a\tw: %a\n",
+//               (north),
+//               (south),
+//               (east),
+//               (west)
+//        );
+//
+//        printf("c: %a\tbeta: %a\trhs: %a\n",
+//               (centre),
+//               (beta),
+//               (rhs)
+//        );
+//
+//        printf("rdx2: %a\trdy2: %a\tinv_omega: %a\n",
+//               (rdx2),
+//               (rdy2),
+//               (inv_omega)
+//        );
+//
+//        printf("horiz: %a\tvertical: %a\tsum: %a\n",
+//               (horiz),
+//               (vertical),
+//               (sum)
+//        );
+//
+//        printf("final: %a\n", (final));
+//    }
     
     this_pressure_rb_out[curr_idx] = final;
 //    __m128 horiz = _mm_add_ps(east, west);

@@ -152,10 +152,10 @@ void computeTentativeVelocity<float>(float ** const u, float ** const v, float *
 //
 //                if (i == 100 && j == 2) {
 //                    printf("100/2 CPU f\n");
-//                    printf("%a %a %a\n", u[i-1][j], u[i][j], u[i+1][j]);
-//                    printf("%a %a %a\n", du2dx, duvdy, laplu);
-//                    printf("%a %a\n", _4delx, gamma);
-//                    printf("%a = %a %a\n", f[i][j], u[i][j], del_t);
+//                    printf("%.9g %.9g %.9g\n", u[i-1][j], u[i][j], u[i+1][j]);
+//                    printf("%.9g %.9g %.9g\n", du2dx, duvdy, laplu);
+//                    printf("%.9g %.9g\n", _4delx, gamma);
+//                    printf("%.9g = %.9g %.9g\n", f[i][j], u[i][j], del_t);
 //                }
             } else {
                 f[i][j] = u[i][j];
@@ -223,13 +223,14 @@ void computeRhs(float ** const f, float ** const g, float ** const rhs, char ** 
                                     (f[i][j]-f[i-1][j])/delx +
                                     (g[i][j]-g[i][j-1])/dely
                             ) / del_t;
-                if (i == 100 && j == 2) {
-                    printf("CPU RHS %dx%d\n", i, j);
-
-                    printf("f: %a\t%a\n", f[i][j], f[i-1][j]);
-                    printf("g: %a\t%a\n", g[i][j], g[i][j-1]);
-                    printf("new_rhs: %a\n", rhs[i][j]);
-                }
+//                if (i == 100 && j == 2) {
+//                    printf("CPU RHS %dx%d\n", i, j);
+//
+//                    printf("f: %.9g\t%.9g\n", f[i][j], f[i-1][j]);
+//                    printf("g: %.9g\t%.9g\n", g[i][j], g[i][j-1]);
+//                    printf("new_rhs: %.9g\n", rhs[i][j]);
+//                    printf("dx: %.9g\tdy: %.9g\tdt: %.9g\n", delx, dely, del_t);
+//                }
             }
         }
     }
@@ -413,36 +414,36 @@ res_stack += add * add;
                         // This is not contracted to FMA by default on CUDA
                         __m128 final = _mm_fmsub_ps(inv_omega_v, centre, sum);
 
-                        if ((i == 100) && j == (0 + j_start) && iter == 0 && rb == 0) {
-                            printf("CPU REPORT %d %dx%d\n", rb, i, j);
-
-                            printf("n: %a\ts: %a\te: %a\tw: %a\n",
-                                   _mm_cvtss_f32(north),
-                                   _mm_cvtss_f32(south),
-                                   _mm_cvtss_f32(east),
-                                   _mm_cvtss_f32(west)
-                            );
-
-                            printf("c: %a\tbeta: %a\trhs: %a\n",
-                                   _mm_cvtss_f32(centre),
-                                   _mm_cvtss_f32(beta_mod),
-                                   _mm_cvtss_f32(rhs)
-                            );
-
-                            printf("rdx2: %a\trdy2: %a\tinv_omega: %a\n",
-                                   _mm_cvtss_f32(rdx2_v),
-                                   _mm_cvtss_f32(rdy2_v),
-                                   _mm_cvtss_f32(inv_omega_v)
-                            );
-
-                            printf("horiz: %a\tvertical: %a\tsum: %a\n",
-                                   _mm_cvtss_f32(horiz),
-                                   _mm_cvtss_f32(vertical),
-                                   _mm_cvtss_f32(sum)
-                            );
-
-                            printf("final: %a\n", _mm_cvtss_f32(final));
-                        }
+//                        if ((i == 100) && j == (0 + j_start) && iter == 0 && rb == 0) {
+//                            printf("CPU REPORT %d %dx%d\n", rb, i, j);
+//
+//                            printf("n: %a\ts: %a\te: %a\tw: %a\n",
+//                                   _mm_cvtss_f32(north),
+//                                   _mm_cvtss_f32(south),
+//                                   _mm_cvtss_f32(east),
+//                                   _mm_cvtss_f32(west)
+//                            );
+//
+//                            printf("c: %a\tbeta: %a\trhs: %a\n",
+//                                   _mm_cvtss_f32(centre),
+//                                   _mm_cvtss_f32(beta_mod),
+//                                   _mm_cvtss_f32(rhs)
+//                            );
+//
+//                            printf("rdx2: %a\trdy2: %a\tinv_omega: %a\n",
+//                                   _mm_cvtss_f32(rdx2_v),
+//                                   _mm_cvtss_f32(rdy2_v),
+//                                   _mm_cvtss_f32(inv_omega_v)
+//                            );
+//
+//                            printf("horiz: %a\tvertical: %a\tsum: %a\n",
+//                                   _mm_cvtss_f32(horiz),
+//                                   _mm_cvtss_f32(vertical),
+//                                   _mm_cvtss_f32(sum)
+//                            );
+//
+//                            printf("final: %a\n", _mm_cvtss_f32(final));
+//                        }
 
                         _mm_storeu_ps(&mid_col[j], final);
                     }  // end of j
