@@ -53,8 +53,6 @@ CudaBackendV1::CudaBackendV1(const FluidParams & params, const SimSnapshot &s)
     u.memcpy_in(s.velocity_x);
     v.memcpy_in(s.velocity_y);
     p.joined.memcpy_in(s.pressure);
-    p_buffered.red.memcpy_in(p.red);
-    p_buffered.black.memcpy_in(p.black);
     flag.memcpy_in(s.get_legacy_cell_flags());
 
     rhs.zero_out();
@@ -68,6 +66,9 @@ CudaBackendV1::CudaBackendV1(const FluidParams & params, const SimSnapshot &s)
     OriginalOptimized::splitToRedBlack(p.joined.as_cpu(),
                                        p.red.as_cpu(), p.black.as_cpu(),
                                        imax, jmax);
+    p_buffered.red.memcpy_in(p.red);
+    p_buffered.black.memcpy_in(p.black);
+
 
     // TODO - remove poisson_error_threshold from args
     OriginalOptimized::calculatePBeta(p_beta.joined.as_cpu(), flag.as_cpu(),
