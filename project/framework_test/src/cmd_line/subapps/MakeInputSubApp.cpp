@@ -3,49 +3,65 @@
 //
 
 #include "MakeInputSubApp.h"
-#include <simulation/file_format/FluidParams.h>
-#include <simulation/file_format/SimSnapshot.h>
 
-#include "simulation/file_format/LegacySimDump.h"
-#include "simulation/file_format/LegacySimSize.h"
 #include "util/fatal_error.h"
+#include <simulation/file_format/SimSize.h>
+#include <simulation/file_format/SimSnapshot.h>
+#include <stb_image.h>
 
-MakeInputSubApp::MakeInputSubApp() : exportType(ExportType::Empty) {}
+MakeInputSubApp::MakeInputSubApp() {}
 void MakeInputSubApp::run() {
-//    LegacySimulationParameters legacy_params = {
-//            .imax = (int)resolution.first,
-//            .jmax = (int)resolution.second,
-//            .xlength = dimensions.first,
-//            .ylength = dimensions.second,
-//    };
-
-    if (exportType == ExportType::Empty) {
-        auto snapshot = SimSnapshot(SimSize(Size(resolution), Size(dimensions)));
-
-        snapshot.to_file(outputPath);
-    } else {
-        FATAL_ERROR("Unimplemented exportType %d\n", exportType);
+    int width, height, channels;
+    uint8_t* data = stbi_load(inputPath.c_str(), &width, &height, &channels, 3);
+    if (!data) {
+        FATAL_ERROR("Loading image %s failed: %s\n", inputPath.c_str(), stbi_failure_reason());
     }
 
-//    switch(exportType) {
-//        case ExportType::Empty:
-//            std::ofstream(outputPath) << ;//LegacySimDump(params).saveToFile(outputPath);
-//            break;
-//        default:
-//    }
+    if (channels == 4) {
+        printf("WARNING: Input image %s had 4 channels originally, but this parser only supports 3.\n"
+               "Image will be parsed ignoring the alpha channel.\n",
+               inputPath.c_str());
+    }
+
+    if (width <= 2 || height <= 2) {
+        FATAL_ERROR("Image %s is %dx%d, but must be >2 in each direction\n", inputPath.c_str(), width, height);
+    }
+
+    auto size = SimSize(
+            {(size_t) width-2, (size_t) height-2},
+            physicalSize
+    );
+    auto simSnapshot = SimSnapshot(size);
+    // stb coordinates are top-left (0,0), bottom-right (width-1, height-1)
+    // our coordinates are top-left (0, height-1), bottom-right (width-1,0)
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < height; y++) {
+            const size_t idx = (x * height) + (height - 1 - y);
+
+            const uint8_t red = data[(y * width + x)*3 + 0];
+            const uint8_t green = data[(y * width + x)*3 + 1];
+            const uint8_t blue = data[(y * width + x)*3 + 2];
+
+            if (red == 0 && green == 0 && blue == 0) {
+                simSnapshot.cell_type[idx] = CellType::Fluid;
+            } else {
+                simSnapshot.cell_type[idx] = CellType::Boundary;
+            }
+            // TODO - connect to fluid.json params?
+            simSnapshot.velocity_x[idx] = 1;
+            simSnapshot.velocity_y[idx] = 0;
+            simSnapshot.pressure[idx] = 1;
+        }
+    }
+
+    stbi_image_free(data);
+
+    simSnapshot.to_file(outputPath);
 }
 void MakeInputSubApp::setupArgumentsForSubcommand(CLI::App *subcommand, const CommandLineConverters& converters) {
-    std::map<std::string, ExportType> exportTypeMap = {{"empty", ExportType::Empty}};
-
-    subcommand->add_option("output", outputPath, "Location of desired output file")->required();
-
-    exportType = ExportType::Empty;
-    subcommand->add_option("--type", exportType, "Type of input file to generate")
-            ->transform(ENUM_TRANSFORMER(exportTypeMap));
-
-    // TODO: These default values are unnecessary once we move away from ACA-based simulations
-    resolution = {660, 120};
-    dimensions = {22.0, 4.1};
-    subcommand->add_option("--resolution", resolution, "Resolution in blocks of output file");
-    subcommand->add_option("--dimensions", dimensions, "Dimensions in metres of output file");//->default_val(std::pair<float, float>{22.0, 4.1});
+    subcommand->add_option("input", inputPath, "Input image - black squares are fluid, nonblack squares are obstacle.")
+            ->check(CLI::ExistingFile)
+            ->required();
+    subcommand->add_option("physical-size", physicalSize, "Resolution in metres of output file")->required();
+    subcommand->add_option("output", outputPath, "Output file")->required();
 }
