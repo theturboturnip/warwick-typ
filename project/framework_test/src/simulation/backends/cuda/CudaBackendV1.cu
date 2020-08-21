@@ -135,14 +135,14 @@ float CudaBackendV1::findMaxTimestep() {
 //    printf("delt_u: %a\tdelt_v: %a\tdelt_re: %a\n", delt_u, delt_v, deltRe);
 //    printf("delta_t: %a\n", delta_t);
 
-    float cpu_delta_t = -1;
-    OriginalOptimized::setTimestepInterval(&cpu_delta_t,
-                        imax, jmax,
-                        del_x, del_y,
-                        u.as_cpu(), v.as_cpu(),
-                        params.Re,
-                        params.timestep_safety
-                        );
+//    float cpu_delta_t = -1;
+//    OriginalOptimized::setTimestepInterval(&cpu_delta_t,
+//                        imax, jmax,
+//                        del_x, del_y,
+//                        u.as_cpu(), v.as_cpu(),
+//                        params.Re,
+//                        params.timestep_safety
+//                        );
 
 //    printf("CPU del_t\ndelta_t: %a\n", delta_t);
 
