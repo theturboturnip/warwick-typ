@@ -3,8 +3,9 @@
 //
 #include "VulkanWindow.h"
 
-#include <SDL_vulkan.h>
+#include "VulkanQueueFamilies.h"
 #include "util/fatal_error.h"
+#include <SDL_vulkan.h>
 
 #if !NDEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
@@ -25,6 +26,17 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
     return VK_FALSE;
 }
 #endif
+
+template<typename DeviceSelectorType>
+vk::PhysicalDevice selectDevice(const vk::UniqueInstance& instance, DeviceSelectorType selector) {
+    auto devices = instance->enumeratePhysicalDevices();
+
+    for (const auto& device : devices) {
+        if (selector(device))
+            return device;
+    }
+    FATAL_ERROR("Could not find a suitable device.\n");
+}
 
 VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> window_size) : dispatch_loader() {
     window = SDL_CreateWindow(
@@ -82,12 +94,37 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
         check_sdl_error(SDL_Vulkan_CreateSurface(window, *instance, &c_surface));
         surface = vk::UniqueSurfaceKHR(c_surface, *instance);
     }
+
+    {
+        physicalDevice = selectDevice(instance, [](vk::PhysicalDevice potential_device){
+            auto deviceProperties = potential_device.getProperties();
+            auto deviceFeatures = potential_device.getFeatures();
+            auto potential_queueFamilies = VulkanQueueFamilies::fill_from_vulkan(potential_device);
+
+            return deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && potential_queueFamilies.complete();
+        });
+        queueFamilies = VulkanQueueFamilies::fill_from_vulkan(physicalDevice);
+        fprintf(stdout, "Selected Vulkan device %s\n", physicalDevice.getProperties().deviceName.data());
+    }
+
+
 }
 VulkanWindow::~VulkanWindow() {
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
 void VulkanWindow::main_loop() {
+    while (true) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT)
+                goto end;
+        }
+
+
+    }
+
+    end:;
 }
 void VulkanWindow::check_sdl_error(SDL_bool success) {
     FATAL_ERROR_IF(!success, "SDL Error: %s\n", SDL_GetError());

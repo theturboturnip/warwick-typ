@@ -17,6 +17,8 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/LegacyRenderPPMSubApp.h
         cmd_line/subapps/InteractiveSubApp.cpp
         cmd_line/subapps/InteractiveSubApp.h
+        rendering/vulkan/VulkanQueueFamilies.cpp
+        rendering/vulkan/VulkanQueueFamilies.h
         rendering/vulkan/VulkanWindow.cpp
         rendering/vulkan/VulkanWindow.h
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp

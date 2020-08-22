@@ -7,6 +7,7 @@
 // Fatal error function - exits the program with the given error message.
 // Useful for bailing out without requiring exceptions
 __attribute__((__format__ (__printf__, 3, 4))) // Tell the compiler to treat *fmt as a format string.
+__attribute__((noreturn))
 void fatal_error(const char* filepath, int line, const char* fmt, ...);
 
 #define FATAL_ERROR(...) fatal_error(__FILE__, __LINE__, __VA_ARGS__)

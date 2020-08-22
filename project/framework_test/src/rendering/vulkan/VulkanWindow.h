@@ -7,6 +7,7 @@
 #include <SDL.h>
 #include <vulkan/vulkan.hpp>
 
+#include "VulkanQueueFamilies.h"
 #include "util/Size.h"
 
 #if !NDEBUG
@@ -24,8 +25,8 @@ class VulkanWindow {
     vk::UniqueSurfaceKHR surface;
     // This uses a dynamic loader, becuase the loader functions vkCreateDebugUtilsMessengerEXT etc. need to be dynamically linked at runtime
     vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::DispatchLoaderDynamic> debug_messenger;
-
-    //PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
+    vk::PhysicalDevice physicalDevice;
+    VulkanQueueFamilies queueFamilies;
 public:
     VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);
     ~VulkanWindow();
