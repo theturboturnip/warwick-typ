@@ -27,6 +27,8 @@ class VulkanWindow {
     vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::DispatchLoaderDynamic> debug_messenger;
     vk::PhysicalDevice physicalDevice;
     VulkanQueueFamilies queueFamilies;
+    vk::UniqueDevice logicalDevice;
+    vk::Queue graphicsQueue;
 public:
     VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);
     ~VulkanWindow();

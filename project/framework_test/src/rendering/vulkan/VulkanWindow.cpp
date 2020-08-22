@@ -14,6 +14,10 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData){
 
+    if (messageType & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+        return VK_FALSE;
+    }
+
     auto severity = vk::to_string(vk::DebugUtilsMessageSeverityFlagsEXT(messageSeverity));
     auto type = vk::to_string(vk::DebugUtilsMessageTypeFlagsEXT(messageType));
 
@@ -46,19 +50,20 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
                 SDL_WINDOW_VULKAN
             );
 
+
+    uint32_t extension_count;
+    check_sdl_error(SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr));
+    auto extension_names = std::vector<const char *>(extension_count);
+    check_sdl_error(SDL_Vulkan_GetInstanceExtensions(window, &extension_count, extension_names.data()));
+
+
+    auto layer_names = std::vector<const char *>();
+    if (VulkanDebug) {
+        layer_names.push_back("VK_LAYER_KHRONOS_validation");
+        extension_names.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+
     {
-        uint32_t extension_count;
-        check_sdl_error(SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr));
-        auto extension_names = std::vector<const char *>(extension_count);
-        check_sdl_error(SDL_Vulkan_GetInstanceExtensions(window, &extension_count, extension_names.data()));
-
-
-        auto layer_names = std::vector<const char *>();
-        if (VulkanDebug) {
-            layer_names.push_back("VK_LAYER_KHRONOS_validation");
-            extension_names.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        }
-
         auto create_info = vk::InstanceCreateInfo(
                 vk::InstanceCreateFlags(),
                 &app_info,
@@ -105,6 +110,28 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
         });
         queueFamilies = VulkanQueueFamilies::fill_from_vulkan(physicalDevice);
         fprintf(stdout, "Selected Vulkan device %s\n", physicalDevice.getProperties().deviceName.data());
+
+        const float queuePriority = 1.0f;
+        auto graphicsQueueCreateInfo = vk::DeviceQueueCreateInfo(
+            vk::DeviceQueueCreateFlags(),
+            queueFamilies.graphics_family.value(),
+            1,
+            &queuePriority
+        );
+
+        auto requestedDeviceFeatures = vk::PhysicalDeviceFeatures();
+
+        auto logicalDeviceCreateInfo = vk::DeviceCreateInfo();
+        logicalDeviceCreateInfo.pQueueCreateInfos = &graphicsQueueCreateInfo;
+        logicalDeviceCreateInfo.queueCreateInfoCount = 1;
+        logicalDeviceCreateInfo.pEnabledFeatures = &requestedDeviceFeatures;
+        // This is not needed but nice for legacy implementations
+        logicalDeviceCreateInfo.ppEnabledLayerNames = layer_names.data();
+        logicalDeviceCreateInfo.enabledLayerCount = layer_names.size();
+        // No device-specific Vulkan extensions for now
+
+        logicalDevice = physicalDevice.createDeviceUnique(logicalDeviceCreateInfo);
+        graphicsQueue = logicalDevice->getQueue(queueFamilies.graphics_family.value(), 0);
     }
 
 
