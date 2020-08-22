@@ -101,37 +101,63 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
     }
 
     {
-        physicalDevice = selectDevice(instance, [](vk::PhysicalDevice potential_device){
+        std::vector<const char*> requiredDeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
+        physicalDevice = selectDevice(instance, [this, &requiredDeviceExtensions](vk::PhysicalDevice potential_device){
             auto deviceProperties = potential_device.getProperties();
             auto deviceFeatures = potential_device.getFeatures();
-            auto potential_queueFamilies = VulkanQueueFamilies::fill_from_vulkan(potential_device);
+            auto potential_queueFamilies = VulkanQueueFamilies::fill_from_vulkan(potential_device, surface);
+            auto availableExtensions = potential_device.enumerateDeviceExtensionProperties();
 
-            return deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && potential_queueFamilies.complete();
+            // TODO - why does this work? Is there an implicit conversion between const char* and std::string??
+            std::set<std::string> requiredExtensionsSet(requiredDeviceExtensions.begin(), requiredDeviceExtensions.end());
+
+            for (const auto& extension : availableExtensions) {
+                requiredExtensionsSet.erase(std::string(extension.extensionName));
+            }
+
+            return deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu
+                   && potential_queueFamilies.complete()
+                   && requiredExtensionsSet.empty();
         });
-        queueFamilies = VulkanQueueFamilies::fill_from_vulkan(physicalDevice);
+        queueFamilies = VulkanQueueFamilies::fill_from_vulkan(physicalDevice, surface);
         fprintf(stdout, "Selected Vulkan device %s\n", physicalDevice.getProperties().deviceName.data());
 
         const float queuePriority = 1.0f;
-        auto graphicsQueueCreateInfo = vk::DeviceQueueCreateInfo(
-            vk::DeviceQueueCreateFlags(),
-            queueFamilies.graphics_family.value(),
-            1,
-            &queuePriority
-        );
+        auto families = queueFamilies.get_families();
+        auto queueCreateInfos = std::vector<vk::DeviceQueueCreateInfo>(families.size());
+        for (uint32_t queueFamily : families) {
+            queueCreateInfos.push_back(
+                    vk::DeviceQueueCreateInfo(
+                            vk::DeviceQueueCreateFlags(),
+                            queueFamily,
+                            1,
+                            &queuePriority
+                    )
+                );
+        }
 
         auto requestedDeviceFeatures = vk::PhysicalDeviceFeatures();
 
         auto logicalDeviceCreateInfo = vk::DeviceCreateInfo();
-        logicalDeviceCreateInfo.pQueueCreateInfos = &graphicsQueueCreateInfo;
-        logicalDeviceCreateInfo.queueCreateInfoCount = 1;
+        logicalDeviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
+        logicalDeviceCreateInfo.queueCreateInfoCount = queueCreateInfos.size();
         logicalDeviceCreateInfo.pEnabledFeatures = &requestedDeviceFeatures;
         // This is not needed but nice for legacy implementations
         logicalDeviceCreateInfo.ppEnabledLayerNames = layer_names.data();
         logicalDeviceCreateInfo.enabledLayerCount = layer_names.size();
-        // No device-specific Vulkan extensions for now
+        // Device-specific Vulkan extensions
+        logicalDeviceCreateInfo.ppEnabledExtensionNames = requiredDeviceExtensions.data();
+        logicalDeviceCreateInfo.enabledExtensionCount = requiredDeviceExtensions.size();
 
         logicalDevice = physicalDevice.createDeviceUnique(logicalDeviceCreateInfo);
-        graphicsQueue = logicalDevice->getQueue(queueFamilies.graphics_family.value(), 0);
+        printf("graphics family %d, present queue %d\n", queueFamilies.graphics_family.value(), queueFamilies.present_family.value());
+        VkQueue c_graphicsQueue;
+        vkGetDeviceQueue(*logicalDevice, queueFamilies.graphics_family.value(), 0, &c_graphicsQueue);
+        // Both of these segfault - why?
+        graphicsQueue = vk::Queue(c_graphicsQueue);
+        //graphicsQueue = logicalDevice->getQueue(queueFamilies.graphics_family.value(), 0);
+        //presentQueue = logicalDevice->getQueue(queueFamilies.present_family.value(), 0);
     }
 
 

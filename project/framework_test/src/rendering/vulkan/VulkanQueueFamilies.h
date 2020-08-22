@@ -9,10 +9,15 @@
 
 struct VulkanQueueFamilies {
     std::optional<uint32_t> graphics_family;
+    std::optional<uint32_t> present_family;
 
-    static VulkanQueueFamilies fill_from_vulkan(vk::PhysicalDevice device);
+    static VulkanQueueFamilies fill_from_vulkan(vk::PhysicalDevice device, vk::UniqueSurfaceKHR& surface);
+
+    std::set<uint32_t> get_families() {
+        return {graphics_family.value(), present_family.value()};
+    }
 
     [[nodiscard]] bool complete() {
-        return graphics_family.has_value();
+        return graphics_family.has_value() && present_family.has_value();
     }
 };

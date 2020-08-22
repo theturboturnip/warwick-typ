@@ -28,7 +28,7 @@ class VulkanWindow {
     vk::PhysicalDevice physicalDevice;
     VulkanQueueFamilies queueFamilies;
     vk::UniqueDevice logicalDevice;
-    vk::Queue graphicsQueue;
+    vk::Queue graphicsQueue, presentQueue;
 public:
     VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);
     ~VulkanWindow();
