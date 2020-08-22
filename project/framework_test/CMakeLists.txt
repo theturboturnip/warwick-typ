@@ -41,7 +41,7 @@ set(CXX_SIMD_OPT -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx -mavx2 -mfm
 set(CXX_WARNING_OPT -Wall -Werror -Wextra -Wno-error=extra -Wno-error=unused-parameter -Wno-error=unused-result -Wno-error=unused-but-set-variable -Wno-error=unused-variable -Wno-error=comment)
 if (IS_DEBUG)
     message("DEBUG MODE")
-    set(CXX_GENERAL_OPT -g -Og) # -fsanitize=address)
+    set(CXX_GENERAL_OPT -g3 -Og) # -fsanitize=address)
     set(CXX_DEBUG_LIBS)# -lasan)
     set(CUDA_DEBUG_OPT -G)
 else()
