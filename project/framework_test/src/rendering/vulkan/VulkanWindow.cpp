@@ -14,17 +14,18 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData){
 
-    if (messageType & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
         return VK_FALSE;
     }
 
     auto severity = vk::to_string(vk::DebugUtilsMessageSeverityFlagsEXT(messageSeverity));
     auto type = vk::to_string(vk::DebugUtilsMessageTypeFlagsEXT(messageType));
 
-    auto print_to = (messageSeverity | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) ? stderr : stdout;
-    fprintf(print_to, "VulkanDebug [%s] [%s]: [%s] %s [%d]\n",
-            type.c_str(), severity.c_str(),
-            pCallbackData->pMessageIdName, pCallbackData->pMessage, pCallbackData->messageIdNumber);
+    auto print_to = (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) ? stderr : stdout;
+//    fprintf(print_to, "VulkanDebug [%s] [%s]: [%s] %s [%d]\n",
+//            type.c_str(), severity.c_str(),
+//            pCallbackData->pMessageIdName, pCallbackData->pMessage, pCallbackData->messageIdNumber);
+    fprintf(print_to, "%s\n", pCallbackData->pMessage);
 
     // VK_FALSE => don't stop the application
     return VK_FALSE;
@@ -64,6 +65,15 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
     }
 
     {
+        printf("Creating Vulkan instance\nLayers\n");
+        for (const auto layer_name : layer_names) {
+            printf("\t%s\n", layer_name);
+        }
+        printf("Extensions\n");
+        for (const auto extension_name : extension_names) {
+            printf("\t%s\n", extension_name);
+        }
+
         auto create_info = vk::InstanceCreateInfo(
                 vk::InstanceCreateFlags(),
                 &app_info,
@@ -125,7 +135,7 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
 
         const float queuePriority = 1.0f;
         auto families = queueFamilies.get_families();
-        auto queueCreateInfos = std::vector<vk::DeviceQueueCreateInfo>(families.size());
+        auto queueCreateInfos = std::vector<vk::DeviceQueueCreateInfo>();
         for (uint32_t queueFamily : families) {
             queueCreateInfos.push_back(
                     vk::DeviceQueueCreateInfo(
@@ -140,9 +150,9 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
         auto requestedDeviceFeatures = vk::PhysicalDeviceFeatures();
 
         auto logicalDeviceCreateInfo = vk::DeviceCreateInfo();
+        logicalDeviceCreateInfo.pEnabledFeatures = &requestedDeviceFeatures;
         logicalDeviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
         logicalDeviceCreateInfo.queueCreateInfoCount = queueCreateInfos.size();
-        logicalDeviceCreateInfo.pEnabledFeatures = &requestedDeviceFeatures;
         // This is not needed but nice for legacy implementations
         logicalDeviceCreateInfo.ppEnabledLayerNames = layer_names.data();
         logicalDeviceCreateInfo.enabledLayerCount = layer_names.size();
@@ -151,13 +161,9 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
         logicalDeviceCreateInfo.enabledExtensionCount = requiredDeviceExtensions.size();
 
         logicalDevice = physicalDevice.createDeviceUnique(logicalDeviceCreateInfo);
-        printf("graphics family %d, present queue %d\n", queueFamilies.graphics_family.value(), queueFamilies.present_family.value());
-        VkQueue c_graphicsQueue;
-        vkGetDeviceQueue(*logicalDevice, queueFamilies.graphics_family.value(), 0, &c_graphicsQueue);
-        // Both of these segfault - why?
-        graphicsQueue = vk::Queue(c_graphicsQueue);
-        //graphicsQueue = logicalDevice->getQueue(queueFamilies.graphics_family.value(), 0);
-        //presentQueue = logicalDevice->getQueue(queueFamilies.present_family.value(), 0);
+
+        graphicsQueue = logicalDevice->getQueue(queueFamilies.graphics_family.value(), 0);
+        presentQueue = logicalDevice->getQueue(queueFamilies.present_family.value(), 0);
     }
 
 
