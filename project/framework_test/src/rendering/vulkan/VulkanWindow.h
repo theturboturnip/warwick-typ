@@ -7,6 +7,7 @@
 #include <SDL.h>
 #include <vulkan/vulkan.hpp>
 
+#include "VulkanPipelineSet.h"
 #include "VulkanQueueFamilies.h"
 #include "VulkanShader.h"
 #include "util/Size.h"
@@ -40,9 +41,10 @@ class VulkanWindow {
     std::vector<vk::Image> swapchainImages;
     std::vector<vk::UniqueImageView> swapchainImageViews;
 
-    VulkanShader redFrag, triVert;
+    std::unique_ptr<VulkanPipelineSet> pipelines;
 public:
     VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);
+    VulkanWindow(const VulkanWindow&) = delete;
     ~VulkanWindow();
 
     // TODO - this will change in the future

@@ -255,8 +255,7 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
     }
 
     {
-        triVert = VulkanShader::from_file(*logicalDevice, "triangle.vert", VulkanShader::Stage::Vertex);
-        redFrag = VulkanShader::from_file(*logicalDevice, "red.frag", VulkanShader::Stage::Fragment);
+
     }
 }
 VulkanWindow::~VulkanWindow() {

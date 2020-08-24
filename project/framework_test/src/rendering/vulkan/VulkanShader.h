@@ -9,19 +9,23 @@
 
 #include <vulkan/vulkan.hpp>
 
-// TODO - make Stage a template parameter? could be nice to ensure type safety
+enum class ShaderStage {
+    Vertex,
+    Fragment
+};
+
+template<ShaderStage Stage>
 class VulkanShader {
 public:
-    enum class Stage {
-        Vertex,
-        Fragment
-    };
-
-    static VulkanShader from_file(vk::Device device, std::string shader_name, Stage stage);
+    VulkanShader(const VulkanShader&) = delete;
+    static VulkanShader from_file(vk::Device device, std::string shader_name);
 
     vk::UniqueShaderModule shaderModule;
     vk::PipelineShaderStageCreateInfo shaderStage;
 
 private:
-    VulkanShader(vk::Device device, const std::vector<uint8_t>& data, Stage stage);
+    VulkanShader(vk::Device device, const std::vector<uint8_t>& data);
 };
+
+using VertexShader = VulkanShader<ShaderStage::Vertex>;
+using FragmentShader = VulkanShader<ShaderStage::Fragment>;
