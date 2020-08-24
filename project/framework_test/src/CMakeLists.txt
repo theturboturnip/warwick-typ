@@ -76,3 +76,5 @@ target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh
         simulation/backends/cuda/utils/CudaUnifiedReducer.cuh
         )
+
+add_subdirectory(rendering/shaders)
