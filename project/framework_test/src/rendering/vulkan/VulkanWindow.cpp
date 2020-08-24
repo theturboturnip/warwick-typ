@@ -84,24 +84,24 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
         instance = vk::createInstanceUnique(create_info);
 
         dispatch_loader.init(*instance, vkGetInstanceProcAddr);
+    }
 
-        if (VulkanDebug) {
-            auto messenger_create = vk::DebugUtilsMessengerCreateInfoEXT(
-                    vk::DebugUtilsMessengerCreateFlagsEXT(),
-                    vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose | vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo |
-                            vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
-                    vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
-                            vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation,
-                    &vulkanDebug,
-                    nullptr
-            );
+    if (VulkanDebug) {
+        auto messenger_create = vk::DebugUtilsMessengerCreateInfoEXT(
+                vk::DebugUtilsMessengerCreateFlagsEXT(),
+                vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose | vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo |
+                    vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
+                vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
+                    vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation,
+                &vulkanDebug,
+                nullptr
+        );
 
-            debug_messenger = instance->createDebugUtilsMessengerEXTUnique(
-                    messenger_create,
-                    nullptr,
-                    dispatch_loader
-                    );
-        }
+        debug_messenger = instance->createDebugUtilsMessengerEXTUnique(
+                messenger_create,
+                nullptr,
+                dispatch_loader
+        );
     }
 
     {
@@ -115,20 +115,30 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
 
         physicalDevice = selectDevice(instance, [this, &requiredDeviceExtensions](vk::PhysicalDevice potential_device){
             auto deviceProperties = potential_device.getProperties();
-            auto deviceFeatures = potential_device.getFeatures();
-            auto potential_queueFamilies = VulkanQueueFamilies::fill_from_vulkan(potential_device, surface);
-            auto availableExtensions = potential_device.enumerateDeviceExtensionProperties();
+            if (deviceProperties.deviceType != vk::PhysicalDeviceType::eDiscreteGpu)
+                return false; // Only accept discrete GPUs
 
+            auto potential_queueFamilies = VulkanQueueFamilies::fill_from_vulkan(potential_device, surface);
+            if (!potential_queueFamilies.complete())
+                return false; // Can't support all of the queues we want
+
+            auto availableExtensions = potential_device.enumerateDeviceExtensionProperties();
             // TODO - why does this work? Is there an implicit conversion between const char* and std::string??
             std::set<std::string> requiredExtensionsSet(requiredDeviceExtensions.begin(), requiredDeviceExtensions.end());
 
             for (const auto& extension : availableExtensions) {
                 requiredExtensionsSet.erase(std::string(extension.extensionName));
             }
+            if (!requiredExtensionsSet.empty())
+                return false; // Not all extensions present
 
-            return deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu
-                   && potential_queueFamilies.complete()
-                   && requiredExtensionsSet.empty();
+            //auto surfaceCapabilities = potential_device.getSurfaceCapabilitiesKHR(*surface);
+            auto swapchainFormats = potential_device.getSurfaceFormatsKHR(*surface);
+            auto swapchainPresentModes = potential_device.getSurfacePresentModesKHR(*surface);
+            if (swapchainFormats.empty() || swapchainPresentModes.empty())
+                return false;
+
+            return true;
         });
         queueFamilies = VulkanQueueFamilies::fill_from_vulkan(physicalDevice, surface);
         fprintf(stdout, "Selected Vulkan device %s\n", physicalDevice.getProperties().deviceName.data());
@@ -166,7 +176,81 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
         presentQueue = logicalDevice->getQueue(queueFamilies.present_family.value(), 0);
     }
 
+    {
+        // The tutorial https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
+        // tries to select a certain format first, but we don't care about color spaces or exact formats rn.
+        swapchainProps.surfaceFormat = physicalDevice.getSurfaceFormatsKHR(*surface)[0];
 
+        auto swapchainPresentModes = physicalDevice.getSurfacePresentModesKHR(*surface);
+        if (std::find(swapchainPresentModes.begin(), swapchainPresentModes.end(), vk::PresentModeKHR::eMailbox) != swapchainPresentModes.end())
+            swapchainProps.presentMode = vk::PresentModeKHR::eMailbox;
+        else
+            swapchainProps.presentMode = vk::PresentModeKHR::eFifo; // This is mandated to always be present
+
+        auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
+        if (surfaceCapabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+            // If the surface currently has an extent, just use that for the swapchain
+            swapchainProps.extents = surfaceCapabilities.currentExtent;
+        } else {
+            // The surface doesn't specify an extent to use, so select the one we want.
+            // The tutorial just clamps the x/y inside the minimum/maximum ranges. If this ever happens everything is going to look weird, so we just stop.
+            if (window_size.x < surfaceCapabilities.minImageExtent.width || surfaceCapabilities.maxImageExtent.width < window_size.x) {
+                FATAL_ERROR("Window width %zu out of range [%u, %u]\n", window_size.x, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
+            }
+            if (window_size.y < surfaceCapabilities.minImageExtent.height || surfaceCapabilities.maxImageExtent.height < window_size.y) {
+                FATAL_ERROR("Window height %zu out of range [%u, %u]\n", window_size.y, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
+            }
+
+            swapchainProps.extents = vk::Extent2D(window_size.x, window_size.y);
+        }
+
+        // If we just took the minimum, we could end up having to wait on the driver before getting another image.
+        // Get 1 extra, so 1 is always free at any given time
+        swapchainProps.imageCount = surfaceCapabilities.minImageCount + 1;
+        if (surfaceCapabilities.maxImageCount > 0 &&
+            swapchainProps.imageCount > surfaceCapabilities.maxImageCount) {
+            // Make sure we don't exceed the maximum
+            swapchainProps.imageCount = surfaceCapabilities.maxImageCount;
+        }
+
+        auto swapchainCreateInfo = vk::SwapchainCreateInfoKHR();
+        swapchainCreateInfo.surface = *surface;
+
+        swapchainCreateInfo.presentMode = swapchainProps.presentMode;
+        swapchainCreateInfo.minImageCount = swapchainProps.imageCount;
+        swapchainCreateInfo.imageExtent = swapchainProps.extents;
+        swapchainCreateInfo.imageFormat = swapchainProps.surfaceFormat.format;
+        swapchainCreateInfo.imageColorSpace = swapchainProps.surfaceFormat.colorSpace;
+        swapchainCreateInfo.imageArrayLayers = 1; // We're not rendering in stereoscopic 3D => set this to 1
+        swapchainCreateInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment; // Use eColorAttachment so we can directly render to the swapchain images.
+
+        auto queueFamilyVector = std::vector<uint32_t>({queueFamilies.graphics_family.value(), queueFamilies.present_family.value()});
+        if (queueFamilies.graphics_family != queueFamilies.present_family) {
+            // The swapchain images need to be able to be used by both families.
+            // Use Concurrent mode to make that possible.
+            swapchainCreateInfo.imageSharingMode = vk::SharingMode::eConcurrent;
+            swapchainCreateInfo.queueFamilyIndexCount = queueFamilyVector.size();
+            swapchainCreateInfo.pQueueFamilyIndices = queueFamilyVector.data();
+        } else {
+            // Same queue families => images can be owned exclusively by that queue family.
+            // In this case we don't need to specify the different queues, because there is only one.
+            swapchainCreateInfo.imageSharingMode = vk::SharingMode::eExclusive;
+            swapchainCreateInfo.queueFamilyIndexCount = 0;
+            swapchainCreateInfo.pQueueFamilyIndices = nullptr;
+        }
+
+        // Extra stuff
+        // Set the swapchain rotation to the current rotation of the surface
+        swapchainCreateInfo.preTransform = surfaceCapabilities.currentTransform;
+        // Don't apply the alpha channel as transparency to the window
+        // i.e. if a pixel has alpha = 0 in the presented image it will be opqaue in the window system
+        swapchainCreateInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
+        swapchainCreateInfo.clipped = VK_TRUE;
+        swapchainCreateInfo.oldSwapchain = nullptr;
+
+        swapchain = logicalDevice->createSwapchainKHRUnique(swapchainCreateInfo);
+        swapchainImages = logicalDevice->getSwapchainImagesKHR(*swapchain);
+    }
 }
 VulkanWindow::~VulkanWindow() {
     SDL_DestroyWindow(window);

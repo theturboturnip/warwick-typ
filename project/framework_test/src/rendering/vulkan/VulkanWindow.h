@@ -26,9 +26,19 @@ class VulkanWindow {
     // This uses a dynamic loader, becuase the loader functions vkCreateDebugUtilsMessengerEXT etc. need to be dynamically linked at runtime
     vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::DispatchLoaderDynamic> debug_messenger;
     vk::PhysicalDevice physicalDevice;
-    VulkanQueueFamilies queueFamilies;
     vk::UniqueDevice logicalDevice;
+    // TODO - this isn't necessary to keep in the class
+    VulkanQueueFamilies queueFamilies;
     vk::Queue graphicsQueue, presentQueue;
+
+    struct {
+        vk::SurfaceFormatKHR surfaceFormat;
+        vk::PresentModeKHR presentMode;
+        vk::Extent2D extents;
+        uint32_t imageCount;
+    } swapchainProps;
+    vk::UniqueSwapchainKHR swapchain;
+    std::vector<vk::Image> swapchainImages;
 public:
     VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);
     ~VulkanWindow();
@@ -39,6 +49,7 @@ public:
     void check_sdl_error(SDL_bool success);
     void check_vulkan_error(vk::Result result);
 
+    // TODO - unused, remove
     template<typename FuncPtrType>
     FuncPtrType get_vulkan_function(const char* name) {
         static_assert(std::is_pointer<FuncPtrType>::value && std::is_function<std::remove_pointer_t<FuncPtrType>>::value,
