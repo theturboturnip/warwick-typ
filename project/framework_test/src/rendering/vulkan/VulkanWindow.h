@@ -8,6 +8,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "VulkanQueueFamilies.h"
+#include "VulkanShader.h"
 #include "util/Size.h"
 
 extern VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
@@ -38,6 +39,8 @@ class VulkanWindow {
     vk::UniqueSwapchainKHR swapchain;
     std::vector<vk::Image> swapchainImages;
     std::vector<vk::UniqueImageView> swapchainImageViews;
+
+    VulkanShader redFrag, triVert;
 public:
     VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);
     ~VulkanWindow();
