@@ -7,7 +7,6 @@
 #include "util/fatal_error.h"
 #include <SDL_vulkan.h>
 
-#if !NDEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -30,7 +29,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
     // VK_FALSE => don't stop the application
     return VK_FALSE;
 }
-#endif
 
 template<typename DeviceSelectorType>
 vk::PhysicalDevice selectDevice(const vk::UniqueInstance& instance, DeviceSelectorType selector) {
@@ -250,6 +248,10 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
 
         swapchain = logicalDevice->createSwapchainKHRUnique(swapchainCreateInfo);
         swapchainImages = logicalDevice->getSwapchainImagesKHR(*swapchain);
+        swapchainImageViews.clear();
+        for (vk::Image image : swapchainImages) {
+            swapchainImageViews.push_back(make_identity_view(image, swapchainProps.surfaceFormat.format));
+        }
     }
 }
 VulkanWindow::~VulkanWindow() {
@@ -274,4 +276,24 @@ void VulkanWindow::check_sdl_error(SDL_bool success) {
 }
 void VulkanWindow::check_vulkan_error(vk::Result result) {
     FATAL_ERROR_IF(result != vk::Result::eSuccess, "Vulkan Error: %s\n", vk::to_string(result).c_str());
+}
+vk::UniqueImageView VulkanWindow::make_identity_view(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags) {
+    auto createInfo = vk::ImageViewCreateInfo();
+    createInfo.image = image;
+    createInfo.viewType = vk::ImageViewType::e2D;
+    createInfo.format = format;
+
+    createInfo.components.r = vk::ComponentSwizzle::eIdentity;
+    createInfo.components.g = vk::ComponentSwizzle::eIdentity;
+    createInfo.components.b = vk::ComponentSwizzle::eIdentity;
+    createInfo.components.a = vk::ComponentSwizzle::eIdentity;
+
+    createInfo.subresourceRange.aspectMask = aspectFlags;
+    // We don't do any mipmapping/texture arrays ever - only use the first mip level, and the first array layer
+    createInfo.subresourceRange.baseMipLevel = 0;
+    createInfo.subresourceRange.levelCount = 1;
+    createInfo.subresourceRange.baseArrayLayer = 0;
+    createInfo.subresourceRange.layerCount = 1;
+
+    return logicalDevice->createImageViewUnique(createInfo);
 }

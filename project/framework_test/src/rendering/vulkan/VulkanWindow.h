@@ -10,13 +10,11 @@
 #include "VulkanQueueFamilies.h"
 #include "util/Size.h"
 
-#if !NDEBUG
 extern VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData);
-#endif
 
 class VulkanWindow {
     SDL_Window* window;
@@ -39,6 +37,7 @@ class VulkanWindow {
     } swapchainProps;
     vk::UniqueSwapchainKHR swapchain;
     std::vector<vk::Image> swapchainImages;
+    std::vector<vk::UniqueImageView> swapchainImageViews;
 public:
     VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);
     ~VulkanWindow();
@@ -46,8 +45,11 @@ public:
     // TODO - this will change in the future
     void main_loop();
 
+private:
     void check_sdl_error(SDL_bool success);
     void check_vulkan_error(vk::Result result);
+
+    vk::UniqueImageView make_identity_view(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags = vk::ImageAspectFlagBits::eColor);
 
     // TODO - unused, remove
     template<typename FuncPtrType>
