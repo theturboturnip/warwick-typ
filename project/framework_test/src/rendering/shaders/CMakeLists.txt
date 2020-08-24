@@ -7,15 +7,15 @@ else()
     message(WARNING "Vulkan package did not find glslc. Selecting '${GLSLC}'")
 endif()
 
+set(PROJECT_SHADER_DIR "${PROJECT_BINARY_DIR}/shaders")
+add_custom_command(
+        OUTPUT ${PROJECT_SHADER_DIR}
+        COMMAND mkdir -p ${PROJECT_SHADER_DIR}
+        WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+)
+
 function(compile_glsl out_var)
     set(result)
-    set(PROJECT_SHADER_DIR "${PROJECT_BINARY_DIR}/shaders")
-    add_custom_command(
-            OUTPUT ${PROJECT_SHADER_DIR}
-            COMMAND mkdir -p ${PROJECT_SHADER_DIR}
-            WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-    )
-    list(APPEND result ${PROJECT_SHADER_DIR})
     foreach(in_f ${ARGN})
         get_filename_component(in_f_abs ${in_f} ABSOLUTE)
         file(RELATIVE_PATH out_f ${CMAKE_CURRENT_SOURCE_DIR} ${in_f_abs})
@@ -36,4 +36,4 @@ compile_glsl(shader_files
         red.frag
         triangle.vert
         )
-add_library(shaders OBJECT ${shader_files})
+add_library(shaders OBJECT ${PROJECT_SHADER_DIR} ${shader_files})
