@@ -271,6 +271,16 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
         colorAttachment.initialLayout = vk::ImageLayout::eUndefined; // We don't care what layout it was in before
         colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR; // At the end, it should be in the correct layout for presenting
 
+        auto writeAccessDependency = vk::SubpassDependency();
+        // Wait on the ColorAttachmentOutput stage in an external subpass (read: the swapchain reading the frame)
+        writeAccessDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        writeAccessDependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+        writeAccessDependency.srcAccessMask = {}; // No access mask - we can't access it?
+        // Once that stage is over, the transition to write access can occur and stage 0 can start
+        writeAccessDependency.dstSubpass = 0;
+        writeAccessDependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+        writeAccessDependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
         // Define a single subpass for the render pass.
         // This subpass *references* the color attachment from the top render pass and renders to it.
         // When it renders to it, it should be in the ColorAttachmentOptimal layout
@@ -290,6 +300,8 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
         renderpassCreateInfo.pAttachments = &colorAttachment;
         renderpassCreateInfo.subpassCount = 1;
         renderpassCreateInfo.pSubpasses = &subpass;
+        renderpassCreateInfo.dependencyCount = 1;
+        renderpassCreateInfo.pDependencies = &writeAccessDependency;
 
         renderPass = logicalDevice->createRenderPassUnique(renderpassCreateInfo);
     }
@@ -317,6 +329,7 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
         // TODO - Make init order consistent with declare order
         //  objects are declared in VulkanWindow.h in a specific order so parents are destroyed after children
         //  i.e. command buffers are destroyed *before* the pool is destroyed
+        //  so the pool is declared before it's children.
         auto poolInfo = vk::CommandPoolCreateInfo();
         poolInfo.queueFamilyIndex = queueFamilies.graphics_family.value();
         poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer; // Allow command buffers to be reset outside of the pool?
