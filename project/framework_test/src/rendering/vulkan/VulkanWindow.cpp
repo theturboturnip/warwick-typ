@@ -354,8 +354,15 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
             cmdBuffer.end();
         }
     }
+
+    {
+        auto semaphoreInfo = vk::SemaphoreCreateInfo();
+        hasImage = logicalDevice->createSemaphoreUnique(semaphoreInfo);
+        renderFinished = logicalDevice->createSemaphoreUnique(semaphoreInfo);
+    }
 }
 VulkanWindow::~VulkanWindow() {
+    // TODO - vkDeviceWaitIdle
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
@@ -367,7 +374,37 @@ void VulkanWindow::main_loop() {
                 goto end;
         }
 
+        uint32_t swFrameIndex;
+        logicalDevice->acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *hasImage, nullptr, &swFrameIndex);
 
+        // TODO - Dispatch the CUDA simulation with a CUDAified version of the renderFinished semaphore.
+        //  Then, lock the draw behind semaphores for both 1. getting the next image 2. CUDA finishing.
+        logicalDevice->waitIdle();
+
+        vk::SubmitInfo submitInfo{};
+        vk::Semaphore waitSemaphores[] = {*hasImage};
+        vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = waitStages;
+
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &(*perFrameCommandBuffers[swFrameIndex]);
+
+        vk::Semaphore signalSemaphores[] = {*renderFinished};
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        graphicsQueue.submit({submitInfo}, nullptr);
+
+        vk::PresentInfoKHR presentInfo{};
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = signalSemaphores;
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = &(*swapchain);
+        presentInfo.pImageIndices = &swFrameIndex;
+        presentInfo.pResults = nullptr;
+        presentQueue.presentKHR(presentInfo);
     }
 
     end:;

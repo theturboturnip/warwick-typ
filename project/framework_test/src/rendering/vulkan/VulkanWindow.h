@@ -39,6 +39,12 @@ class VulkanWindow {
         uint32_t imageCount;
     } swapchainProps;
     vk::UniqueSwapchainKHR swapchain;
+//    struct SWFrameData {
+//        vk::Image image;
+//        vk::UniqueImageView imageView;
+//        vk::UniqueFramebuffer framebuffer;
+//        vk::UniqueCommandBuffer cmdBuffer;
+//    };
     std::vector<vk::Image> swapchainImages;
     std::vector<vk::UniqueImageView> swapchainImageViews;
     std::vector<vk::UniqueFramebuffer> swapchainFramebuffers;
@@ -48,9 +54,15 @@ class VulkanWindow {
 
     std::unique_ptr<VulkanPipelineSet> pipelines;
 
+    // The tutorial creates multiple sets of semaphores so that multiple frames can be in-flight at once.
+    // i.e. multiple frames can be drawn at once.
+    // However, we aren't planning on drawing multiple frames at once. The GPU will be busy most of the time doing CUDA work.
+    // So we only create two semaphores - has image, and finished rendering.
+    vk::UniqueSemaphore hasImage, renderFinished;
 public:
     VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);
     VulkanWindow(const VulkanWindow&) = delete;
+    VulkanWindow(VulkanWindow&&) = delete; // TODO - I think this is right, we shouldn't move stuff because it may depend on pointers???
     ~VulkanWindow();
 
     // TODO - this will change in the future
