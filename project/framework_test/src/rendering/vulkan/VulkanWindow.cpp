@@ -376,6 +376,9 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
 }
 VulkanWindow::~VulkanWindow() {
     // TODO - vkDeviceWaitIdle
+    if (logicalDevice)
+        logicalDevice->waitIdle();
+
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
