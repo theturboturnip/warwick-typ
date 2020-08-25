@@ -6,6 +6,8 @@
 #include "VulkanQueueFamilies.h"
 #include "util/fatal_error.h"
 #include <SDL_vulkan.h>
+#include <imgui_impl_sdl.h>
+#include <imgui_impl_vulkan.h>
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -41,7 +43,7 @@ vk::PhysicalDevice selectDevice(const vk::UniqueInstance& instance, DeviceSelect
     FATAL_ERROR("Could not find a suitable device.\n");
 }
 
-VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> window_size) : dispatch_loader() {
+VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> window_size) : window_size(window_size), dispatch_loader() {
     window = SDL_CreateWindow(
             app_info.pApplicationName,
                 SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -343,29 +345,55 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
         cmdBufferAlloc.commandBufferCount = swapchainProps.imageCount;
         perFrameCommandBuffers = logicalDevice->allocateCommandBuffersUnique(cmdBufferAlloc);
 
+        cmdBufferAlloc.commandBufferCount = 1;
+        //imguiCmdBuffer = std::move(logicalDevice->allocateCommandBuffersUnique(cmdBufferAlloc)[0]);
+
         // Record command buffers
         // TODO - Turn struct-of-arrays for frame data into array-of-structs, then this i isn't needed
-        for (size_t i = 0; i < perFrameCommandBuffers.size(); i++) {
-            const auto& cmdBuffer = *perFrameCommandBuffers[i];
-
-            auto beginInfo = vk::CommandBufferBeginInfo();
-            auto renderPassInfo = vk::RenderPassBeginInfo();
-            renderPassInfo.renderPass = *renderPass;
-            renderPassInfo.framebuffer = *swapchainFramebuffers[i];
-            renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
-            renderPassInfo.renderArea.extent = vk::Extent2D{(uint32_t)window_size.x, (uint32_t)window_size.y};
-            auto clearColor = vk::ClearValue(vk::ClearColorValue());
-            clearColor.color.setFloat32({1.0f, 0.0f, 1.0f, 1.0f});
-            renderPassInfo.clearValueCount = 1;
-            renderPassInfo.pClearValues = &clearColor;
-
-            cmdBuffer.begin(beginInfo);
-            cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-            cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines->redTriangle);
-            cmdBuffer.draw(3, 1, 0, 0);
-            cmdBuffer.endRenderPass();
-            cmdBuffer.end();
-        }
+//        for (size_t i = 0; i < perFrameCommandBuffers.size(); i++) {
+//            const auto& cmdBuffer = *perFrameCommandBuffers[i];
+//
+//            auto beginInfo = vk::CommandBufferBeginInfo();
+//            auto renderPassInfo = vk::RenderPassBeginInfo();
+//            renderPassInfo.renderPass = *renderPass;
+//            renderPassInfo.framebuffer = *swapchainFramebuffers[i];
+//            renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
+//            renderPassInfo.renderArea.extent = vk::Extent2D{(uint32_t)window_size.x, (uint32_t)window_size.y};
+//            auto clearColor = vk::ClearValue(vk::ClearColorValue());
+//            clearColor.color.setFloat32({1.0f, 0.0f, 1.0f, 1.0f});
+//            renderPassInfo.clearValueCount = 1;
+//            renderPassInfo.pClearValues = &clearColor;
+//
+//            cmdBuffer.begin(beginInfo);
+//            cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+//            cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines->redTriangle);
+//            cmdBuffer.draw(3, 1, 0, 0);
+//            cmdBuffer.endRenderPass();
+//            cmdBuffer.end();
+//        }
+    }
+    
+    {
+        std::vector<vk::DescriptorPoolSize> pool_sizes =
+                {
+                        { vk::DescriptorType::eSampler, 1000 },
+                        { vk::DescriptorType::eCombinedImageSampler, 1000 },
+                        { vk::DescriptorType::eSampledImage, 1000 },
+                        { vk::DescriptorType::eStorageImage, 1000 },
+                        { vk::DescriptorType::eUniformTexelBuffer, 1000 },
+                        { vk::DescriptorType::eStorageTexelBuffer, 1000 },
+                        { vk::DescriptorType::eUniformBuffer, 1000 },
+                        { vk::DescriptorType::eStorageBuffer, 1000 },
+                        { vk::DescriptorType::eUniformBufferDynamic, 1000 },
+                        { vk::DescriptorType::eStorageBufferDynamic, 1000 },
+                        { vk::DescriptorType::eInputAttachment, 1000 }
+                };
+        vk::DescriptorPoolCreateInfo pool_info = {};
+        pool_info.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;// VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 1000 * pool_sizes.size();
+        pool_info.poolSizeCount = pool_sizes.size();
+        pool_info.pPoolSizes = pool_sizes.data();
+        descriptorPool = logicalDevice->createDescriptorPoolUnique(pool_info);
     }
 
     {
@@ -375,7 +403,6 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
     }
 }
 VulkanWindow::~VulkanWindow() {
-    // TODO - vkDeviceWaitIdle
     if (logicalDevice)
         logicalDevice->waitIdle();
 
@@ -383,15 +410,106 @@ VulkanWindow::~VulkanWindow() {
     SDL_Quit();
 }
 void VulkanWindow::main_loop() {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsClassic();
+
+    // Setup Platform/Renderer bindings
+    ImGui_ImplSDL2_InitForVulkan(window);
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance = *instance;
+    init_info.PhysicalDevice = physicalDevice;
+    init_info.Device = *logicalDevice;
+    init_info.QueueFamily = queueFamilies.graphics_family.value();
+    init_info.Queue = graphicsQueue;
+    init_info.PipelineCache = nullptr;
+    init_info.DescriptorPool = *descriptorPool;
+    init_info.Allocator = nullptr;
+    init_info.MinImageCount = swapchainProps.imageCount; // TODO - this isn't right
+    init_info.ImageCount = swapchainProps.imageCount;
+    init_info.CheckVkResultFn = nullptr; // TODO
+    ImGui_ImplVulkan_Init(&init_info, *renderPass);
+
+    {
+        auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
+        cmdBufferAlloc.commandPool = *cmdPool;
+        cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
+        cmdBufferAlloc.commandBufferCount = 1;
+        auto cmdBuffers = logicalDevice->allocateCommandBuffersUnique(cmdBufferAlloc);
+        const auto& cmdBuffer = *cmdBuffers[0];
+
+        vk::CommandBufferBeginInfo begin_info = {};
+        begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+        {
+            cmdBuffer.begin(begin_info);
+            ImGui_ImplVulkan_CreateFontsTexture(cmdBuffer);
+            cmdBuffer.end();
+        }
+
+        vk::SubmitInfo submitInfo = {};
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cmdBuffer;
+        graphicsQueue.submit({submitInfo}, nullptr);
+
+        logicalDevice->waitIdle();
+        ImGui_ImplVulkan_DestroyFontUploadObjects();
+    }
+
+    bool showDemoWindow = true;
+
     while (true) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT)
                 goto end;
+            else
+                ImGui_ImplSDL2_ProcessEvent(&event);
         }
 
         uint32_t swFrameIndex;
         logicalDevice->acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *hasImage, nullptr, &swFrameIndex);
+
+        const auto& cmdBuffer = *perFrameCommandBuffers[swFrameIndex];
+        cmdBuffer.reset({});
+
+        auto beginInfo = vk::CommandBufferBeginInfo();
+        auto renderPassInfo = vk::RenderPassBeginInfo();
+        renderPassInfo.renderPass = *renderPass;
+        renderPassInfo.framebuffer = *swapchainFramebuffers[swFrameIndex];
+        renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
+        renderPassInfo.renderArea.extent = vk::Extent2D{(uint32_t)window_size.x, (uint32_t)window_size.y};
+        auto clearColor = vk::ClearValue(vk::ClearColorValue());
+        clearColor.color.setFloat32({1.0f, 0.0f, 1.0f, 1.0f});
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = &clearColor;
+
+        cmdBuffer.begin(beginInfo);
+        cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+        cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines->redTriangle);
+        cmdBuffer.draw(3, 1, 0, 0);
+
+        {
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplSDL2_NewFrame(window);
+            ImGui::NewFrame();
+
+            if (showDemoWindow)
+                ImGui::ShowDemoWindow(&showDemoWindow);
+
+            ImGui::Render();
+
+            ImDrawData* draw_data = ImGui::GetDrawData();
+            ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffer);
+        }
+
+        cmdBuffer.endRenderPass();
+        cmdBuffer.end();
 
         // TODO - Dispatch the CUDA simulation with a CUDAified version of the renderFinished semaphore.
         //  Then, lock the draw behind semaphores for both 1. getting the next image 2. CUDA finishing.
@@ -404,8 +522,11 @@ void VulkanWindow::main_loop() {
         submitInfo.pWaitSemaphores = waitSemaphores;
         submitInfo.pWaitDstStageMask = waitStages;
 
+        vk::CommandBuffer cmdBuffers[] = {
+            *perFrameCommandBuffers[swFrameIndex]
+        };
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &(*perFrameCommandBuffers[swFrameIndex]);
+        submitInfo.pCommandBuffers = cmdBuffers;
 
         vk::Semaphore signalSemaphores[] = {*renderFinished};
         submitInfo.signalSemaphoreCount = 1;
@@ -424,6 +545,11 @@ void VulkanWindow::main_loop() {
     }
 
     end:;
+
+    logicalDevice->waitIdle();
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
 }
 void VulkanWindow::check_sdl_error(SDL_bool success) {
     FATAL_ERROR_IF(!success, "SDL Error: %s\n", SDL_GetError());

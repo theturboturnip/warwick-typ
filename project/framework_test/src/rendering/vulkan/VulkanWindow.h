@@ -19,6 +19,8 @@ extern VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
         void* pUserData);
 
 class VulkanWindow {
+    Size<size_t> window_size;
+
     SDL_Window* window;
     vk::UniqueInstance instance;
     vk::DispatchLoaderDynamic dispatch_loader;
@@ -31,6 +33,7 @@ class VulkanWindow {
     VulkanQueueFamilies queueFamilies;
     vk::Queue graphicsQueue, presentQueue;
     vk::UniqueCommandPool cmdPool;
+    vk::UniqueDescriptorPool descriptorPool;
 
     struct {
         vk::SurfaceFormatKHR surfaceFormat;
@@ -49,6 +52,7 @@ class VulkanWindow {
     std::vector<vk::UniqueImageView> swapchainImageViews;
     std::vector<vk::UniqueFramebuffer> swapchainFramebuffers;
     std::vector<vk::UniqueCommandBuffer> perFrameCommandBuffers;
+    //vk::UniqueCommandBuffer imguiCmdBuffer;
 
     vk::UniqueRenderPass renderPass;
 
