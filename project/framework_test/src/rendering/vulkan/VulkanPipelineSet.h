@@ -12,11 +12,8 @@
 class VulkanPipelineSet {
     VertexShader triVert;
     FragmentShader redFrag;
-
-    vk::RenderPass renderPass;
-
 public:
-    explicit VulkanPipelineSet(vk::Device device, Size<size_t> viewportSize);
+    explicit VulkanPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<size_t> viewportSize);
 
     VulkanPipeline redTriangle;
 };

@@ -41,6 +41,8 @@ class VulkanWindow {
     std::vector<vk::Image> swapchainImages;
     std::vector<vk::UniqueImageView> swapchainImageViews;
 
+    vk::UniqueRenderPass renderPass;
+
     std::unique_ptr<VulkanPipelineSet> pipelines;
 public:
     VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);

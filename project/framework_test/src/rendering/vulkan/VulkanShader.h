@@ -24,7 +24,7 @@ public:
     vk::PipelineShaderStageCreateInfo shaderStage;
 
 private:
-    VulkanShader(vk::Device device, const std::vector<uint8_t>& data);
+    VulkanShader(vk::Device device, const std::vector<char>& data);
 };
 
 using VertexShader = VulkanShader<ShaderStage::Vertex>;

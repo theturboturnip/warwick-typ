@@ -255,7 +255,47 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
     }
 
     {
+        // Define the render pass
+        // The color attachment for the render pass is the texture we're rendering to
+        auto colorAttachment = vk::AttachmentDescription();
+        colorAttachment.format = swapchainProps.surfaceFormat.format;
+        colorAttachment.samples = vk::SampleCountFlagBits::e1; // No MSAA
 
+        colorAttachment.loadOp = vk::AttachmentLoadOp::eClear; // Clear the contents before rendering
+        colorAttachment.storeOp = vk::AttachmentStoreOp::eStore; // Store the contents after rendering
+
+        // We don't care about stencils
+        colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+
+        colorAttachment.initialLayout = vk::ImageLayout::eUndefined; // We don't care what layout it was in before
+        colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR; // At the end, it should be in the correct layout for presenting
+
+        // Define a single subpass for the render pass.
+        // This subpass *references* the color attachment from the top render pass and renders to it.
+        // When it renders to it, it should be in the ColorAttachmentOptimal layout
+        // so the image will go from eUndefined -> eColorAttachmentOptional -> ePresentSrcKHR over the course of a frame
+        // I don't think we'll have to transition it ourselves.
+        auto colorAttachmentReference = vk::AttachmentReference();
+        colorAttachmentReference.attachment = 0;
+        colorAttachmentReference.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+        auto subpass = vk::SubpassDescription();
+        subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentReference;
+
+        auto renderpassCreateInfo = vk::RenderPassCreateInfo();
+        renderpassCreateInfo.attachmentCount = 1;
+        renderpassCreateInfo.pAttachments = &colorAttachment;
+        renderpassCreateInfo.subpassCount = 1;
+        renderpassCreateInfo.pSubpasses = &subpass;
+
+        renderPass = logicalDevice->createRenderPassUnique(renderpassCreateInfo);
+    }
+
+    {
+        pipelines = std::make_unique<VulkanPipelineSet>(*logicalDevice, *renderPass, window_size);
     }
 }
 VulkanWindow::~VulkanWindow() {

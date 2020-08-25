@@ -4,10 +4,8 @@
 
 #include "VulkanPipelineSet.h"
 
-VulkanPipelineSet::VulkanPipelineSet(vk::Device device, Size<size_t> viewportSize)
-    : renderPass(),
-
-      triVert(VertexShader::from_file(device, "triangle.vert")),
+VulkanPipelineSet::VulkanPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<size_t> viewportSize)
+    : triVert(VertexShader::from_file(device, "triangle.vert")),
       redFrag(FragmentShader::from_file(device, "red.frag")),
 
       redTriangle(device, renderPass, viewportSize, triVert, redFrag)
