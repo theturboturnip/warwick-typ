@@ -297,6 +297,63 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
     {
         pipelines = std::make_unique<VulkanPipelineSet>(*logicalDevice, *renderPass, window_size);
     }
+
+    {
+        swapchainFramebuffers.clear();
+        for (const auto& imageView : swapchainImageViews) {
+            auto framebufferCreateInfo = vk::FramebufferCreateInfo();
+            framebufferCreateInfo.renderPass = *renderPass;
+            framebufferCreateInfo.attachmentCount = 1;
+            framebufferCreateInfo.pAttachments = &(*imageView);
+            framebufferCreateInfo.width = window_size.x;
+            framebufferCreateInfo.height = window_size.y;
+            framebufferCreateInfo.layers = 1;
+
+            swapchainFramebuffers.push_back(logicalDevice->createFramebufferUnique(framebufferCreateInfo));
+        }
+    }
+
+    {
+        // TODO - Make init order consistent with declare order
+        //  objects are declared in VulkanWindow.h in a specific order so parents are destroyed after children
+        //  i.e. command buffers are destroyed *before* the pool is destroyed
+        auto poolInfo = vk::CommandPoolCreateInfo();
+        poolInfo.queueFamilyIndex = queueFamilies.graphics_family.value();
+        poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer; // Allow command buffers to be reset outside of the pool?
+
+        cmdPool = logicalDevice->createCommandPoolUnique(poolInfo);
+
+        perFrameCommandBuffers.clear();
+        auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
+        cmdBufferAlloc.commandPool = *cmdPool;
+        cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
+        cmdBufferAlloc.commandBufferCount = swapchainProps.imageCount;
+        perFrameCommandBuffers = logicalDevice->allocateCommandBuffersUnique(cmdBufferAlloc);
+
+        // Record command buffers
+        // TODO - Turn struct-of-arrays for frame data into array-of-structs, then this i isn't needed
+        for (size_t i = 0; i < perFrameCommandBuffers.size(); i++) {
+            const auto& cmdBuffer = *perFrameCommandBuffers[i];
+
+            auto beginInfo = vk::CommandBufferBeginInfo();
+            auto renderPassInfo = vk::RenderPassBeginInfo();
+            renderPassInfo.renderPass = *renderPass;
+            renderPassInfo.framebuffer = *swapchainFramebuffers[i];
+            renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
+            renderPassInfo.renderArea.extent = vk::Extent2D{(uint32_t)window_size.x, (uint32_t)window_size.y};
+            auto clearColor = vk::ClearValue(vk::ClearColorValue());
+            clearColor.color.setFloat32({1.0f, 0.0f, 1.0f, 1.0f});
+            renderPassInfo.clearValueCount = 1;
+            renderPassInfo.pClearValues = &clearColor;
+
+            cmdBuffer.begin(beginInfo);
+            cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+            cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines->redTriangle);
+            cmdBuffer.draw(3, 1, 0, 0);
+            cmdBuffer.endRenderPass();
+            cmdBuffer.end();
+        }
+    }
 }
 VulkanWindow::~VulkanWindow() {
     SDL_DestroyWindow(window);

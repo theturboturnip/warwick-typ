@@ -30,6 +30,7 @@ class VulkanWindow {
     // TODO - this isn't necessary to keep in the class
     VulkanQueueFamilies queueFamilies;
     vk::Queue graphicsQueue, presentQueue;
+    vk::UniqueCommandPool cmdPool;
 
     struct {
         vk::SurfaceFormatKHR surfaceFormat;
@@ -40,10 +41,13 @@ class VulkanWindow {
     vk::UniqueSwapchainKHR swapchain;
     std::vector<vk::Image> swapchainImages;
     std::vector<vk::UniqueImageView> swapchainImageViews;
+    std::vector<vk::UniqueFramebuffer> swapchainFramebuffers;
+    std::vector<vk::UniqueCommandBuffer> perFrameCommandBuffers;
 
     vk::UniqueRenderPass renderPass;
 
     std::unique_ptr<VulkanPipelineSet> pipelines;
+
 public:
     VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);
     VulkanWindow(const VulkanWindow&) = delete;
