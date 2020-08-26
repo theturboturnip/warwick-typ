@@ -12,7 +12,7 @@ Host2DAllocator::Host2DAllocator()
 {}
 AllocatedMemory Host2DAllocator::allocate2D(uint32_t width, uint32_t height, size_t elemSize) {
     void* pointer = malloc(width * height * elemSize);
-    DASSERT(pointer);
+    FATAL_ERROR_IF(!pointer, "Failed to allocate memory\n");
     return AllocatedMemory{
             .pointer = pointer,
             .totalSize = width * height,

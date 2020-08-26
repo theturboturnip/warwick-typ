@@ -16,7 +16,9 @@ CUDA2DUnifiedAllocator::CUDA2DUnifiedAllocator()
 }
 AllocatedMemory CUDA2DUnifiedAllocator::allocate2D(uint32_t width, uint32_t height, size_t elemSize) {
     void* pointer = nullptr;
-    cudaMallocManaged(&pointer, width * height * elemSize);
+    auto error = cudaMallocManaged(&pointer, width * height * elemSize);
+    if (error != cudaSuccess)
+        FATAL_ERROR("CUDA Alloc Error: %s\n", cudaGetErrorString(error));
     DASSERT(pointer);
     return AllocatedMemory{
             .pointer = pointer,
