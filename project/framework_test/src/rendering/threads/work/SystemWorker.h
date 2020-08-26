@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "BaseThread.h"
-
 #include <SDL_vulkan.h>
 #include <imgui_impl_sdl.h>
 #include <imgui_impl_vulkan.h>
@@ -25,16 +23,17 @@ struct SystemWorkerOut {
 /**
  * Processes SDL input, and builds the command buffer for the next frame
  */
-class SystemThreadWorker : public IThreadWorker<SystemWorkerIn, SystemWorkerOut> {
+class SystemWorker {
     SDL_Window* window;
     vk::RenderPass renderPass;
     vk::Rect2D renderArea;
     VulkanPipelineSet* pipelines;
     std::vector<vk::UniqueCommandBuffer> frameCmdBuffers;
+    bool showDemoWindow = true;
 
     // TODO - make this allocate the command pool itself?
 public:
-    explicit SystemThreadWorker(const VulkanWindow& vulkanWindow)
+    explicit SystemWorker(const VulkanWindow& vulkanWindow)
         : window(vulkanWindow.window),
           renderPass(*vulkanWindow.renderPass),
           renderArea({0, 0}, {(uint32_t)vulkanWindow.window_size.x, (uint32_t)vulkanWindow.window_size.y}),
@@ -91,69 +90,65 @@ public:
             ImGui_ImplVulkan_DestroyFontUploadObjects();
         }
     }
-    ~SystemThreadWorker() override {
+    ~SystemWorker() {
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplSDL2_Shutdown();
         ImGui::DestroyContext();
     }
 
-    void threadLoop() override {
-        bool showDemoWindow = true;
-
-        while(true) {
-            const auto input_maybe = waitForInput();
-            if (!input_maybe.has_value())
-                break;
-            const auto input = input_maybe.value();
-
-            bool wantsQuit = false;
-            SDL_Event event;
-            while (SDL_PollEvent(&event)) {
-                if (event.type == SDL_QUIT)
-                    wantsQuit = true;
-                else
-                    ImGui_ImplSDL2_ProcessEvent(&event);
-            }
-
-            const auto& cmdBuffer = *frameCmdBuffers[input.swFrameIndex];
-            cmdBuffer.reset({});
-
-            auto beginInfo = vk::CommandBufferBeginInfo();
-            auto renderPassInfo = vk::RenderPassBeginInfo();
-            renderPassInfo.renderPass = renderPass;
-            renderPassInfo.framebuffer = input.targetFramebuffer;
-            renderPassInfo.renderArea = renderArea;
-            auto clearColor = vk::ClearValue(vk::ClearColorValue());
-            clearColor.color.setFloat32({1.0f, 0.0f, 1.0f, 1.0f});
-            renderPassInfo.clearValueCount = 1;
-            renderPassInfo.pClearValues = &clearColor;
-
-            cmdBuffer.begin(beginInfo);
-            cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-            cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipelines->redTriangle);
-            cmdBuffer.draw(3, 1, 0, 0);
-
-            {
-                ImGui_ImplVulkan_NewFrame();
-                ImGui_ImplSDL2_NewFrame(window);
-                ImGui::NewFrame();
-
-                if (showDemoWindow)
-                    ImGui::ShowDemoWindow(&showDemoWindow);
-
-                ImGui::Render();
-
-                ImDrawData* draw_data = ImGui::GetDrawData();
-                ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffer);
-            }
-
-            cmdBuffer.endRenderPass();
-            cmdBuffer.end();
-
-            pushOutput(SystemWorkerOut{
-                    .wantsQuit = wantsQuit,
-                    .cmdBuffer = cmdBuffer
-            });
+    SystemWorkerOut work(SystemWorkerIn input) {
+        bool wantsQuit = false;
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT)
+                wantsQuit = true;
+            else
+                ImGui_ImplSDL2_ProcessEvent(&event);
         }
+
+        const auto& cmdBuffer = *frameCmdBuffers[input.swFrameIndex];
+        cmdBuffer.reset({});
+
+        auto beginInfo = vk::CommandBufferBeginInfo();
+        auto renderPassInfo = vk::RenderPassBeginInfo();
+        renderPassInfo.renderPass = renderPass;
+        renderPassInfo.framebuffer = input.targetFramebuffer;
+        renderPassInfo.renderArea = renderArea;
+        auto clearColor = vk::ClearValue(vk::ClearColorValue());
+        clearColor.color.setFloat32({1.0f, 0.0f, 1.0f, 1.0f});
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = &clearColor;
+
+        cmdBuffer.begin(beginInfo);
+        cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+        cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipelines->redTriangle);
+        cmdBuffer.draw(3, 1, 0, 0);
+
+        {
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplSDL2_NewFrame(window);
+            ImGui::NewFrame();
+
+            if (showDemoWindow)
+                ImGui::ShowDemoWindow(&showDemoWindow);
+
+            ImGui::Render();
+
+            ImDrawData* draw_data = ImGui::GetDrawData();
+            ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffer);
+        }
+
+        cmdBuffer.endRenderPass();
+        cmdBuffer.end();
+
+        return SystemWorkerOut{
+            .wantsQuit = wantsQuit,
+            .cmdBuffer = cmdBuffer
+        };
     }
 };
+
+#include "rendering/threads/IWorkerThread_Impl.inl"
+using SystemWorkerThread = IWorkerThread_Impl<SystemWorker, SystemWorkerIn, SystemWorkerOut>;
+#include "rendering/threads/WorkerThreadController.h"
+using SystemWorkerThreadController = WorkerThreadController<SystemWorkerIn, SystemWorkerOut>;

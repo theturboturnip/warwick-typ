@@ -7,7 +7,8 @@
 
 #include "VulkanQueueFamilies.h"
 #include "VulkanRenderPass.h"
-#include "rendering/threads/SystemThreadWorker.h"
+#include "rendering/threads/WorkerThreadController.h"
+#include "rendering/threads/work/SystemWorker.h"
 #include "util/fatal_error.h"
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
@@ -360,7 +361,7 @@ VulkanWindow::~VulkanWindow() {
     SDL_Quit();
 }
 void VulkanWindow::main_loop() {
-    auto systemWorker = BaseThread<SystemWorkerIn, SystemWorkerOut>(std::make_unique<SystemThreadWorker>(*this));
+    auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this));
 
     bool wantsQuit = false;
     while (!wantsQuit) {

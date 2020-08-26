@@ -4,62 +4,10 @@
 
 #pragma once
 
-#include <cstdint>
-#include <mutex>
-#include <condition_variable>
 #include <thread>
 
+#include "IWorkerThread.h"
 
-template<class T>
-struct ThreadWorkData {
-    // Put the mutex and condition variables in their own cacheline
-    struct alignas(64) {
-        std::mutex mutex;
-        std::condition_variable readyForRead;
-    } sync;
-
-    // Put the data in a separate cacheline, so that i.e. someone reading the condition variable doesn't try to use the same cacheline as someone writing to the index.
-    struct alignas(64) {
-        int32_t index = -1;
-        bool shouldJoin = false;
-        T data;
-    };
-};
-
-
-template<class TFrameIn, class TFrameOut>
-class IThreadWorker {
-public:
-    ThreadWorkData<TFrameIn> inputData;
-    ThreadWorkData<TFrameOut> outputData;
-
-    virtual ~IThreadWorker() = default;
-    virtual void threadLoop() = 0;
-protected:
-    int32_t currentWorkFrame = -1;
-
-    std::optional<TFrameIn> waitForInput() {
-        // unique_lock is used here because it can unlock/relock, which the condition variable needs.
-        std::unique_lock<std::mutex> lock(inputData.sync.mutex);
-        inputData.sync.readyForRead.wait(lock, [&]{
-            return inputData.index > currentWorkFrame;
-        });
-
-        currentWorkFrame = inputData.index;
-        if (inputData.shouldJoin)
-            return std::nullopt;
-        return std::move(inputData.data);
-    }
-    void pushOutput(TFrameOut&& output) {
-        {
-            std::lock_guard<std::mutex> lock(outputData.sync.mutex);
-            outputData.index = currentWorkFrame;
-            outputData.data = output;
-        }
-        // In case someone is waiting on the condition variable, signal it
-        outputData.sync.readyForRead.notify_one();
-    }
-};
 
 /**
  * BaseThreads are the threading primitive used for work that's done per-frame.
@@ -71,8 +19,8 @@ protected:
  * @tparam TFrameOut
  */
 template<class TFrameIn, class TFrameOut>
-class BaseThread {
-    std::unique_ptr<IThreadWorker<TFrameIn, TFrameOut>> worker;
+class WorkerThreadController {
+    std::unique_ptr<IWorkerThread<TFrameIn, TFrameOut>> worker;
     std::thread workerThread;
 
     ThreadWorkData<TFrameIn>& inputDataRef;
@@ -95,7 +43,7 @@ class BaseThread {
     }
 
 public:
-    explicit BaseThread(std::unique_ptr<IThreadWorker<TFrameIn, TFrameOut>>&& worker)
+    explicit WorkerThreadController(std::unique_ptr<IWorkerThread<TFrameIn, TFrameOut>>&& worker)
         : worker(std::move(worker)),
           workerThread([this](){
               this->worker->threadLoop();
@@ -103,7 +51,7 @@ public:
           inputDataRef(this->worker->inputData),
           outputDataRef(this->worker->outputData)
     {}
-    ~BaseThread() {
+    ~WorkerThreadController() {
         if (waitingForWork)
             getOutput();
         // Send a message to the thread to tell it to join

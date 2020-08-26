@@ -65,7 +65,7 @@ class VulkanWindow {
     // So we only create two semaphores - has image, and finished rendering.
     vk::UniqueSemaphore hasImage, renderFinished;
 
-    friend class SystemThreadWorker;
+    friend class SystemWorker;
 public:
     VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);
     VulkanWindow(const VulkanWindow&) = delete;
