@@ -38,7 +38,7 @@ public:
 protected:
     int32_t currentWorkFrame = -1;
 
-    TFrameIn&& waitForInput() {
+    std::optional<TFrameIn> waitForInput() {
         // unique_lock is used here because it can unlock/relock, which the condition variable needs.
         std::unique_lock<std::mutex> lock(inputData.sync.mutex);
         inputData.sync.readyForRead.wait(lock, [&]{
@@ -46,9 +46,8 @@ protected:
         });
 
         currentWorkFrame = inputData.index;
-        // TODO - This is *incredibly* icky and I hate it
         if (inputData.shouldJoin)
-            throw std::runtime_error("Join requested");
+            return std::nullopt;
         return std::move(inputData.data);
     }
     void pushOutput(TFrameOut&& output) {

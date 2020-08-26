@@ -101,7 +101,10 @@ public:
         bool showDemoWindow = true;
 
         while(true) {
-            SystemWorkerIn input = waitForInput();
+            const auto input_maybe = waitForInput();
+            if (!input_maybe.has_value())
+                break;
+            const auto input = input_maybe.value();
 
             bool wantsQuit = false;
             SDL_Event event;
