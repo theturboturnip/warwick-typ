@@ -4,6 +4,7 @@
 #include "VulkanWindow.h"
 
 #include "VulkanQueueFamilies.h"
+#include "VulkanRenderPass.h"
 #include "util/fatal_error.h"
 #include <SDL_vulkan.h>
 #include <imgui_impl_sdl.h>
@@ -257,55 +258,7 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
     }
 
     {
-        // Define the render pass
-        // The color attachment for the render pass is the texture we're rendering to
-        auto colorAttachment = vk::AttachmentDescription();
-        colorAttachment.format = swapchainProps.surfaceFormat.format;
-        colorAttachment.samples = vk::SampleCountFlagBits::e1; // No MSAA
-
-        colorAttachment.loadOp = vk::AttachmentLoadOp::eClear; // Clear the contents before rendering
-        colorAttachment.storeOp = vk::AttachmentStoreOp::eStore; // Store the contents after rendering
-
-        // We don't care about stencils
-        colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-        colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-
-        colorAttachment.initialLayout = vk::ImageLayout::eUndefined; // We don't care what layout it was in before
-        colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR; // At the end, it should be in the correct layout for presenting
-
-        auto writeAccessDependency = vk::SubpassDependency();
-        // Wait on the ColorAttachmentOutput stage in an external subpass (read: the swapchain reading the frame)
-        writeAccessDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-        writeAccessDependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        writeAccessDependency.srcAccessMask = {}; // No access mask - we can't access it?
-        // Once that stage is over, the transition to write access can occur and stage 0 can start
-        writeAccessDependency.dstSubpass = 0;
-        writeAccessDependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        writeAccessDependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-
-        // Define a single subpass for the render pass.
-        // This subpass *references* the color attachment from the top render pass and renders to it.
-        // When it renders to it, it should be in the ColorAttachmentOptimal layout
-        // so the image will go from eUndefined -> eColorAttachmentOptional -> ePresentSrcKHR over the course of a frame
-        // I don't think we'll have to transition it ourselves.
-        auto colorAttachmentReference = vk::AttachmentReference();
-        colorAttachmentReference.attachment = 0;
-        colorAttachmentReference.layout = vk::ImageLayout::eColorAttachmentOptimal;
-
-        auto subpass = vk::SubpassDescription();
-        subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachmentReference;
-
-        auto renderpassCreateInfo = vk::RenderPassCreateInfo();
-        renderpassCreateInfo.attachmentCount = 1;
-        renderpassCreateInfo.pAttachments = &colorAttachment;
-        renderpassCreateInfo.subpassCount = 1;
-        renderpassCreateInfo.pSubpasses = &subpass;
-        renderpassCreateInfo.dependencyCount = 1;
-        renderpassCreateInfo.pDependencies = &writeAccessDependency;
-
-        renderPass = logicalDevice->createRenderPassUnique(renderpassCreateInfo);
+        renderPass = VulkanRenderPass(*logicalDevice, swapchainProps.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd);//
     }
 
     {
@@ -491,7 +444,7 @@ void VulkanWindow::main_loop() {
 
         cmdBuffer.begin(beginInfo);
         cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-        cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines->redTriangle);
+        cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipelines->redTriangle);
         cmdBuffer.draw(3, 1, 0, 0);
 
         {

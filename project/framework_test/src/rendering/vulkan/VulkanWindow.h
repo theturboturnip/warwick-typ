@@ -9,6 +9,7 @@
 
 #include "VulkanPipelineSet.h"
 #include "VulkanQueueFamilies.h"
+#include "VulkanRenderPass.h"
 #include "VulkanShader.h"
 #include "util/Size.h"
 
@@ -54,7 +55,7 @@ class VulkanWindow {
     std::vector<vk::UniqueCommandBuffer> perFrameCommandBuffers;
     //vk::UniqueCommandBuffer imguiCmdBuffer;
 
-    vk::UniqueRenderPass renderPass;
+    VulkanRenderPass renderPass;
 
     std::unique_ptr<VulkanPipelineSet> pipelines;
 

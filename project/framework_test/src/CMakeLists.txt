@@ -25,6 +25,8 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/VulkanPipelineSet.h
         rendering/vulkan/VulkanQueueFamilies.cpp
         rendering/vulkan/VulkanQueueFamilies.h
+        rendering/vulkan/VulkanRenderPass.cpp
+        rendering/vulkan/VulkanRenderPass.h
         rendering/vulkan/VulkanWindow.cpp
         rendering/vulkan/VulkanWindow.h
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp

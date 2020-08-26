@@ -17,7 +17,7 @@ public:
     VulkanPipeline(vk::Device device, vk::RenderPass renderPass, Size<size_t> viewportSize, const VertexShader& vertex, const FragmentShader& fragment);
     VulkanPipeline(const VulkanPipeline&) = delete;
 
-    operator vk::Pipeline() const{
+    vk::Pipeline operator *() const{
         return *pipeline;
     }
 };
