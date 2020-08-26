@@ -3,8 +3,11 @@ project(framework_test LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_STANDARD 14)
-set(CMAKE_CUDA_STANDARD_REQUIRED TRUE)
+# CMAKE doesn't know how to set CUDA version to C++17
+# If we don't set CMAKE_CUDA_STANDARD_REQUIRED FALSE, it tries to set CUDA to C++17 and dies.
+# We include the C++17 flag manually later.
+set(CMAKE_CUDA17_STANDARD_COMPILE_OPTION "-std=c++17")
+set(CMAKE_CUDA_STANDARD_REQUIRED FALSE)
 
 include(CheckLanguage)
 check_language(CUDA)
@@ -50,7 +53,7 @@ else()
     set(CUDA_DEBUG_OPT)
 endif()
 set(CXX_OVERALL_OPT ${CXX_SIMD_OPT} ${CXX_WARNING_OPT} ${CXX_GENERAL_OPT})
-set(CUDA_OVERALL_OPT --extended-lambda ${CUDA_DEBUG_OPT})# -G -arch compute_70)
+set(CUDA_OVERALL_OPT --extended-lambda ${CUDA_DEBUG_OPT} ${CMAKE_CUDA17_STANDARD_COMPILE_OPTION})# -G -arch compute_70)
 
 # Set up external dependencies
 add_subdirectory(external)

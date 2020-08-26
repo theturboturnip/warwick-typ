@@ -4,9 +4,9 @@
 
 #include "simulation/backends/cuda/kernels/reduction.cuh"
 
-template<size_t BlockSize>
+template<bool UnifiedMemory, size_t BlockSize>
 template<typename Preproc, typename Func>
-float CudaReducer<BlockSize>::map_reduce(ArrayType& input, Preproc pre, Func func, cudaStream_t stream) {
+float CudaReducer<UnifiedMemory, BlockSize>::map_reduce(ArrayType& input, Preproc pre, Func func, cudaStream_t stream) {
     FATAL_ERROR_UNLESS(input.raw_length == input_size, "Got input of length %zu, expected %zu", input.raw_length, input_size);
 
     dim3 blocksize(BlockSize);
@@ -46,9 +46,9 @@ float CudaReducer<BlockSize>::map_reduce(ArrayType& input, Preproc pre, Func fun
     cudaMemcpy(&result, reduction_out->as_gpu(), sizeof(float), cudaMemcpyDefault);
     return result;
 }
-template<size_t BlockSize>
+template<bool UnifiedMemory, size_t BlockSize>
 template<typename Func>
-float CudaReducer<BlockSize>::reduce(ArrayType& input, Func func, cudaStream_t stream) {
+float CudaReducer<UnifiedMemory, BlockSize>::reduce(ArrayType& input, Func func, cudaStream_t stream) {
     // Run a reduction with an identity preprocess
     return get_reduction(input, [](float x) { return x; }, func, stream);
 }

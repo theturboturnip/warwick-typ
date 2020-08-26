@@ -16,7 +16,8 @@ inline float host_max(float x, float y) {
     return (x>y) ? x : y;
 }
 
-CudaBackendV1::CudaBackendV1(const FluidParams & params, const SimSnapshot &s)
+template<bool UnifiedMemory>
+CudaBackendV1<UnifiedMemory>::CudaBackendV1(I2DAllocator* alloc, const FluidParams & params, const SimSnapshot &s)
     : params(params),
       simSize(s.simSize),
       matrix_size(simSize.pixel_size.x + 2, simSize.pixel_size.y + 2),
@@ -31,24 +32,24 @@ CudaBackendV1::CudaBackendV1(const FluidParams & params, const SimSnapshot &s)
       ibound(s.get_boundary_cell_count()),
       ifluid(imax * jmax - ibound),
 
-      u(matrix_size),
-      v(matrix_size),
+      u(alloc, matrix_size),
+      v(alloc, matrix_size),
 
-      f(matrix_size),
-      g(matrix_size),
+      f(alloc, matrix_size),
+      g(alloc, matrix_size),
 
-      p(matrix_size),
-      p_buffered(matrix_size),
-      p_sum_squares(matrix_size),
+      p(alloc, matrix_size),
+      p_buffered(alloc, matrix_size),
+      p_sum_squares(alloc, matrix_size),
 
-      p_beta(matrix_size),
+      p_beta(alloc, matrix_size),
 
-      rhs(matrix_size),
-      flag(matrix_size),
-      fluidmask(matrix_size),
-      surroundmask(matrix_size),
+      rhs(alloc, matrix_size),
+      flag(alloc, matrix_size),
+      fluidmask(alloc, matrix_size),
+      surroundmask(alloc, matrix_size),
 
-      reducer_fullsize(u.raw_length)
+      reducer_fullsize(alloc, u.raw_length)
 {
     u.memcpy_in(s.velocity_x);
     v.memcpy_in(s.velocity_y);
@@ -61,6 +62,9 @@ CudaBackendV1::CudaBackendV1(const FluidParams & params, const SimSnapshot &s)
     g.zero_out();
 
     cudaStreamCreate(&stream);
+
+    // TODO - Remove this
+    static_assert(UnifiedMemory, "CUDA backend currently requires UnifiedMemory for initial work to function");
 
     // Split pressure to red/black in preparation for poisson, which only operates on split matrices
     OriginalOptimized::splitToRedBlack(p.joined.as_cpu(),
@@ -101,12 +105,14 @@ CudaBackendV1::CudaBackendV1(const FluidParams & params, const SimSnapshot &s)
     cudaStreamSynchronize(stream);
 }
 
-CudaBackendV1::~CudaBackendV1() {
+template<bool UnifiedMemory>
+CudaBackendV1<UnifiedMemory>::~CudaBackendV1() {
     cudaStreamDestroy(stream);
 }
 
 
-float CudaBackendV1::findMaxTimestep() {
+template<bool UnifiedMemory>
+float CudaBackendV1<UnifiedMemory>::findMaxTimestep() {
     float delta_t = -1;
     auto fabsf_lambda = [] __device__ (float x) { return fabsf(x); };
     auto max_lambda = [] __device__ (float x, float y) { return max(x, y); };
@@ -150,10 +156,11 @@ float CudaBackendV1::findMaxTimestep() {
     return delta_t;
 }
 
-void CudaBackendV1::tick(float timestep) {
+template<bool UnifiedMemory>
+void CudaBackendV1<UnifiedMemory>::tick(float timestep) {
     auto gpu_params = CommonParams{
-            .size = ulong2{matrix_size.x, matrix_size.y},
-            .redblack_size = ulong2{redblack_matrix_size.x, redblack_matrix_size.y},
+            .size = uint2{matrix_size.x, matrix_size.y},
+            .redblack_size = uint2{redblack_matrix_size.x, redblack_matrix_size.y},
             .col_pitch_4byte=u.col_pitch,
             .col_pitch_redblack=rhs.red.col_pitch,
             .deltas = float2{del_x, del_y},
@@ -194,10 +201,9 @@ void CudaBackendV1::tick(float timestep) {
     //cudaStreamSynchronize(stream);
 
 
-    float res = 0;
     if (ifluid > 0) {
         constexpr bool UseCPUPoisson = false;
-        if (UseCPUPoisson) {
+        if constexpr (UnifiedMemory && UseCPUPoisson) {
             OriginalOptimized::poissonSolver<false>(p.joined.as_cpu(), p.red.as_cpu(), p.black.as_cpu(),
                                                     p_beta.joined.as_cpu(), p_beta.red.as_cpu(), p_beta.black.as_cpu(),
                                                     rhs.joined.as_cpu(), rhs.red.as_cpu(), rhs.black.as_cpu(),
@@ -266,7 +272,8 @@ void CudaBackendV1::tick(float timestep) {
 //    OriginalOptimized::applyBoundaryConditions(u2.as_cpu(), v2.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
 }
 
-void CudaBackendV1::dispatch_splitRedBlackCUDA(CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined>& to_split,
+template<bool UnifiedMemory>
+void CudaBackendV1<UnifiedMemory>::dispatch_splitRedBlackCUDA(CudaUnifiedRedBlackArray<float, UnifiedMemory, RedBlackStorage::WithJoined>& to_split,
                                                dim3 gridsize_2d, dim3 blocksize_2d,
                                                CommonParams params)
 {
@@ -276,7 +283,8 @@ void CudaBackendV1::dispatch_splitRedBlackCUDA(CudaUnifiedRedBlackArray<float, R
             params
     );
 }
-void CudaBackendV1::dispatch_joinRedBlackCUDA(CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined>& to_join,
+template<bool UnifiedMemory>
+void CudaBackendV1<UnifiedMemory>::dispatch_joinRedBlackCUDA(CudaUnifiedRedBlackArray<float, UnifiedMemory, RedBlackStorage::WithJoined>& to_join,
                                               dim3 gridsize_2d, dim3 blocksize_2d,
                                               CommonParams params)
 {
@@ -287,23 +295,34 @@ void CudaBackendV1::dispatch_joinRedBlackCUDA(CudaUnifiedRedBlackArray<float, Re
     );
 }
 
+template<bool UnifiedMemory>
 template<RedBlack Kind>
-void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 blocksize_redblack, int iter, CommonParams gpu_params) {
+void CudaBackendV1<UnifiedMemory>::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 blocksize_redblack, int iter, CommonParams gpu_params) {
     // TODO - Use HALF SIZE dimensions! the poisson kernel operates on redblack ONLY
 
     // For a p_red computation: do p_red/p_buffered_black into p_buffered_red, while copying p_buffered_black into p_black.
     // Modern Nvidia GPUs can do parallel memcpy and compute, so this shouldn't take longer
 
+    // Note - all p.get<Kind> functions need to have the template specifier: "p.template get<Kind>()".
+    // This is because:
+    //  1. CudaBackendV1 is templated on UnifiedMemory
+    //  2. Which causes the types of p, p_buffered, rhs etc. to be *dependent* on the value of UnifiedMemory.
+    //  3. Because of template specializations, the C++ compiler can't know ahead of time if p.get will be a template function or a data member.
+    //  4. This means the C++ compiler can't tell what p.get<Kind>() means - is it (p.get) < Kind > ()? or is it a template function invocation?
+    //  5. Using the '.template' syntax tells the C++ compiler to explicitly expect a template function here. It's ugly as hell, but it works.
+    // The way to fix this is to stop using shitty languages like C++. However, given the state of CUDA on better languages like Rust is kinda poor,
+    // this isn't feasible right now.
+
     constexpr bool DoubleBuffer = false;
 
     if (DoubleBuffer) {
         poisson_single_tick<<<gridsize_redblack, blocksize_redblack, 0, stream>>>(
-                p.get<Kind>().as_gpu(),
-                p_buffered.get_other<Kind>().as_gpu(),
-                rhs.get<Kind>().as_gpu(),
-                p_beta.get<Kind>().as_gpu(),
+                p.template get<Kind>().as_gpu(),
+                p_buffered.template get_other<Kind>().as_gpu(),
+                rhs.template get<Kind>().as_gpu(),
+                p_beta.template get<Kind>().as_gpu(),
 
-                p_buffered.get<Kind>().as_gpu(),
+                p_buffered.template get<Kind>().as_gpu(),
 
                 (Kind == RedBlack::Black) ? 1 : 0,// 0 if red, 1 if black
 
@@ -314,15 +333,15 @@ void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 bl
                 gpu_params);
 
         // TODO - this needs to be done in a separate stream to overlap
-        p.get_other<Kind>().dispatch_memcpy_in(p_buffered.get_other<Kind>(), stream);
+        p.template get_other<Kind>().dispatch_memcpy_in(p_buffered.template get_other<Kind>(), stream);
     } else {
         poisson_single_tick<<<gridsize_redblack, blocksize_redblack, 0, stream>>>(
-                p.get<Kind>().as_gpu(),
-                p.get_other<Kind>().as_gpu(),
-                rhs.get<Kind>().as_gpu(),
-                p_beta.get<Kind>().as_gpu(),
+                p.template get<Kind>().as_gpu(),
+                p.template get_other<Kind>().as_gpu(),
+                rhs.template get<Kind>().as_gpu(),
+                p_beta.template get<Kind>().as_gpu(),
 
-                p.get<Kind>().as_gpu(),
+                p.template get<Kind>().as_gpu(),
 
                 (Kind == RedBlack::Black) ? 1 : 0,// 0 if red, 1 if black
 
@@ -339,7 +358,8 @@ void CudaBackendV1::dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 bl
 //    }
 }
 
-LegacySimDump CudaBackendV1::dumpStateAsLegacy() {
+template<>
+LegacySimDump CudaBackendV1<true>::dumpStateAsLegacy() {
     cudaStreamSynchronize(stream);
     auto dump = LegacySimDump(simSize.to_legacy());
     dump.u = u.extract_data();
@@ -348,6 +368,15 @@ LegacySimDump CudaBackendV1::dumpStateAsLegacy() {
     dump.flag = flag.extract_data();
     return dump;
 }
-SimSnapshot CudaBackendV1::get_snapshot() {
+//template<>
+//LegacySimDump CudaBackendV1<false>::dumpStateAsLegacy() {
+//    static_assert(false, "Cannot dump state, not using Unified Memory");
+//}
+template<bool UnifiedMemory>
+SimSnapshot CudaBackendV1<UnifiedMemory>::get_snapshot() {
     return SimSnapshot::from_legacy(dumpStateAsLegacy());
 }
+
+
+template class CudaBackendV1<true>;
+//template class CudaBackendV1<false>;

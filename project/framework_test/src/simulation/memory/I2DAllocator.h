@@ -9,22 +9,25 @@
 
 struct AllocatedMemory {
     void* pointer = nullptr;
-    size_t totalSize = -1;
+    size_t totalSize = 0;
 
-    uint32_t width = -1;
-    uint32_t height = -1;
-    uint32_t columnStride = -1;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t columnStride = 0;
 };
 
 class I2DAllocator {
 protected:
-    I2DAllocator(uint32_t usage) : usage(usage) {}
+    explicit I2DAllocator(uint32_t usage) : usage(usage) {}
 public:
     const uint32_t usage;
     enum MemoryUsage {
         Host   = 0b01,
         Device = 0b10
     };
+
+    void requireHostUsable();
+    void requireDeviceUsable();
 
     // TODO - add "pitched" argument here
     virtual AllocatedMemory allocate2D(uint32_t width, uint32_t height, size_t elemSize) = 0;

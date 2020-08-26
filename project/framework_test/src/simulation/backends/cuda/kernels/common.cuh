@@ -12,14 +12,14 @@ using out_matrix = T* const __restrict__;
 
 struct CommonParams {
     // Equivalent to imax+2, jmax+2
-    ulong2 size;
+    uint2 size;
     // Equivalent to imax+2, (jmax+2)/2
-    ulong2 redblack_size;
+    uint2 redblack_size;
 
     // Matrices are stored column-major - array[i][j] is adjacent to array[i][j+1]
     // The column pitch is stored separately, because it could be allocated to put the start of each one on a cache line boundary.
-    ulong col_pitch_4byte;
-    ulong col_pitch_redblack;
+    uint col_pitch_4byte;
+    uint col_pitch_redblack;
 
     // Equivalent to (del_x, del_y)
     float2 deltas;

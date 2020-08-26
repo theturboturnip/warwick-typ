@@ -11,18 +11,18 @@
 // first reduction makes ceil(input / blocksize) results => first buffer size has to be ceil(input size / blocksize)
 // second reduction is ceil(ceil(input / blocksize) / blocksize)
 //  note that the ceil is done twice there
-template<size_t BlockSize>
+template<bool UnifiedMemory, size_t BlockSize>
 class CudaReducer {
-    using ArrayType = CudaUnified2DArray<float>;
+    using ArrayType = CudaUnified2DArray<float, UnifiedMemory>;
 
     const size_t input_size;
     ArrayType first;
     ArrayType second;
 public:
-    explicit CudaReducer(size_t input_size)
+    explicit CudaReducer(I2DAllocator* alloc, size_t input_size)
         : input_size(input_size),
-          first(next_reduction_size(input_size), 1),
-          second(next_reduction_size(first.raw_length), 1){}
+          first(alloc, next_reduction_size(input_size), 1),
+          second(alloc, next_reduction_size(first.raw_length), 1){}
 
     template<typename Preproc, typename Func>
     float map_reduce(ArrayType& input, Preproc pre, Func func, cudaStream_t stream);

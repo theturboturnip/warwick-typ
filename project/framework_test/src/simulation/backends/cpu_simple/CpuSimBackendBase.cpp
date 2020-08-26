@@ -46,7 +46,7 @@ SimSnapshot CpuSimBackendBase::get_snapshot() {
     flag(dump.flag, imax+2, jmax+2)
 {}*/
 
-CpuSimBackendBase::CpuSimBackendBase(const FluidParams& params, const SimSnapshot& s)
+CpuSimBackendBase::CpuSimBackendBase(I2DAllocator* alloc, const FluidParams& params, const SimSnapshot& s)
     : params(params),
       simSize(s.simSize),
       imax(simSize.pixel_size.x),
@@ -67,7 +67,7 @@ CpuSimBackendBase::CpuSimBackendBase(const FluidParams& params, const SimSnapsho
       omega(params.poisson_omega),
       gamma(params.gamma),
       baseTimestep(1.0f/params.timestep_divisor),
-
+// TODO - use alloc here
       u(s.velocity_x, imax+2, jmax+2),
       v(s.velocity_y, imax+2, jmax+2),
       f(imax+2, jmax+2, 0.0f),

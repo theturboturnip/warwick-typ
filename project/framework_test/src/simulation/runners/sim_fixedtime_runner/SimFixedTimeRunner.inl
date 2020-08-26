@@ -6,13 +6,16 @@
 
 #include "ISimFixedTimeRunner.h"
 
-template<typename T>
+template<typename T, typename AllocType>
 class SimFixedTimeRunner : public ISimFixedTimeRunner {
+    std::unique_ptr<AllocType> alloc;
+
 public:
+    SimFixedTimeRunner() : alloc(std::make_unique<AllocType>()) {}
     ~SimFixedTimeRunner() override = default;
 
     SimSnapshot runForTime(const FluidParams & simParams, const SimSnapshot& start, float timeToRun) override {
-        auto sim = T(simParams, start);
+        auto sim = T(alloc.get(), simParams, start);
         float currentTime = 0;
         while(currentTime < timeToRun) {
             float maxTimestep = sim.findMaxTimestep();

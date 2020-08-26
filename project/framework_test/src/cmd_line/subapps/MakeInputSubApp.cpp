@@ -28,7 +28,7 @@ void MakeInputSubApp::run() {
     }
 
     auto size = SimSize(
-            {(size_t) width-2, (size_t) height-2},
+            {(uint32_t) width-2, (uint32_t) height-2},
             physicalSize
     );
     auto simSnapshot = SimSnapshot(size);

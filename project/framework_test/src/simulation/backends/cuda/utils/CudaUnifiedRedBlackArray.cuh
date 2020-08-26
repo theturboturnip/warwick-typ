@@ -16,22 +16,22 @@ enum class RedBlackStorage {
     WithJoined
 };
 
-template<typename T, RedBlackStorage Storage=RedBlackStorage::WithJoined, CudaMemoryType MemoryType=CudaMemoryType::CudaManaged>
+template<typename T, bool UnifiedMemory, RedBlackStorage Storage=RedBlackStorage::WithJoined>
 class CudaUnifiedRedBlackArray;
 
-template<typename T, CudaMemoryType MemoryType>
-class CudaUnifiedRedBlackArray<T, RedBlackStorage::RedBlackOnly, MemoryType> {
+template<typename T, bool UnifiedMemory>
+class CudaUnifiedRedBlackArray<T, UnifiedMemory, RedBlackStorage::RedBlackOnly> {
 public:
-    using ArrayType = CudaUnified2DArray<T, MemoryType>;
+    using ArrayType = CudaUnified2DArray<T, UnifiedMemory>;
 
-    Size<size_t> split_size;
+    Size<uint32_t> split_size;
     ArrayType red;
     ArrayType black;
 
-    explicit CudaUnifiedRedBlackArray(Size<size_t> full_size)
+    explicit CudaUnifiedRedBlackArray(I2DAllocator* alloc, Size<uint32_t> full_size)
         : split_size(full_size.x, full_size.y / 2),
-          red(split_size),
-          black(split_size)
+          red(alloc, split_size),
+          black(alloc, split_size)
     {}
     virtual ~CudaUnifiedRedBlackArray() = default;
 
@@ -62,16 +62,16 @@ public:
     }
 };
 
-template<typename T, CudaMemoryType MemoryType>
-class CudaUnifiedRedBlackArray<T, RedBlackStorage::WithJoined, MemoryType> : public CudaUnifiedRedBlackArray<T, RedBlackStorage::RedBlackOnly, MemoryType> {
-    using Base = CudaUnifiedRedBlackArray<T, RedBlackStorage::RedBlackOnly, MemoryType>;
+template<typename T, bool UnifiedMemory>
+class CudaUnifiedRedBlackArray<T, UnifiedMemory, RedBlackStorage::WithJoined> : public CudaUnifiedRedBlackArray<T, UnifiedMemory, RedBlackStorage::RedBlackOnly> {
+    using Base = CudaUnifiedRedBlackArray<T, UnifiedMemory, RedBlackStorage::RedBlackOnly>;
 
 public:
     typename Base::ArrayType joined;
 
-    explicit CudaUnifiedRedBlackArray(Size<size_t> full_size)
-            : Base(full_size),
-              joined(full_size)
+    explicit CudaUnifiedRedBlackArray(I2DAllocator* alloc, Size<uint32_t> full_size)
+            : Base(alloc, full_size),
+              joined(alloc, full_size)
     {}
     ~CudaUnifiedRedBlackArray() override = default;
 

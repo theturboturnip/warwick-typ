@@ -56,6 +56,7 @@ target_sources(generic_sources INTERFACE
         simulation/file_format/SimSnapshot.h
         simulation/file_format/SimSnapshot.cpp
         simulation/memory/I2DAllocator.h
+        simulation/memory/I2DAllocator.cpp
         simulation/memory/Host2DAllocator.cpp
         simulation/memory/Host2DAllocator.h
         simulation/runners
