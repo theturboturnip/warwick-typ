@@ -17,6 +17,9 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/LegacyRenderPPMSubApp.h
         cmd_line/subapps/InteractiveSubApp.cpp
         cmd_line/subapps/InteractiveSubApp.h
+        rendering/threads/BaseThread.h
+        rendering/threads/SystemThreadWorker.cpp
+        rendering/threads/SystemThreadWorker.h
         rendering/vulkan/VulkanShader.cpp
         rendering/vulkan/VulkanShader.h
         rendering/vulkan/VulkanPipeline.cpp

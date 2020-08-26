@@ -20,7 +20,7 @@ public:
     VulkanRenderPass() : renderPass(nullptr) {}
     VulkanRenderPass(vk::Device device, vk::Format surfaceFormat, Position position);
 
-    const vk::RenderPass& operator *() {
+    const vk::RenderPass& operator *() const {
         return *renderPass;
     }
 };

@@ -3,12 +3,12 @@
 //
 #include "VulkanWindow.h"
 
+#include <SDL_vulkan.h>
+
 #include "VulkanQueueFamilies.h"
 #include "VulkanRenderPass.h"
+#include "rendering/threads/SystemThreadWorker.h"
 #include "util/fatal_error.h"
-#include <SDL_vulkan.h>
-#include <imgui_impl_sdl.h>
-#include <imgui_impl_vulkan.h>
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -356,117 +356,28 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
     }
 }
 VulkanWindow::~VulkanWindow() {
-    if (logicalDevice)
-        logicalDevice->waitIdle();
-
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
 void VulkanWindow::main_loop() {
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    auto systemWorker = BaseThread<SystemWorkerIn, SystemWorkerOut>(std::make_unique<SystemThreadWorker>(*this));
 
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-    //ImGui::StyleColorsClassic();
-
-    // Setup Platform/Renderer bindings
-    ImGui_ImplSDL2_InitForVulkan(window);
-    ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.Instance = *instance;
-    init_info.PhysicalDevice = physicalDevice;
-    init_info.Device = *logicalDevice;
-    init_info.QueueFamily = queueFamilies.graphics_family.value();
-    init_info.Queue = graphicsQueue;
-    init_info.PipelineCache = nullptr;
-    init_info.DescriptorPool = *descriptorPool;
-    init_info.Allocator = nullptr;
-    init_info.MinImageCount = swapchainProps.imageCount; // TODO - this isn't right
-    init_info.ImageCount = swapchainProps.imageCount;
-    init_info.CheckVkResultFn = nullptr; // TODO
-    ImGui_ImplVulkan_Init(&init_info, *renderPass);
-
-    {
-        auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
-        cmdBufferAlloc.commandPool = *cmdPool;
-        cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
-        cmdBufferAlloc.commandBufferCount = 1;
-        auto cmdBuffers = logicalDevice->allocateCommandBuffersUnique(cmdBufferAlloc);
-        const auto& cmdBuffer = *cmdBuffers[0];
-
-        vk::CommandBufferBeginInfo begin_info = {};
-        begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-        {
-            cmdBuffer.begin(begin_info);
-            ImGui_ImplVulkan_CreateFontsTexture(cmdBuffer);
-            cmdBuffer.end();
-        }
-
-        vk::SubmitInfo submitInfo = {};
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &cmdBuffer;
-        graphicsQueue.submit({submitInfo}, nullptr);
-
-        logicalDevice->waitIdle();
-        ImGui_ImplVulkan_DestroyFontUploadObjects();
-    }
-
-    bool showDemoWindow = true;
-
-    while (true) {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT)
-                goto end;
-            else
-                ImGui_ImplSDL2_ProcessEvent(&event);
-        }
-
+    bool wantsQuit = false;
+    while (!wantsQuit) {
         uint32_t swFrameIndex;
         logicalDevice->acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *hasImage, nullptr, &swFrameIndex);
 
-        const auto& cmdBuffer = *perFrameCommandBuffers[swFrameIndex];
-        cmdBuffer.reset({});
-
-        auto beginInfo = vk::CommandBufferBeginInfo();
-        auto renderPassInfo = vk::RenderPassBeginInfo();
-        renderPassInfo.renderPass = *renderPass;
-        renderPassInfo.framebuffer = *swapchainFramebuffers[swFrameIndex];
-        renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
-        renderPassInfo.renderArea.extent = vk::Extent2D{(uint32_t)window_size.x, (uint32_t)window_size.y};
-        auto clearColor = vk::ClearValue(vk::ClearColorValue());
-        clearColor.color.setFloat32({1.0f, 0.0f, 1.0f, 1.0f});
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
-
-        cmdBuffer.begin(beginInfo);
-        cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-        cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipelines->redTriangle);
-        cmdBuffer.draw(3, 1, 0, 0);
-
-        {
-            ImGui_ImplVulkan_NewFrame();
-            ImGui_ImplSDL2_NewFrame(window);
-            ImGui::NewFrame();
-
-            if (showDemoWindow)
-                ImGui::ShowDemoWindow(&showDemoWindow);
-
-            ImGui::Render();
-
-            ImDrawData* draw_data = ImGui::GetDrawData();
-            ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffer);
-        }
-
-        cmdBuffer.endRenderPass();
-        cmdBuffer.end();
+        systemWorker.giveNextWork(SystemWorkerIn{
+                .targetFramebuffer = *swapchainFramebuffers[swFrameIndex]
+        });
 
         // TODO - Dispatch the CUDA simulation with a CUDAified version of the renderFinished semaphore.
         //  Then, lock the draw behind semaphores for both 1. getting the next image 2. CUDA finishing.
         logicalDevice->waitIdle();
+
+        SystemWorkerOut systemOutput = systemWorker.getOutput();
+        if (systemOutput.wantsQuit)
+            wantsQuit = true;
 
         vk::SubmitInfo submitInfo{};
         vk::Semaphore waitSemaphores[] = {*hasImage};
@@ -476,7 +387,7 @@ void VulkanWindow::main_loop() {
         submitInfo.pWaitDstStageMask = waitStages;
 
         vk::CommandBuffer cmdBuffers[] = {
-            *perFrameCommandBuffers[swFrameIndex]
+            systemOutput.cmdBuffer//*perFrameCommandBuffers[swFrameIndex]
         };
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = cmdBuffers;
@@ -497,12 +408,7 @@ void VulkanWindow::main_loop() {
         presentQueue.presentKHR(presentInfo);
     }
 
-    end:;
-
     logicalDevice->waitIdle();
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
-    ImGui::DestroyContext();
 }
 void VulkanWindow::check_sdl_error(SDL_bool success) {
     FATAL_ERROR_IF(!success, "SDL Error: %s\n", SDL_GetError());
