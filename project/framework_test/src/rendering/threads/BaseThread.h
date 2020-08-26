@@ -90,7 +90,6 @@ class BaseThread {
             inputDataRef.index = lastEnqueuedFrame;
             func();
         }
-        fprintf(stderr, "Enqueueing work\n");
         // In case someone is waiting on the condition variable, signal it
         inputDataRef.sync.readyForRead.notify_one();
         waitingForWork = true;

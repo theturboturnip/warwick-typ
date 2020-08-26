@@ -13,6 +13,7 @@
 
 
 struct SystemWorkerIn {
+    uint32_t swFrameIndex;
     vk::Framebuffer targetFramebuffer;
 };
 
@@ -29,7 +30,7 @@ class SystemThreadWorker : public IThreadWorker<SystemWorkerIn, SystemWorkerOut>
     vk::RenderPass renderPass;
     vk::Rect2D renderArea;
     VulkanPipelineSet* pipelines;
-    vk::UniqueCommandBuffer frameCmdBuffer;
+    std::vector<vk::UniqueCommandBuffer> frameCmdBuffers;
 
     // TODO - make this allocate the command pool itself?
 public:
@@ -69,22 +70,22 @@ public:
             auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
             cmdBufferAlloc.commandPool = *vulkanWindow.cmdPool;
             cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
-            cmdBufferAlloc.commandBufferCount = 2;
-            auto cmdBuffers = vulkanWindow.logicalDevice->allocateCommandBuffersUnique(cmdBufferAlloc);
-            const auto& fontCmdBuffer = *cmdBuffers[0];
-            frameCmdBuffer = std::move(cmdBuffers[1]);
+            cmdBufferAlloc.commandBufferCount = 1 + vulkanWindow.swapchainProps.imageCount;
+            frameCmdBuffers = vulkanWindow.logicalDevice->allocateCommandBuffersUnique(cmdBufferAlloc);
+            const auto fontCmdBuffer = std::move(frameCmdBuffers.back());
+            frameCmdBuffers.pop_back();
 
             vk::CommandBufferBeginInfo begin_info = {};
             begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
             {
-                fontCmdBuffer.begin(begin_info);
-                ImGui_ImplVulkan_CreateFontsTexture(fontCmdBuffer);
-                fontCmdBuffer.end();
+                fontCmdBuffer->begin(begin_info);
+                ImGui_ImplVulkan_CreateFontsTexture(*fontCmdBuffer);
+                fontCmdBuffer->end();
             }
 
             vk::SubmitInfo submitInfo = {};
             submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &fontCmdBuffer;
+            submitInfo.pCommandBuffers = &(*fontCmdBuffer);
             vulkanWindow.graphicsQueue.submit({submitInfo}, nullptr);
             vulkanWindow.graphicsQueue.waitIdle();
             ImGui_ImplVulkan_DestroyFontUploadObjects();
@@ -111,7 +112,7 @@ public:
                     ImGui_ImplSDL2_ProcessEvent(&event);
             }
 
-            const auto& cmdBuffer = *frameCmdBuffer;
+            const auto& cmdBuffer = *frameCmdBuffers[input.swFrameIndex];
             cmdBuffer.reset({});
 
             auto beginInfo = vk::CommandBufferBeginInfo();

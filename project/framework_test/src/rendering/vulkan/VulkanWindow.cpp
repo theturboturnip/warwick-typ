@@ -368,6 +368,7 @@ void VulkanWindow::main_loop() {
         logicalDevice->acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *hasImage, nullptr, &swFrameIndex);
 
         systemWorker.giveNextWork(SystemWorkerIn{
+                .swFrameIndex = swFrameIndex,
                 .targetFramebuffer = *swapchainFramebuffers[swFrameIndex]
         });
 
