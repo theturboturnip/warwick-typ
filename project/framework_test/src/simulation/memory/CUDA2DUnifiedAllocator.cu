@@ -1,0 +1,39 @@
+//
+// Created by samuel on 26/08/2020.
+//
+
+#include "CUDA2DUnifiedAllocator.h"
+
+#include "util/fatal_error.h"
+
+CUDA2DUnifiedAllocator::CUDA2DUnifiedAllocator()
+    : I2DAllocator(MemoryUsage::Host | MemoryUsage::Device),
+      cudaPointers()
+{
+    int deviceCount = -1;
+    cudaGetDevice(&deviceCount);
+    FATAL_ERROR_IF(deviceCount <= 0, "No CUDA Device present to allocate on!");
+}
+AllocatedMemory CUDA2DUnifiedAllocator::allocate2D(uint32_t width, uint32_t height, size_t elemSize) {
+    void* pointer = nullptr;
+    cudaMallocManaged(&pointer, width * height * elemSize);
+    DASSERT(pointer);
+    return AllocatedMemory{
+            .pointer = pointer,
+            .totalSize = width * height,
+
+            .width = width,
+            .height = height,
+            .columnStride = height,
+    };
+}
+void CUDA2DUnifiedAllocator::freeAll() {
+    for (void* pointer : cudaPointers) {
+        cudaFree(pointer);
+    }
+    cudaPointers.clear();
+}
+CUDA2DUnifiedAllocator::~CUDA2DUnifiedAllocator() {
+    if (!cudaPointers.empty())
+        freeAll();
+}

@@ -55,6 +55,9 @@ target_sources(generic_sources INTERFACE
         simulation/file_format/SimSize.h
         simulation/file_format/SimSnapshot.h
         simulation/file_format/SimSnapshot.cpp
+        simulation/memory/I2DAllocator.h
+        simulation/memory/Host2DAllocator.cpp
+        simulation/memory/Host2DAllocator.h
         simulation/runners
         simulation/runners/sim_fixedtime_runner
         simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.cpp
@@ -88,6 +91,8 @@ target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/utils/CudaUnified2DArray.cuh
         simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh
         simulation/backends/cuda/utils/CudaUnifiedReducer.cuh
+        simulation/memory/CUDA2DUnifiedAllocator.h
+        simulation/memory/CUDA2DUnifiedAllocator.cu
         )
 
 add_subdirectory(rendering/shaders)
