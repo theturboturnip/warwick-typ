@@ -61,7 +61,7 @@ CudaBackendV1<UnifiedMemory>::CudaBackendV1(SimulationAllocs allocs, const Fluid
     cudaStreamCreate(&stream);
 
     // TODO - Remove this
-    static_assert(UnifiedMemory, "CUDA backend currently requires UnifiedMemory for initial work to function");
+    //static_assert(UnifiedMemory, "CUDA backend currently requires UnifiedMemory for initial work to function");
 
     // Split pressure to red/black in preparation for poisson, which only operates on split matrices
     OriginalOptimized::splitToRedBlack(p.joined.as_cpu(),
@@ -376,4 +376,4 @@ SimSnapshot CudaBackendV1<UnifiedMemory>::get_snapshot() {
 
 
 template class CudaBackendV1<true>;
-//template class CudaBackendV1<false>;
+template class CudaBackendV1<false>;

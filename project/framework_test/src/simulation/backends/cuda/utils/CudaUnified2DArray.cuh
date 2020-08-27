@@ -66,8 +66,13 @@ public:
         cudaMemcpyAsync(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault, stream);
     }
     std::vector<T> extract_data() {
-        static_assert(UnifiedMemory, "Cannot extract data for not-unified data!");
-        return std::vector<T>(raw_data, raw_data + raw_length);
+        if constexpr (UnifiedMemory) {
+            return std::vector<T>(raw_data, raw_data + raw_length);
+        } else {
+            auto vec = std::vector<T>(raw_length);
+            cudaMemcpy(vec.data(), raw_data, raw_length * sizeof(T), cudaMemcpyDeviceToHost);
+            return vec;
+        }
     }
 
     // TODO - These are all copies of elements of AllocatedMemory<T>. Remove them
