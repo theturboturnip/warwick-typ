@@ -57,11 +57,13 @@ public:
         DASSERT(new_data.size() == raw_length);
         cudaMemcpy(raw_data, new_data.data(), raw_length * sizeof(T), cudaMemcpyDefault);
     }
-    void memcpy_in(const CudaUnified2DArray<T, UnifiedMemory>& other) {
+    template<bool OtherUnifiedMemory>
+    void memcpy_in(const CudaUnified2DArray<T, OtherUnifiedMemory>& other) {
         DASSERT(other.raw_length == raw_length);
         cudaMemcpy(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault);
     }
-    void dispatch_memcpy_in(const CudaUnified2DArray<T, UnifiedMemory>& other, cudaStream_t stream) {
+    template<bool OtherUnifiedMemory>
+    void dispatch_memcpy_in(const CudaUnified2DArray<T, OtherUnifiedMemory>& other, cudaStream_t stream) {
         DASSERT(other.raw_length == raw_length);
         cudaMemcpyAsync(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault, stream);
     }
@@ -73,6 +75,7 @@ public:
             cudaMemcpy(vec.data(), raw_data, raw_length * sizeof(T), cudaMemcpyDeviceToHost);
             return vec;
         }
+        FATAL_ERROR("We shouldn't get to this point\n");
     }
 
     // TODO - These are all copies of elements of AllocatedMemory<T>. Remove them
@@ -84,4 +87,6 @@ private:
     AllocatedMemory<T> memory;
 
     std::vector<T*> cpu_pointers;
+
+    friend class CudaUnified2DArray<T, !UnifiedMemory>;
 };
