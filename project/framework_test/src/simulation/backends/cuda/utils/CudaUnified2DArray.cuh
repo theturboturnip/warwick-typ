@@ -35,12 +35,7 @@ public:
             cpu_pointers.push_back(raw_data + (i * col_pitch));
         }
     }
-
     CudaUnified2DArray(const CudaUnified2DArray<T, UnifiedMemory>&) = delete;
-
-    void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) {
-        cudaMemPrefetchAsync(raw_data, raw_length*sizeof(T), dstDevice, stream);
-    }
 
     T* as_gpu() {
         return raw_data;
@@ -66,6 +61,10 @@ public:
     void dispatch_memcpy_in(const CudaUnified2DArray<T, OtherUnifiedMemory>& other, cudaStream_t stream) {
         DASSERT(other.raw_length == raw_length);
         cudaMemcpyAsync(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault, stream);
+    }
+    void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) {
+        static_assert(UnifiedMemory, "cudaMemPrefetchAsync only works on Unified Memory");
+        cudaMemPrefetchAsync(raw_data, raw_length*sizeof(T), dstDevice, stream);
     }
     std::vector<T> extract_data() {
         if constexpr (UnifiedMemory) {

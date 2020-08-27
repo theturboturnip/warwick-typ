@@ -33,7 +33,6 @@ public:
           red(alloc, split_size),
           black(alloc, split_size)
     {}
-    virtual ~CudaUnifiedRedBlackArray() = default;
 
     template<RedBlack ToGet>
     ArrayType& get() {
@@ -51,23 +50,28 @@ public:
             return black;
     }
 
-    virtual void dispatch_gpu_prefetch(int deviceId, cudaStream_t stream) {
+    void dispatch_gpu_prefetch(int deviceId, cudaStream_t stream) {
+        static_assert(UnifiedMemory, "cudaMemPrefetchAsync only works on Unified Memory");
         red.dispatch_gpu_prefetch(deviceId, stream);
         black.dispatch_gpu_prefetch(deviceId, stream);
     }
 
-    virtual void zero_out() {
+    void zero_out() {
         red.zero_out();
         black.zero_out();
     }
 };
 
 template<typename T, bool UnifiedMemory>
-class CudaUnifiedRedBlackArray<T, UnifiedMemory, RedBlackStorage::WithJoined> : public CudaUnifiedRedBlackArray<T, UnifiedMemory, RedBlackStorage::RedBlackOnly> {
+class CudaUnifiedRedBlackArray<T, UnifiedMemory, RedBlackStorage::WithJoined> : private CudaUnifiedRedBlackArray<T, UnifiedMemory, RedBlackStorage::RedBlackOnly> {
     using Base = CudaUnifiedRedBlackArray<T, UnifiedMemory, RedBlackStorage::RedBlackOnly>;
 
 public:
     typename Base::ArrayType joined;
+    using Base::red;
+    using Base::black;
+    using Base::get;
+    using Base::get_other;
 
     explicit CudaUnifiedRedBlackArray(I2DAllocator* alloc, Size<uint32_t> full_size)
             : Base(alloc, full_size),
@@ -77,14 +81,15 @@ public:
             : Base(alloc, {joined.width, joined.height}),
               joined(alloc, joined)
     {}
-    ~CudaUnifiedRedBlackArray() override = default;
 
-    void zero_out() override {
+    // Virtual functions are not required here because this is never downcasted
+
+    void zero_out() {
         Base::zero_out();
         joined.zero_out();
     }
 
-    void dispatch_gpu_prefetch(int deviceId, cudaStream_t stream) override {
+    void dispatch_gpu_prefetch(int deviceId, cudaStream_t stream) {
         Base::dispatch_gpu_prefetch(deviceId, stream);
         joined.dispatch_gpu_prefetch(deviceId, stream);
     }
