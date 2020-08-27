@@ -14,7 +14,7 @@
 #include "simulation/memory/Host2DAllocator.h"
 #if CUDA_ENABLED
 #include "simulation/backends/cuda/CudaBackendV1.cuh"
-#include "simulation/memory/CUDA2DUnifiedAllocator.h"
+#include "simulation/memory/CudaUnified2DAllocator.cuh"
 #endif
 
 #include "util/fatal_error.h"
@@ -32,7 +32,7 @@ std::unique_ptr<ISimFixedTimeRunner> ISimFixedTimeRunner::getForBackend(Simulati
             return std::make_unique<SimFixedTimeRunner<CpuOptimizedAdaptedSimBackend, Host2DAllocator>>();
 #if CUDA_ENABLED
         case CUDA:
-            return std::make_unique<SimFixedTimeRunner<CudaBackendV1<true>, CUDA2DUnifiedAllocator>>();
+            return std::make_unique<SimFixedTimeRunner<CudaBackendV1<true>, CudaUnified2DAllocator>>();
 #endif
         default:
             FATAL_ERROR("Enum val %d doesn't have an ISim10sRunner!\n", backendType);

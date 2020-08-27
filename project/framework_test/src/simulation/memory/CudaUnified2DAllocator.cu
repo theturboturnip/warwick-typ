@@ -2,11 +2,11 @@
 // Created by samuel on 26/08/2020.
 //
 
-#include "CUDA2DUnifiedAllocator.h"
+#include "CudaUnified2DAllocator.cuh"
 
 #include "util/fatal_error.h"
 
-CUDA2DUnifiedAllocator::CUDA2DUnifiedAllocator()
+CudaUnified2DAllocator::CudaUnified2DAllocator()
     : I2DAllocator(MemoryUsage::Host | MemoryUsage::Device),
       cudaPointers()
 {
@@ -14,7 +14,7 @@ CUDA2DUnifiedAllocator::CUDA2DUnifiedAllocator()
     cudaGetDeviceCount(&deviceCount);
     FATAL_ERROR_IF(deviceCount <= 0, "No CUDA Device present to allocate on!\n");
 }
-AllocatedMemory<void> CUDA2DUnifiedAllocator::allocate2D_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData) {
+AllocatedMemory<void> CudaUnified2DAllocator::allocate2D_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData) {
     const size_t sizeBytes = size.x * size.y * elemSize;
     void* pointer = nullptr;
     auto error = cudaMallocManaged(&pointer, sizeBytes * elemSize);
@@ -37,13 +37,13 @@ AllocatedMemory<void> CUDA2DUnifiedAllocator::allocate2D_unsafe(Size<uint32_t> s
             .columnStride = size.y,
     };
 }
-void CUDA2DUnifiedAllocator::freeAll() {
+void CudaUnified2DAllocator::freeAll() {
     for (void* pointer : cudaPointers) {
         cudaFree(pointer);
     }
     cudaPointers.clear();
 }
-CUDA2DUnifiedAllocator::~CUDA2DUnifiedAllocator() {
+CudaUnified2DAllocator::~CudaUnified2DAllocator() {
     if (!cudaPointers.empty())
         freeAll();
 }

@@ -63,6 +63,7 @@ target_sources(generic_sources INTERFACE
         simulation/memory/Host2DAllocator.h
         simulation/memory/vulkan/BaseVulkan2DAllocator.cpp
         simulation/memory/vulkan/BaseVulkan2DAllocator.h
+        simulation/memory/vulkan/VulkanSimulationAllocator.h
         simulation/runners
         simulation/runners/sim_fixedtime_runner
         simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.cpp
@@ -96,8 +97,10 @@ target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/utils/CudaUnified2DArray.cuh
         simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh
         simulation/backends/cuda/utils/CudaUnifiedReducer.cuh
-        simulation/memory/CUDA2DUnifiedAllocator.h
-        simulation/memory/CUDA2DUnifiedAllocator.cu
+        simulation/memory/CudaUnified2DAllocator.cuh
+        simulation/memory/CudaUnified2DAllocator.cu
+        simulation/memory/vulkan/CudaVulkan2DAllocator.cu
+        simulation/memory/vulkan/CudaVulkan2DAllocator.cuh
         )
 
 add_subdirectory(rendering/shaders)

@@ -20,7 +20,7 @@ struct AllocatedMemory {
     uint32_t columnStride = 0;
 
     template<typename U>
-    AllocatedMemory<U> unsafe_cast() {
+    AllocatedMemory<U> unsafe_cast() const {
         return AllocatedMemory<U> {
                 .pointer = reinterpret_cast<U*>(pointer),
                 .totalSize = totalSize,

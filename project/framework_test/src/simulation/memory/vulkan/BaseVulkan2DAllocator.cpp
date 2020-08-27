@@ -4,7 +4,7 @@
 
 #include "BaseVulkan2DAllocator.h"
 BaseVulkan2DAllocator::BaseVulkan2DAllocator(const uint32_t usage, const vk::MemoryPropertyFlags expectedMemoryFlags, vk::Device device, vk::PhysicalDevice physicalDevice)
-    : I2DAllocator(usage), device(device), memProperties(physicalDevice.getMemoryProperties()), expectedMemoryFlags(expectedMemoryFlags)
+    : I2DAllocator(usage), memProperties(physicalDevice.getMemoryProperties()), expectedMemoryFlags(expectedMemoryFlags), device(device)
 {}
 
 uint32_t BaseVulkan2DAllocator::selectMemoryTypeIndex(uint32_t memoryTypeBits) {
@@ -28,10 +28,17 @@ BaseVulkan2DAllocator::VulkanMemory<void> BaseVulkan2DAllocator::allocateVulkan_
 
     auto memoryRequirements = device.getBufferMemoryRequirements(*buffer);
 
+
+    vk::ExportMemoryAllocateInfoKHR exportAllocInfo{};
+    exportAllocInfo.handleTypes = vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd; // TODO - This won't work on windows. See https://github.com/NVIDIA/cuda-samples/blob/master/Samples/simpleVulkan/VulkanBaseApp.cpp#L1364
     vk::MemoryAllocateInfo allocInfo{};
     allocInfo.allocationSize = memoryRequirements.size;
     allocInfo.memoryTypeIndex = selectMemoryTypeIndex(memoryRequirements.memoryTypeBits);
+    allocInfo.pNext = &exportAllocInfo;
+
     vk::UniqueDeviceMemory deviceMem = device.allocateMemoryUnique(allocInfo);
+
+    device.bindBufferMemory(*buffer, *deviceMem, 0);
 
     // Create the toReturn before moving the deviceMem and buffer into the memories list.
     const auto toReturn = VulkanMemory<void>{

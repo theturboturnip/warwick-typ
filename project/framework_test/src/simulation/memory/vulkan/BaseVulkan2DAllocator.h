@@ -20,6 +20,8 @@
  *
  * VulkanMemory<T> has a vk::Buffer allocated with vk::DescriptorType::eStorageBuffer.
  */
+
+// TODO - Ugh, organize the variable/type layout
 class BaseVulkan2DAllocator : public I2DAllocator {
 public:
     template<typename T>
@@ -29,7 +31,7 @@ public:
         AllocatedMemory<T> unmappedMemoryInfo;
 
         template<typename U>
-        VulkanMemory<U> unsafe_cast() {
+        VulkanMemory<U> unsafe_cast() const {
             return VulkanMemory<U> {
                 .deviceMemory = deviceMemory,
                 .buffer = buffer,
@@ -44,7 +46,6 @@ private:
         vk::UniqueBuffer buffer;
     };
     std::vector<VulkanOwnedMemory> memories;
-    vk::Device device;
     vk::PhysicalDeviceMemoryProperties memProperties;
     vk::MemoryPropertyFlags expectedMemoryFlags;
 
@@ -53,12 +54,14 @@ private:
     VulkanMemory<void> allocateVulkan_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData);
 
 protected:
+    vk::Device device;
+
     BaseVulkan2DAllocator(const uint32_t usage, const vk::MemoryPropertyFlags expectedMemoryFlags, vk::Device device, vk::PhysicalDevice physicalDevice);
 
-    virtual AllocatedMemory<void> mapFromVulkan_unsafe(VulkanMemory<void>) = 0;
+    virtual AllocatedMemory<void> mapFromVulkan_unsafe(VulkanMemory<void>, size_t elemSize) = 0;
     AllocatedMemory<void> allocate2D_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData) override {
         VulkanMemory<void> vulkanMemory = allocateVulkan_unsafe(size, elemSize, initialData);
-        return mapFromVulkan_unsafe(vulkanMemory);
+        return mapFromVulkan_unsafe(vulkanMemory, elemSize);
     }
 public:
 
@@ -75,7 +78,7 @@ public:
     //  If we want to pass it to Vulkan on the GPU, we'll have to unmap it at some point, and when we remap it won't be in the same place.
     template<typename T>
     AllocatedMemory<T> mapFromVulkan(const VulkanMemory<T>& vulkanMemory) {
-        return mapFromVulkan_unsafe(vulkanMemory.template unsafe_cast<void>()).template unsafe_cast<T>();
+        return mapFromVulkan_unsafe(vulkanMemory.template unsafe_cast<void>(), sizeof(T)).template unsafe_cast<T>();
     }
 
     void freeAll() override;
