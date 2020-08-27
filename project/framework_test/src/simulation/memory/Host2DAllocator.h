@@ -12,7 +12,7 @@ class Host2DAllocator : public I2DAllocator {
 public:
     Host2DAllocator();
 
-    AllocatedMemory allocate2D(uint32_t width, uint32_t height, size_t elemSize) override;
+    AllocatedMemory<void> allocate2D_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData) override;
     void freeAll() override;
     ~Host2DAllocator() override;
 };

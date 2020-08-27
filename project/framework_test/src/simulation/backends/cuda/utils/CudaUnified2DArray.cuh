@@ -15,15 +15,16 @@
 template<typename T, bool UnifiedMemory>
 class CudaUnified2DArray {
 public:
-    CudaUnified2DArray() : width(0), height(0) {}
-    explicit CudaUnified2DArray(I2DAllocator* alloc, Size<uint32_t> size) : CudaUnified2DArray(alloc, size.x, size.y) {}
-    explicit CudaUnified2DArray(I2DAllocator* alloc, uint32_t width, uint32_t height) : width(width), height(height) {
+    CudaUnified2DArray(I2DAllocator* alloc, Size<uint32_t> size)
+        : CudaUnified2DArray(alloc, alloc->allocate2D<T>(size))
+    {}
+    CudaUnified2DArray(I2DAllocator* alloc, AllocatedMemory<T> prealloc) : width(prealloc.width), height(prealloc.height){
         alloc->requireDeviceUsable();
         if constexpr (UnifiedMemory) {
             alloc->requireHostUsable();
         }
 
-        memory = alloc->allocate2D(width, height, sizeof(T));
+        memory = prealloc;
         raw_data = reinterpret_cast<T*>(memory.pointer);
         col_pitch = memory.columnStride;
         raw_length = memory.totalSize;
@@ -34,6 +35,7 @@ public:
             cpu_pointers.push_back(raw_data + (i * col_pitch));
         }
     }
+
     CudaUnified2DArray(const CudaUnified2DArray<T, UnifiedMemory>&) = delete;
 
     void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) {
@@ -68,12 +70,13 @@ public:
         return std::vector<T>(raw_data, raw_data + raw_length);
     }
 
+    // TODO - These are all copies of elements of AllocatedMemory<T>. Remove them
     const uint32_t width, height;
     uint32_t col_pitch;
     size_t raw_length;
 private:
     T* raw_data = nullptr;
-    AllocatedMemory memory;
+    AllocatedMemory<T> memory;
 
     std::vector<T*> cpu_pointers;
 };

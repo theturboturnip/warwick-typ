@@ -17,7 +17,7 @@ inline float host_max(float x, float y) {
 }
 
 template<bool UnifiedMemory>
-CudaBackendV1<UnifiedMemory>::CudaBackendV1(I2DAllocator* alloc, const FluidParams & params, const SimSnapshot &s)
+CudaBackendV1<UnifiedMemory>::CudaBackendV1(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s)
     : params(params),
       simSize(s.simSize),
       matrix_size(simSize.pixel_size.x + 2, simSize.pixel_size.y + 2),
@@ -32,28 +32,25 @@ CudaBackendV1<UnifiedMemory>::CudaBackendV1(I2DAllocator* alloc, const FluidPara
       ibound(s.get_boundary_cell_count()),
       ifluid(imax * jmax - ibound),
 
-      u(alloc, matrix_size),
-      v(alloc, matrix_size),
+      u(allocs.alloc, allocs.u),
+      v(allocs.alloc, allocs.v),
 
-      f(alloc, matrix_size),
-      g(alloc, matrix_size),
+      f(allocs.alloc, matrix_size),
+      g(allocs.alloc, matrix_size),
 
-      p(alloc, matrix_size),
-      p_buffered(alloc, matrix_size),
-      p_sum_squares(alloc, matrix_size),
+      p(allocs.alloc, allocs.p),
+      p_buffered(allocs.alloc, matrix_size),
+      p_sum_squares(allocs.alloc, matrix_size),
 
-      p_beta(alloc, matrix_size),
+      p_beta(allocs.alloc, matrix_size),
 
-      rhs(alloc, matrix_size),
-      flag(alloc, matrix_size),
-      fluidmask(alloc, matrix_size),
-      surroundmask(alloc, matrix_size),
+      rhs(allocs.alloc, matrix_size),
+      flag(allocs.alloc, matrix_size),
+      fluidmask(allocs.alloc, allocs.fluidmask),
+      surroundmask(allocs.alloc, matrix_size),
 
-      reducer_fullsize(alloc, u.raw_length)
+      reducer_fullsize(allocs.alloc, u.raw_length)
 {
-    u.memcpy_in(s.velocity_x);
-    v.memcpy_in(s.velocity_y);
-    p.joined.memcpy_in(s.pressure);
     flag.memcpy_in(s.get_legacy_cell_flags());
 
     rhs.zero_out();
@@ -83,7 +80,7 @@ CudaBackendV1<UnifiedMemory>::CudaBackendV1(I2DAllocator* alloc, const FluidPara
                                        imax, jmax);
 
     // Calculate the fluidmask and surroundedmask items
-    OriginalOptimized::calculateFluidmask((int**)fluidmask.as_cpu(), (const char**)flag.as_cpu(), imax, jmax);
+//    OriginalOptimized::calculateFluidmask((int**)fluidmask.as_cpu(), (const char**)flag.as_cpu(), imax, jmax);
     OriginalOptimized::splitFluidmaskToSurroundedMask((const int **)(fluidmask.as_cpu()),
                                                       (int**)surroundmask.red.as_cpu(), (int**)surroundmask.black.as_cpu(),
                                                       imax, jmax);

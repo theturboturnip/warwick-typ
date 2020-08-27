@@ -11,13 +11,14 @@
 #include <simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh>
 #include <simulation/backends/cuda/utils/CudaUnifiedReducer.cuh>
 #include <simulation/file_format/FluidParams.h>
+#include "simulation/memory/SimulationAllocs.h"
 
 struct CommonParams;
 
 template<bool UnifiedMemory>
 class CudaBackendV1 {
 public:
-    explicit CudaBackendV1(I2DAllocator* alloc, const FluidParams & params, const SimSnapshot& s);
+    explicit CudaBackendV1(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s);
     ~CudaBackendV1();
 
     float findMaxTimestep();
@@ -27,8 +28,6 @@ public:
     SimSnapshot get_snapshot();
 
 private:
-    std::unique_ptr<I2DAllocator> alloc;
-
     const FluidParams params;
     const SimSize simSize;
     const Size<uint32_t> matrix_size;

@@ -10,16 +10,22 @@ Host2DAllocator::Host2DAllocator()
     : I2DAllocator(MemoryUsage::Host),
       hostPointers()
 {}
-AllocatedMemory Host2DAllocator::allocate2D(uint32_t width, uint32_t height, size_t elemSize) {
-    void* pointer = malloc(width * height * elemSize);
+AllocatedMemory<void> Host2DAllocator::allocate2D_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData) {
+    const size_t sizeBytes = size.x * size.y * elemSize;
+    void* pointer = malloc(sizeBytes);
     FATAL_ERROR_IF(!pointer, "Failed to allocate memory\n");
-    return AllocatedMemory{
+    if (initialData) {
+        memcpy(pointer, initialData, sizeBytes);
+    } else {
+        memset(pointer, 0, sizeBytes);
+    }
+    return AllocatedMemory<void>{
             .pointer = pointer,
-            .totalSize = width * height,
+            .totalSize = size.x * size.y,
 
-            .width = width,
-            .height = height,
-            .columnStride = height,
+            .width = size.x,
+            .height = size.y,
+            .columnStride = size.y,
     };
 }
 void Host2DAllocator::freeAll() {

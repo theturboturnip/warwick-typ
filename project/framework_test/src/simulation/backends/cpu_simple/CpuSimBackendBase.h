@@ -9,7 +9,7 @@
 #include "simulation/file_format/SimSnapshot.h"
 #include "util/LegacyCompat2DBackingArray.h"
 #include <simulation/file_format/FluidParams.h>
-#include "simulation/memory/I2DAllocator.h"
+#include "simulation/memory/SimulationAllocs.h"
 
 class CpuSimBackendBase {
 public:
@@ -18,7 +18,7 @@ public:
 
 protected:
     //CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep);
-    explicit CpuSimBackendBase(I2DAllocator* alloc, const FluidParams & params, const SimSnapshot& s);
+    explicit CpuSimBackendBase(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s);
 
     const FluidParams params;
     const SimSize simSize;

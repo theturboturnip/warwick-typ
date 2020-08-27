@@ -15,21 +15,21 @@ template<bool UnifiedMemory, size_t BlockSize>
 class CudaReducer {
     using ArrayType = CudaUnified2DArray<float, UnifiedMemory>;
 
-    const size_t input_size;
+    const uint32_t input_size;
     ArrayType first;
     ArrayType second;
 public:
-    explicit CudaReducer(I2DAllocator* alloc, size_t input_size)
+    explicit CudaReducer(I2DAllocator* alloc, uint32_t input_size)
         : input_size(input_size),
-          first(alloc, next_reduction_size(input_size), 1),
-          second(alloc, next_reduction_size(first.raw_length), 1){}
+          first(alloc, {next_reduction_size(input_size), 1}),
+          second(alloc, {next_reduction_size(first.raw_length), 1}){}
 
     template<typename Preproc, typename Func>
     float map_reduce(ArrayType& input, Preproc pre, Func func, cudaStream_t stream);
     template<typename Func>
     float reduce(ArrayType& input, Func func, cudaStream_t stream);
 
-    static size_t next_reduction_size(size_t input_size) {
+    static uint32_t next_reduction_size(uint32_t input_size) {
         return (input_size + BlockSize - 1) / BlockSize;
     }
 };

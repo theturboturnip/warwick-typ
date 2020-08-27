@@ -14,21 +14,27 @@ CUDA2DUnifiedAllocator::CUDA2DUnifiedAllocator()
     cudaGetDeviceCount(&deviceCount);
     FATAL_ERROR_IF(deviceCount <= 0, "No CUDA Device present to allocate on!\n");
 }
-AllocatedMemory CUDA2DUnifiedAllocator::allocate2D(uint32_t width, uint32_t height, size_t elemSize) {
+AllocatedMemory<void> CUDA2DUnifiedAllocator::allocate2D_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData) {
+    const size_t sizeBytes = size.x * size.y * elemSize;
     void* pointer = nullptr;
-    auto error = cudaMallocManaged(&pointer, width * height * elemSize);
-    if (error != cudaSuccess)
+    auto error = cudaMallocManaged(&pointer, sizeBytes * elemSize);
+    if (error != cudaSuccess || !pointer)
         FATAL_ERROR("CUDA Alloc Error: %s\n", cudaGetErrorString(error));
-    DASSERT(pointer);
+
+    if (initialData) {
+        cudaMemcpy(pointer, initialData, sizeBytes, cudaMemcpyDefault);
+    } else {
+        cudaMemset(pointer, 0, sizeBytes);
+    }
     // TODO - pitch allocation
     //  pitched arrays MUST have zeroes in the padding for reductions to work - note this
-    return AllocatedMemory{
+    return AllocatedMemory<void>{
             .pointer = pointer,
-            .totalSize = width * height,
+            .totalSize = size.x * size.y,
 
-            .width = width,
-            .height = height,
-            .columnStride = height,
+            .width = size.x,
+            .height = size.y,
+            .columnStride = size.y,
     };
 }
 void CUDA2DUnifiedAllocator::freeAll() {

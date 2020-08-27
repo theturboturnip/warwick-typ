@@ -73,6 +73,10 @@ public:
             : Base(alloc, full_size),
               joined(alloc, full_size)
     {}
+    explicit CudaUnifiedRedBlackArray(I2DAllocator* alloc, AllocatedMemory<T> joined)
+            : Base(alloc, {joined.width, joined.height}),
+              joined(alloc, joined)
+    {}
     ~CudaUnifiedRedBlackArray() override = default;
 
     void zero_out() override {

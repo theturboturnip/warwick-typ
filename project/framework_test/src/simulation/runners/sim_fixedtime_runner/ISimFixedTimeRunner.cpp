@@ -7,14 +7,14 @@
 #include "ISimFixedTimeRunner.h"
 #include "SimFixedTimeRunner.inl"
 
-#include "simulation/memory/Host2DAllocator.h"
-#include "simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h"
 #include "simulation/backends/cpu_simple/CpuOptimizedSimBackend.h"
 #include "simulation/backends/cpu_simple/CpuSimpleSimBackend.h"
+#include "simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h"
 #include "simulation/backends/null/NullSimulation.h"
+#include "simulation/memory/Host2DAllocator.h"
 #if CUDA_ENABLED
-#include "simulation/memory/CUDA2DUnifiedAllocator.h"
 #include "simulation/backends/cuda/CudaBackendV1.cuh"
+#include "simulation/memory/CUDA2DUnifiedAllocator.h"
 #endif
 
 #include "util/fatal_error.h"

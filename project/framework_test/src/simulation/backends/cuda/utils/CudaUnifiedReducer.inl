@@ -7,7 +7,7 @@
 template<bool UnifiedMemory, size_t BlockSize>
 template<typename Preproc, typename Func>
 float CudaReducer<UnifiedMemory, BlockSize>::map_reduce(ArrayType& input, Preproc pre, Func func, cudaStream_t stream) {
-    FATAL_ERROR_UNLESS(input.raw_length == input_size, "Got input of length %zu, expected %zu", input.raw_length, input_size);
+    FATAL_ERROR_UNLESS(input.raw_length == input_size, "Got input of length %zu, expected %u", input.raw_length, input_size);
 
     dim3 blocksize(BlockSize);
 

@@ -14,7 +14,7 @@ class CUDA2DUnifiedAllocator : public I2DAllocator {
 public:
     CUDA2DUnifiedAllocator();
 
-    AllocatedMemory allocate2D(uint32_t width, uint32_t height, size_t elemSize) override;
+    AllocatedMemory<void> allocate2D_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData) override;
     void freeAll() override;
     ~CUDA2DUnifiedAllocator() override;
 };
