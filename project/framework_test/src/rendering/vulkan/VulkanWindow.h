@@ -5,6 +5,8 @@
 #pragma once
 
 #include <SDL.h>
+#include <simulation/file_format/FluidParams.h>
+#include <simulation/file_format/SimSnapshot.h>
 #include <vulkan/vulkan.hpp>
 
 #include "VulkanPipelineSet.h"
@@ -74,6 +76,10 @@ public:
 
     // TODO - this will change in the future
     void main_loop();
+
+#if CUDA_ENABLED
+    void test_cuda_sim(const FluidParams& params, const SimSnapshot& snapshot);
+#endif
 
 private:
     void check_sdl_error(SDL_bool success);

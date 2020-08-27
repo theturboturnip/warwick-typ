@@ -26,6 +26,7 @@ void InteractiveSubApp::run() {
                 { initial.simSize.pixel_size.x + 2, initial.simSize.pixel_size.y + 2 }
                         );
 
+        window.test_cuda_sim(fluid_props, initial);
         window.main_loop();
     }
 }

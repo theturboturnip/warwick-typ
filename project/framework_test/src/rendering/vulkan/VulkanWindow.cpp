@@ -5,6 +5,11 @@
 
 #include <SDL_vulkan.h>
 
+#if CUDA_ENABLED
+#include <simulation/backends/cuda/CudaBackendV1.cuh>
+#include <simulation/memory/vulkan/CudaVulkan2DAllocator.cuh>
+#endif
+
 #include "VulkanQueueFamilies.h"
 #include "VulkanRenderPass.h"
 #include "rendering/threads/WorkerThreadController.h"
@@ -58,7 +63,8 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
     check_sdl_error(SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr));
     auto extension_names = std::vector<const char *>(extension_count);
     check_sdl_error(SDL_Vulkan_GetInstanceExtensions(window, &extension_count, extension_names.data()));
-
+    extension_names.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
+    extension_names.push_back(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
 
     auto layer_names = std::vector<const char *>();
     if (VulkanDebug) {
@@ -114,6 +120,10 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
 
     {
         std::vector<const char*> requiredDeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+        requiredDeviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
+        requiredDeviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
+        requiredDeviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+        requiredDeviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
 
         physicalDevice = selectDevice(instance, [this, &requiredDeviceExtensions](vk::PhysicalDevice potential_device){
             auto deviceProperties = potential_device.getProperties();
@@ -438,3 +448,26 @@ vk::UniqueImageView VulkanWindow::make_identity_view(vk::Image image, vk::Format
 
     return logicalDevice->createImageViewUnique(createInfo);
 }
+
+#if CUDA_ENABLED
+#include "simulation/memory/vulkan/VulkanSimulationAllocator.h"
+
+void VulkanWindow::test_cuda_sim(const FluidParams &params, const SimSnapshot &snapshot) {
+    VulkanSimulationAllocator<CudaVulkan2DAllocator> allocator(*logicalDevice, physicalDevice);
+    auto [simAllocs, vulkanAllocs] = allocator.makeAllocs(snapshot);
+
+    auto sim = CudaBackendV1<false>(simAllocs, params, snapshot);
+    const float timeToRun = 10;
+    float currentTime = 0;
+    while(currentTime < timeToRun) {
+        float maxTimestep = sim.findMaxTimestep();
+        if (currentTime + maxTimestep > timeToRun)
+            maxTimestep = timeToRun - currentTime;
+        fprintf(stdout, "t: %f\tts: %f\r", currentTime, maxTimestep);
+        sim.tick(maxTimestep);
+        currentTime += maxTimestep;
+    }
+    fprintf(stdout, "\n");
+    //return sim.get_snapshot();
+}
+#endif
