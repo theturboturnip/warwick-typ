@@ -8,6 +8,8 @@
 #if CUDA_ENABLED
 #include <simulation/backends/cuda/CudaBackendV1.cuh>
 #include <simulation/memory/vulkan/CudaVulkan2DAllocator.cuh>
+#include <simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.h>
+#include <zconf.h>
 #endif
 
 #include "VulkanQueueFamilies.h"
@@ -361,23 +363,36 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
     }
 
     {
-        auto semaphoreInfo = vk::SemaphoreCreateInfo();
-        hasImage = logicalDevice->createSemaphoreUnique(semaphoreInfo);
-        renderFinished = logicalDevice->createSemaphoreUnique(semaphoreInfo);
+        semaphores = std::make_unique<VulkanSemaphoreSet>(*logicalDevice);
     }
 }
 VulkanWindow::~VulkanWindow() {
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
-void VulkanWindow::main_loop() {
+void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot) {
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this));
+    auto simulationRunner = ISimVulkanTickedRunner::getForBackend(
+            backendType,
+            *logicalDevice, physicalDevice, *semaphores->renderFinishedShouldSim, *semaphores->simFinished
+    );
+    auto vulkanBuffers = simulationRunner->prepareBackend(params, snapshot);
 
+    bool firstRun = true;
     bool wantsQuit = false;
     while (!wantsQuit) {
+        fprintf(stderr, "\nFrame start\n");
         uint32_t swFrameIndex;
-        logicalDevice->acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *hasImage, nullptr, &swFrameIndex);
+        fprintf(stderr, "Sending acquireNextImage (Signalling hasImage)\n");
 
+        // NOTE - Previously the sim waited on imageCanBeChanged. This caused a complete stall.
+        // I believe this occurs because imageCanBeChanged is a semaphore for "the display manager has stopped using *the current* image",
+        // and that can only happen once another image has been given in.
+        // See https://stackoverflow.com/a/52673669
+        auto result = logicalDevice->acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *semaphores->imageCanBeChanged, nullptr, &swFrameIndex);
+        check_vulkan_error(result);
+
+        fprintf(stderr, "Sending SystemWorker work\n");
         systemWorker.giveNextWork(SystemWorkerIn{
                 .swFrameIndex = swFrameIndex,
                 .targetFramebuffer = *swapchainFramebuffers[swFrameIndex]
@@ -385,16 +400,18 @@ void VulkanWindow::main_loop() {
 
         // TODO - Dispatch the CUDA simulation with a CUDAified version of the renderFinished semaphore.
         //  Then, lock the draw behind semaphores for both 1. getting the next image 2. CUDA finishing.
-        logicalDevice->waitIdle();
+        fprintf(stderr, "Entering simulation\n");
+        simulationRunner->tick(1/60.0f, !firstRun);
 
+        fprintf(stderr, "Waiting on SystemWorker work\n");
         SystemWorkerOut systemOutput = systemWorker.getOutput();
         if (systemOutput.wantsQuit)
             wantsQuit = true;
 
         vk::SubmitInfo submitInfo{};
-        vk::Semaphore waitSemaphores[] = {*hasImage};
-        vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
-        submitInfo.waitSemaphoreCount = 1;
+        vk::Semaphore waitSemaphores[] = {*semaphores->simFinished, *semaphores->imageCanBeChanged};
+        vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eColorAttachmentOutput};
+        submitInfo.waitSemaphoreCount = 2;
         submitInfo.pWaitSemaphores = waitSemaphores;
         submitInfo.pWaitDstStageMask = waitStages;
 
@@ -404,20 +421,27 @@ void VulkanWindow::main_loop() {
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = cmdBuffers;
 
-        vk::Semaphore signalSemaphores[] = {*renderFinished};
-        submitInfo.signalSemaphoreCount = 1;
+        vk::Semaphore signalSemaphores[] = {*semaphores->renderFinishedShouldSim, *semaphores->renderFinishedShouldPresent};
+        submitInfo.signalSemaphoreCount = 2;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
+        fprintf(stderr, "Submitting graphics work (Waiting on simFinished, signalling renderFinished)\n");
         graphicsQueue.submit({submitInfo}, nullptr);
 
         vk::PresentInfoKHR presentInfo{};
+        vk::Semaphore presentWaitSemaphores[] = {*semaphores->renderFinishedShouldPresent};
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = signalSemaphores;
+        presentInfo.pWaitSemaphores = presentWaitSemaphores;
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &(*swapchain);
         presentInfo.pImageIndices = &swFrameIndex;
         presentInfo.pResults = nullptr;
+        fprintf(stderr, "Submitting presentation (Waiting on renderFinished)\n");
         presentQueue.presentKHR(presentInfo);
+
+        firstRun = false;
+//        logicalDevice->waitIdle();
+//        usleep(1000000);
     }
 
     logicalDevice->waitIdle();

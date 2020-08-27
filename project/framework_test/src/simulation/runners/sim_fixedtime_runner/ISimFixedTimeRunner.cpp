@@ -20,7 +20,6 @@
 #include "util/fatal_error.h"
 
 std::unique_ptr<ISimFixedTimeRunner> ISimFixedTimeRunner::getForBackend(SimulationBackendEnum backendType) {
-
     switch(backendType) {
         case Null:
             return std::make_unique<SimFixedTimeRunner<NullSimulation, Host2DAllocator>>();
@@ -35,7 +34,7 @@ std::unique_ptr<ISimFixedTimeRunner> ISimFixedTimeRunner::getForBackend(Simulati
             return std::make_unique<SimFixedTimeRunner<CudaBackendV1<true>, CudaUnified2DAllocator>>();
 #endif
         default:
-            FATAL_ERROR("Enum val %d doesn't have an ISim10sRunner!\n", backendType);
+            FATAL_ERROR("Enum val %d doesn't have an ISimFixedTimeRunner!\n", backendType);
     }
     return nullptr;
 }

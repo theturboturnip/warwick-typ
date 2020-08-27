@@ -24,6 +24,10 @@ target_sources(generic_sources INTERFACE
         rendering/threads/work/SystemWorker.h
         rendering/vulkan/VulkanShader.cpp
         rendering/vulkan/VulkanShader.h
+        rendering/vulkan/VulkanSemaphore.cpp
+        rendering/vulkan/VulkanSemaphore.h
+        rendering/vulkan/VulkanSemaphoreSet.cpp
+        rendering/vulkan/VulkanSemaphoreSet.h
         rendering/vulkan/VulkanPipeline.cpp
         rendering/vulkan/VulkanPipeline.h
         rendering/vulkan/VulkanPipelineSet.cpp
@@ -73,6 +77,9 @@ target_sources(generic_sources INTERFACE
         simulation/runners/sim_ticked_runner/ISimTickedRunner.cpp
         simulation/runners/sim_ticked_runner/ISimTickedRunner.h
         simulation/runners/sim_ticked_runner/SimTickedRunner.inl
+        simulation/runners/sim_vulkan_ticked_runner
+        simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.cpp
+        simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.h
         simulation/SimulationBackendEnum.h
         util/fatal_error.cpp
         util/fatal_error.h
@@ -98,11 +105,15 @@ target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/utils/CudaUnified2DArray.cuh
         simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh
         simulation/backends/cuda/utils/CudaUnifiedReducer.cuh
+        simulation/backends/cuda/utils/CudaUnifiedReducer.inl
+        simulation/backends/cuda/utils/CudaVulkanSemaphore.cu
+        simulation/backends/cuda/utils/CudaVulkanSemaphore.cuh
         simulation/memory/CudaUnified2DAllocator.cuh
         simulation/memory/CudaUnified2DAllocator.cu
         simulation/memory/vulkan/CudaVulkan2DAllocator.cu
         simulation/memory/vulkan/CudaVulkan2DAllocator.cuh
         util/check_cuda_error.cuh
+        simulation/runners/sim_vulkan_ticked_runner/SimVulkanTickedCudaRunner.inl
         )
 
 add_subdirectory(rendering/shaders)

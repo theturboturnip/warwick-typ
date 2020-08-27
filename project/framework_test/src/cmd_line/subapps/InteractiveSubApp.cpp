@@ -26,10 +26,11 @@ void InteractiveSubApp::run() {
                 { initial.simSize.pixel_size.x + 2, initial.simSize.pixel_size.y + 2 }
                         );
 
-        const auto simSnapshot = window.test_cuda_sim(fluid_props, initial);
-        if (outputFile)
-            simSnapshot.to_file(outputFile.value());
-        window.main_loop();
+        if (outputFile) {
+            window.test_cuda_sim(fluid_props, initial).to_file(outputFile.value());
+        }
+
+        window.main_loop(backend, fluid_props, initial);
     }
 }
 
@@ -42,5 +43,4 @@ void InteractiveSubApp::setupArgumentsForSubcommand(CLI::App *subcommand, const 
             ->required(true);
     converters.addBackendArgument(subcommand, backend);
     subcommand->add_option("--output,-o", outputFile, "File to store the final simulation state");
-
 }

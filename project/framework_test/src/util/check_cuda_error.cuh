@@ -16,6 +16,8 @@
 #endif
 
 #if CUDA_CHECK_ENABLED
+#include "fatal_error.h"
+
 #define CHECK_CUDA_ERROR(error) do { FATAL_ERROR_IF(error != cudaSuccess, "Cuda Error: %s\n", cudaGetErrorString(error)); } while(0);
 #define CHECK_KERNEL_ERROR() CHECK_CUDA_ERROR(cudaPeekAtLastError())
 #define CHECKED_CUDA(X) ([&]{ cudaError_t error = (X); CHECK_CUDA_ERROR(error); }())

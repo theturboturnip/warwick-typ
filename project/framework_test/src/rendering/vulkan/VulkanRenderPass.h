@@ -17,6 +17,7 @@ public:
         PipelineStartAndEnd
     };
 
+    // TODO - AFAIK this uses the copy ctor. Why does that work?
     VulkanRenderPass() : renderPass(nullptr) {}
     VulkanRenderPass(vk::Device device, vk::Format surfaceFormat, Position position);
 

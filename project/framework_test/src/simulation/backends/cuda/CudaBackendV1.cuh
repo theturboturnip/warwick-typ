@@ -19,7 +19,7 @@
 struct CommonParams;
 
 template<bool UnifiedMemoryForExport>
-class CudaBackendV1 : BaseCudaBackend {
+class CudaBackendV1 : public BaseCudaBackend {
 public:
     explicit CudaBackendV1(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s);
 

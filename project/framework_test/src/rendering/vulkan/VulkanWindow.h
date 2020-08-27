@@ -5,6 +5,7 @@
 #pragma once
 
 #include <SDL.h>
+#include <simulation/SimulationBackendEnum.h>
 #include <simulation/file_format/FluidParams.h>
 #include <simulation/file_format/SimSnapshot.h>
 #include <vulkan/vulkan.hpp>
@@ -12,6 +13,8 @@
 #include "VulkanPipelineSet.h"
 #include "VulkanQueueFamilies.h"
 #include "VulkanRenderPass.h"
+#include "VulkanSemaphore.h"
+#include "VulkanSemaphoreSet.h"
 #include "VulkanShader.h"
 #include "util/Size.h"
 
@@ -65,7 +68,7 @@ class VulkanWindow {
     // i.e. multiple frames can be drawn at once.
     // However, we aren't planning on drawing multiple frames at once. The GPU will be busy most of the time doing CUDA work.
     // So we only create two semaphores - has image, and finished rendering.
-    vk::UniqueSemaphore hasImage, renderFinished;
+    std::unique_ptr<VulkanSemaphoreSet> semaphores;
 
     friend class SystemWorker;
 public:
@@ -75,7 +78,7 @@ public:
     ~VulkanWindow();
 
     // TODO - this will change in the future
-    void main_loop();
+    void main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot);
 
 #if CUDA_ENABLED
     SimSnapshot test_cuda_sim(const FluidParams& params, const SimSnapshot& snapshot);
