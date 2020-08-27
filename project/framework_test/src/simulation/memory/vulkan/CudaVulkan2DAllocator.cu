@@ -6,7 +6,7 @@
 
 CudaVulkan2DAllocator::CudaVulkan2DAllocator(vk::Device device, vk::PhysicalDevice physicalDevice)
     : BaseVulkan2DAllocator(MemoryUsage::Device,
-                            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, // TODO - eHostCached? if we try to read from the host?
+                            vk::MemoryPropertyFlagBits::eDeviceLocal, // TODO - eHostVisible, eHostCached? if we try to read from the host?
                             device, physicalDevice),
       externalMemories()
 {}
@@ -21,7 +21,7 @@ AllocatedMemory<void> CudaVulkan2DAllocator::mapFromVulkan_unsafe(BaseVulkan2DAl
     PFN_vkGetMemoryFdKHR fpGetMemoryFdKHR;
     fpGetMemoryFdKHR = (PFN_vkGetMemoryFdKHR)vkGetDeviceProcAddr(device, "vkGetMemoryFdKHR");
     if (!fpGetMemoryFdKHR) {
-        throw std::runtime_error("Failed to retrieve vkGetMemoryWin32HandleKHR!");
+        throw std::runtime_error("Failed to retrieve vkGetMemoryFdKHR!");
     }
     // TODO - it would be nice to use the vulkan.hpp dynamic dispatch here
     if (fpGetMemoryFdKHR(device, &(VkMemoryGetFdInfoKHR&)vulkanMemoryExport, &fd) != VK_SUCCESS) {

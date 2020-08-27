@@ -10,6 +10,7 @@ BaseVulkan2DAllocator::BaseVulkan2DAllocator(const uint32_t usage, const vk::Mem
 uint32_t BaseVulkan2DAllocator::selectMemoryTypeIndex(uint32_t memoryTypeBits) {
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((memoryTypeBits & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & expectedMemoryFlags) == expectedMemoryFlags) {
+            printf("Selecting memory index %d, of heap %d. Taken from memoryTypeBits %x, expecting flags %x\n", i, memProperties.memoryTypes[i].heapIndex, memoryTypeBits, expectedMemoryFlags.operator unsigned int());
             return i;
         }
     }

@@ -63,7 +63,7 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, co
 
     // TODO - Use async GPU stuff for splitting! We have a kernel for that now!
     // Split pressure to red/black in preparation for poisson, which only operates on split matrices
-    if constexpr (UnifiedMemoryForExport) {
+    if constexpr (UnifiedMemoryForExport && false) {
         OriginalOptimized::splitToRedBlack(p.joined.as_cpu(),
                                            p_buffered.red.as_cpu(), p_buffered.black.as_cpu(),
                                            imax, jmax);
@@ -88,7 +88,7 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, co
 
     // Calculate the fluidmask and surroundedmask items
 //    OriginalOptimized::calculateFluidmask((int**)fluidmask.as_cpu(), (const char**)flag.as_cpu(), imax, jmax);
-    if constexpr (UnifiedMemoryForExport) {
+    if constexpr (UnifiedMemoryForExport && false) {
         OriginalOptimized::splitFluidmaskToSurroundedMask((const int **)(fluidmask.as_cpu()),
                                                           (int**)surroundmask.red.as_cpu(), (int**)surroundmask.black.as_cpu(),
                                                           imax, jmax);
@@ -105,9 +105,11 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, co
     cudaDeviceProp thisDevice;
     cudaGetDeviceProperties(&thisDevice, dstDevice);
     printf("device num: %d device name: %s\n", dstDevice, thisDevice.name);
-    u.dispatch_gpu_prefetch(dstDevice, stream);
-    v.dispatch_gpu_prefetch(dstDevice, stream);
-    p.dispatch_gpu_prefetch(dstDevice, stream);
+    if constexpr (UnifiedMemoryForExport && false) {
+        u.dispatch_gpu_prefetch(dstDevice, stream);
+        v.dispatch_gpu_prefetch(dstDevice, stream);
+        p.dispatch_gpu_prefetch(dstDevice, stream);
+    }
     p_buffered.dispatch_gpu_prefetch(dstDevice, stream);
     rhs.dispatch_gpu_prefetch(dstDevice, stream);
     f.dispatch_gpu_prefetch(dstDevice, stream);
