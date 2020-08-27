@@ -17,10 +17,6 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/LegacyRenderPPMSubApp.h
         cmd_line/subapps/InteractiveSubApp.cpp
         cmd_line/subapps/InteractiveSubApp.h
-        simulation/memory/I2DAllocator.h
-        simulation/memory/I2DAllocator.cpp
-        simulation/memory/Host2DAllocator.cpp
-        simulation/memory/Host2DAllocator.h
         rendering/threads/IWorkerThread.h
         rendering/threads/IWorkerThread_Impl.inl
         rendering/threads/ThreadWorkData.h
@@ -61,6 +57,12 @@ target_sources(generic_sources INTERFACE
         simulation/file_format/SimSnapshot.cpp
         simulation/memory/BasicSimulationAllocator.h
         simulation/memory/SimulationAllocs.h
+        simulation/memory/I2DAllocator.h
+        simulation/memory/I2DAllocator.cpp
+        simulation/memory/Host2DAllocator.cpp
+        simulation/memory/Host2DAllocator.h
+        simulation/memory/vulkan/BaseVulkan2DAllocator.cpp
+        simulation/memory/vulkan/BaseVulkan2DAllocator.h
         simulation/runners
         simulation/runners/sim_fixedtime_runner
         simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.cpp

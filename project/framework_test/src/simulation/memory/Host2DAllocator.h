@@ -7,12 +7,12 @@
 #include "I2DAllocator.h"
 
 class Host2DAllocator : public I2DAllocator {
+protected:
     std::vector<void*> hostPointers;
-
+    AllocatedMemory<void> allocate2D_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData) override;
 public:
     Host2DAllocator();
 
-    AllocatedMemory<void> allocate2D_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData) override;
     void freeAll() override;
     ~Host2DAllocator() override;
 };
