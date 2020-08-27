@@ -15,5 +15,6 @@ void fatal_error(const char* filepath, int line, const char* fmt, ...) {
     vfprintf(stderr, fmt, args);
     va_end(args);
 
-    exit(1);
+    // TODO - Make this do the fprintf?
+    throw std::runtime_error("Fatal error");//exit(1);
 }
