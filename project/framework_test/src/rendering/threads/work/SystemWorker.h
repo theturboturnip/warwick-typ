@@ -106,6 +106,15 @@ public:
                 ImGui_ImplSDL2_ProcessEvent(&event);
         }
 
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplSDL2_NewFrame(window);
+        ImGui::NewFrame();
+
+        if (showDemoWindow)
+            ImGui::ShowDemoWindow(&showDemoWindow);
+
+        ImGui::Render();
+
         const auto& cmdBuffer = *frameCmdBuffers[input.swFrameIndex];
         cmdBuffer.reset({});
 
@@ -125,15 +134,6 @@ public:
         cmdBuffer.draw(3, 1, 0, 0);
 
         {
-            ImGui_ImplVulkan_NewFrame();
-            ImGui_ImplSDL2_NewFrame(window);
-            ImGui::NewFrame();
-
-            if (showDemoWindow)
-                ImGui::ShowDemoWindow(&showDemoWindow);
-
-            ImGui::Render();
-
             ImDrawData* draw_data = ImGui::GetDrawData();
             ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffer);
         }
