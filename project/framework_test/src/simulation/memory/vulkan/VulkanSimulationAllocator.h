@@ -19,8 +19,18 @@ template<class Allocator>
 class VulkanSimulationAllocator {
     std::unique_ptr<BaseVulkan2DAllocator> alloc;
 
+    template<typename T>
+    auto allocMatrix(Size<uint32_t> matrixSize, const std::vector<T>& inputVec) {
+        auto vulkanAlloc = alloc->allocateVulkan2D<T>(matrixSize);
+        auto normalAlloc = alloc->mapFromVulkan(vulkanAlloc, &inputVec);
+
+        return std::pair(vulkanAlloc.buffer, normalAlloc);
+    };
+
 public:
     VulkanSimulationAllocator(vk::Device device, vk::PhysicalDevice physicalDevice) : alloc(std::make_unique<Allocator>(device, physicalDevice)) {}
+
+
     std::pair<SimulationAllocs, VulkanSimulationBuffers> makeAllocs (const SimSnapshot& simSnapshot) {
         // TODO - Make a standard way of accessing padded size. It's weird to be constantly adding 2 to everything
         Size<uint32_t> matrixSize = {simSnapshot.simSize.pixel_size.x+2, simSnapshot.simSize.pixel_size.y+2};
@@ -30,17 +40,10 @@ public:
             fluidmask_backing[i] = (simSnapshot.cell_type[i] == CellType::Fluid) ? 0xFFFFFFFF : 0;
         }
 
-        auto allocMatrix = [&](const auto& inputVec) {
-            auto vulkanAlloc = alloc->allocateVulkan2D(matrixSize, &inputVec);
-            auto normalAlloc = alloc->mapFromVulkan(vulkanAlloc);
-
-            return std::pair(vulkanAlloc.buffer, normalAlloc);
-        };
-
-        auto [u_vulkan, u] = allocMatrix(simSnapshot.velocity_x);
-        auto [v_vulkan, v] = allocMatrix(simSnapshot.velocity_y);
-        auto [p_vulkan, p] = allocMatrix(simSnapshot.pressure);
-        auto [fluidmask_vulkan, fluidmask] = allocMatrix(fluidmask_backing);
+        auto [u_vulkan, u] = allocMatrix(matrixSize, simSnapshot.velocity_x);
+        auto [v_vulkan, v] = allocMatrix(matrixSize, simSnapshot.velocity_y);
+        auto [p_vulkan, p] = allocMatrix(matrixSize, simSnapshot.pressure);
+        auto [fluidmask_vulkan, fluidmask] = allocMatrix(matrixSize, fluidmask_backing);
 
         const auto simAllocs = SimulationAllocs {
                 .alloc = alloc.get(),

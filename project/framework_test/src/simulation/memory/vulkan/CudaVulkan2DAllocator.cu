@@ -11,7 +11,7 @@ CudaVulkan2DAllocator::CudaVulkan2DAllocator(vk::Device device, vk::PhysicalDevi
       externalMemories()
 {}
 
-AllocatedMemory<void> CudaVulkan2DAllocator::mapFromVulkan_unsafe(BaseVulkan2DAllocator::VulkanMemory<void> vulkanMemory, size_t elemSize) {
+AllocatedMemory<void> CudaVulkan2DAllocator::mapFromVulkan_unsafe(BaseVulkan2DAllocator::VulkanMemory<void> vulkanMemory, size_t elemSize, const void* initialData) {
     int fd = -1;
 
     vk::MemoryGetFdInfoKHR vulkanMemoryExport{};
@@ -28,11 +28,11 @@ AllocatedMemory<void> CudaVulkan2DAllocator::mapFromVulkan_unsafe(BaseVulkan2DAl
         throw std::runtime_error("Failed to retrieve handle for buffer!");
     }
 
-    const size_t overallSize = vulkanMemory.unmappedMemoryInfo.totalSize * elemSize;
+    const size_t sizeBytes = vulkanMemory.unmappedMemoryInfo.totalSize * elemSize;
 
     cudaExternalMemoryHandleDesc memoryHandle{};
     memoryHandle.type = cudaExternalMemoryHandleTypeOpaqueFd;
-    memoryHandle.size = vulkanMemory.unmappedMemoryInfo.totalSize * elemSize;
+    memoryHandle.size = sizeBytes;
     memoryHandle.handle.fd = fd;
 
     // TODO - Cuda Error Handling
@@ -42,10 +42,12 @@ AllocatedMemory<void> CudaVulkan2DAllocator::mapFromVulkan_unsafe(BaseVulkan2DAl
     void* mappedBuffer = nullptr;
     cudaExternalMemoryBufferDesc buffer{};
     buffer.offset = 0;
-    buffer.size = overallSize;
+    buffer.size = sizeBytes;
     buffer.flags = 0;
 
     cudaExternalMemoryGetMappedBuffer(&mappedBuffer, cudaExternalMemory, &buffer);
+
+    cudaMemcpy(mappedBuffer, initialData, sizeBytes, cudaMemcpyHostToDevice);
 
     externalMemories.push_back(CudaMappedMemory{
             .externalMemory = cudaExternalMemory,

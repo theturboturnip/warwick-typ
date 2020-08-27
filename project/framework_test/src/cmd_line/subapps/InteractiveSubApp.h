@@ -19,6 +19,7 @@ public:
 
     std::string fluid_properties_file;
     std::string input_file;
+    std::optional<std::string> outputFile;
     SimulationBackendEnum backend;
 };
 

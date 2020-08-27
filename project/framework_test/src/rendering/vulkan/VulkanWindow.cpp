@@ -452,7 +452,7 @@ vk::UniqueImageView VulkanWindow::make_identity_view(vk::Image image, vk::Format
 #if CUDA_ENABLED
 #include "simulation/memory/vulkan/VulkanSimulationAllocator.h"
 
-void VulkanWindow::test_cuda_sim(const FluidParams &params, const SimSnapshot &snapshot) {
+SimSnapshot VulkanWindow::test_cuda_sim(const FluidParams &params, const SimSnapshot &snapshot) {
     VulkanSimulationAllocator<CudaVulkan2DAllocator> allocator(*logicalDevice, physicalDevice);
     auto [simAllocs, vulkanAllocs] = allocator.makeAllocs(snapshot);
 
@@ -468,6 +468,6 @@ void VulkanWindow::test_cuda_sim(const FluidParams &params, const SimSnapshot &s
         currentTime += maxTimestep;
     }
     fprintf(stdout, "\n");
-    //return sim.get_snapshot();
+    return sim.get_snapshot();
 }
 #endif

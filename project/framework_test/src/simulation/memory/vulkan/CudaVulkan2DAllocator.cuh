@@ -16,7 +16,7 @@ class CudaVulkan2DAllocator : public BaseVulkan2DAllocator {
     std::vector<CudaMappedMemory> externalMemories;
 
 protected:
-    AllocatedMemory<void> mapFromVulkan_unsafe(VulkanMemory<void>, size_t elemSize) override;
+    AllocatedMemory<void> mapFromVulkan_unsafe(VulkanMemory<void>, size_t elemSize, const void* initialData) override;
 public:
     CudaVulkan2DAllocator(vk::Device device, vk::PhysicalDevice physicalDevice);
 

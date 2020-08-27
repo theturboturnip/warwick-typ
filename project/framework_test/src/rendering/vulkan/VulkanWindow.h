@@ -78,7 +78,7 @@ public:
     void main_loop();
 
 #if CUDA_ENABLED
-    void test_cuda_sim(const FluidParams& params, const SimSnapshot& snapshot);
+    SimSnapshot test_cuda_sim(const FluidParams& params, const SimSnapshot& snapshot);
 #endif
 
 private:

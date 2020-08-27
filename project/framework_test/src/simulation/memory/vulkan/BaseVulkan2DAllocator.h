@@ -51,34 +51,35 @@ private:
 
     uint32_t selectMemoryTypeIndex(uint32_t memoryTypeBits);
 
-    VulkanMemory<void> allocateVulkan_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData);
+    VulkanMemory<void> allocateVulkan_unsafe(Size<uint32_t> size, size_t elemSize);
 
 protected:
     vk::Device device;
 
     BaseVulkan2DAllocator(const uint32_t usage, const vk::MemoryPropertyFlags expectedMemoryFlags, vk::Device device, vk::PhysicalDevice physicalDevice);
 
-    virtual AllocatedMemory<void> mapFromVulkan_unsafe(VulkanMemory<void>, size_t elemSize) = 0;
+    virtual AllocatedMemory<void> mapFromVulkan_unsafe(VulkanMemory<void>, size_t elemSize, const void* initialData) = 0;
     AllocatedMemory<void> allocate2D_unsafe(Size<uint32_t> size, size_t elemSize, const void* initialData) override {
-        VulkanMemory<void> vulkanMemory = allocateVulkan_unsafe(size, elemSize, initialData);
-        return mapFromVulkan_unsafe(vulkanMemory, elemSize);
+        VulkanMemory<void> vulkanMemory = allocateVulkan_unsafe(size, elemSize);
+        return mapFromVulkan_unsafe(vulkanMemory, elemSize, initialData);
     }
 public:
 
     template<typename T, typename = typename std::enable_if_t<!std::is_same_v<T, void>>>
-    VulkanMemory<T> allocateVulkan2D(Size<uint32_t> size, const std::vector<T>* initialData) {
-        if (initialData) {
-            FATAL_ERROR_IF(size.x * size.y != initialData->size(), "Expected size.x*y to be equal to initial data size\n");
-        }
-        VulkanMemory<void> alloc = allocateVulkan_unsafe(size, sizeof(T), initialData ? initialData->data() : nullptr);
+    VulkanMemory<T> allocateVulkan2D(Size<uint32_t> size) {
+        VulkanMemory<void> alloc = allocateVulkan_unsafe(size, sizeof(T));
         return alloc.unsafe_cast<T>();
     }
 
     // TODO - Adapt CPU versions to allow for changing backing pointers.
     //  If we want to pass it to Vulkan on the GPU, we'll have to unmap it at some point, and when we remap it won't be in the same place.
     template<typename T>
-    AllocatedMemory<T> mapFromVulkan(const VulkanMemory<T>& vulkanMemory) {
-        return mapFromVulkan_unsafe(vulkanMemory.template unsafe_cast<void>(), sizeof(T)).template unsafe_cast<T>();
+    AllocatedMemory<T> mapFromVulkan(const VulkanMemory<T>& vulkanMemory, const std::vector<T>* initialData) {
+        if (initialData) {
+            FATAL_ERROR_IF(vulkanMemory.unmappedMemoryInfo.totalSize != initialData->size(), "Expected size.x*y to be equal to initial data size\n");
+        }
+        auto typeErasedMapped = mapFromVulkan_unsafe(vulkanMemory.template unsafe_cast<void>(), sizeof(T), initialData ? initialData->data() : nullptr);
+        return typeErasedMapped.template unsafe_cast<T>();
     }
 
     void freeAll() override;

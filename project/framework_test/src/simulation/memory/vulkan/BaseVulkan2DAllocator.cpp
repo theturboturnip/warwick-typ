@@ -17,7 +17,7 @@ uint32_t BaseVulkan2DAllocator::selectMemoryTypeIndex(uint32_t memoryTypeBits) {
     FATAL_ERROR("Couldn't find suitable memory type!");
 }
 
-BaseVulkan2DAllocator::VulkanMemory<void> BaseVulkan2DAllocator::allocateVulkan_unsafe(Size<uint32_t> size, size_t elemSize, const void *initialData) {
+BaseVulkan2DAllocator::VulkanMemory<void> BaseVulkan2DAllocator::allocateVulkan_unsafe(Size<uint32_t> size, size_t elemSize) {
     const size_t sizeBytes = size.x * size.y * elemSize;
 
     // The buffer is only used by the graphics queue
@@ -40,6 +40,8 @@ BaseVulkan2DAllocator::VulkanMemory<void> BaseVulkan2DAllocator::allocateVulkan_
     vk::UniqueDeviceMemory deviceMem = device.allocateMemoryUnique(allocInfo);
 
     device.bindBufferMemory(*buffer, *deviceMem, 0);
+
+    // TODO - NAUGHTY!
 
     // Create the toReturn before moving the deviceMem and buffer into the memories list.
     const auto toReturn = VulkanMemory<void>{
