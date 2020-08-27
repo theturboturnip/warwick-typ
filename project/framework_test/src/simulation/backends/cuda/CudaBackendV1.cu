@@ -4,9 +4,10 @@
 
 #include "CudaBackendV1.cuh"
 #include <simulation/backends/cuda/kernels/redblack.cuh>
+#include <util/check_cuda_error.cuh>
 
-#include "simulation/backends/original/simulation.h"
 #include "simulation/backends/cuda/kernels/simple.cuh"
+#include "simulation/backends/original/simulation.h"
 
 inline float host_min(float x, float y) {
     return (x<y) ? x : y;
@@ -18,7 +19,7 @@ inline float host_max(float x, float y) {
 
 template<bool UnifiedMemoryForExport>
 CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s)
-    : unifiedAlloc(std::make_unique<CudaUnified2DAllocator>()),
+    : BaseCudaBackend(),
       params(params),
       simSize(s.simSize),
       matrix_size(simSize.pixel_size.x + 2, simSize.pixel_size.y + 2),
@@ -50,16 +51,13 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, co
       flag(unifiedAlloc.get(), matrix_size),
       surroundmask(unifiedAlloc.get(), matrix_size),
 
-      reducer_fullsize(unifiedAlloc.get(), u.raw_length)
-{
+      reducer_fullsize(unifiedAlloc.get(), u.raw_length) {
     flag.memcpy_in(s.get_legacy_cell_flags());
 
     rhs.zero_out();
 
     f.zero_out();
     g.zero_out();
-
-    cudaStreamCreate(&stream);
 
     // TODO - Use async GPU stuff for splitting! We have a kernel for that now!
     // Split pressure to red/black in preparation for poisson, which only operates on split matrices
@@ -88,8 +86,8 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, co
 
     // Calculate the fluidmask and surroundedmask items
     if constexpr (UnifiedMemoryForExport) {
-        OriginalOptimized::splitFluidmaskToSurroundedMask((const int **)(fluidmask.as_cpu()),
-                                                          (int**)surroundmask.red.as_cpu(), (int**)surroundmask.black.as_cpu(),
+        OriginalOptimized::splitFluidmaskToSurroundedMask((const int **) (fluidmask.as_cpu()),
+                                                          (int **) surroundmask.red.as_cpu(), (int **) surroundmask.black.as_cpu(),
                                                           imax, jmax);
     } else {
         CudaUnified2DArray<uint32_t, true> fluidmask_unified(unifiedAlloc.get(), matrix_size);
@@ -100,9 +98,9 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, co
     }
 
     int dstDevice = -1;
-    cudaGetDevice(&dstDevice);// TODO
+    CHECKED_CUDA(cudaGetDevice(&dstDevice));// TODO
     cudaDeviceProp thisDevice;
-    cudaGetDeviceProperties(&thisDevice, dstDevice);
+    CHECKED_CUDA(cudaGetDeviceProperties(&thisDevice, dstDevice));
     printf("device num: %d device name: %s\n", dstDevice, thisDevice.name);
     if constexpr (UnifiedMemoryForExport) {
         u.dispatch_gpu_prefetch(dstDevice, stream);
@@ -115,14 +113,8 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, co
     g.dispatch_gpu_prefetch(dstDevice, stream);
     p_beta.dispatch_gpu_prefetch(dstDevice, stream);
 
-    cudaStreamSynchronize(stream);
+    CHECKED_CUDA(cudaStreamSynchronize(stream));
 }
-
-template<bool UnifiedMemoryForExport>
-CudaBackendV1<UnifiedMemoryForExport>::~CudaBackendV1() {
-    cudaStreamDestroy(stream);
-}
-
 
 template<bool UnifiedMemoryForExport>
 float CudaBackendV1<UnifiedMemoryForExport>::findMaxTimestep() {
@@ -212,6 +204,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep) {
 
     computeRHS_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(f.as_gpu(), g.as_gpu(), fluidmask.as_gpu(), rhs.joined.as_gpu(), gpu_params);
     //cudaStreamSynchronize(stream);
+    CHECK_KERNEL_ERROR();
 
 
     if (ifluid > 0) {
@@ -281,6 +274,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep) {
             float2{params.initial_velocity_x, params.initial_velocity_y},
             gpu_params
             );
+    CHECK_KERNEL_ERROR();
 
 //    OriginalOptimized::applyBoundaryConditions(u2.as_cpu(), v2.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
 }
@@ -296,6 +290,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::dispatch_splitRedBlackCUDA(CudaUnifi
             to_split.red.as_gpu(), to_split.black.as_gpu(),
             params
     );
+    CHECK_KERNEL_ERROR();
 }
 template<bool UnifiedMemoryForExport>
 template<bool UnifiedMemory>
@@ -308,6 +303,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::dispatch_joinRedBlackCUDA(CudaUnifie
             to_join.joined.as_gpu(),
             params
     );
+    CHECK_KERNEL_ERROR();
 }
 
 template<bool UnifiedMemoryForExport>
@@ -366,16 +362,12 @@ void CudaBackendV1<UnifiedMemoryForExport>::dispatch_poissonRedBlackCUDA(dim3 gr
 
                 gpu_params);
     }
-
-//    cudaError_t error = (cudaPeekAtLastError());
-//    if (error != cudaSuccess) {
-//        FATAL_ERROR("CUDA ERROR %s\n", cudaGetErrorString(error));
-//    }
+    CHECK_KERNEL_ERROR();
 }
 
 template<bool UnifiedMemoryForExport>
 LegacySimDump CudaBackendV1<UnifiedMemoryForExport>::dumpStateAsLegacy() {
-    cudaStreamSynchronize(stream);
+    CHECKED_CUDA(cudaStreamSynchronize(stream));
     auto dump = LegacySimDump(simSize.to_legacy());
     dump.u = u.extract_data();
     dump.v = v.extract_data();

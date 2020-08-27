@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <util/fatal_error.h>
+#include <cuda_runtime.h>
+
 #include <vector>
 
-//#include "simulation/backends/cuda/kernels/common.cuh"
-#include <cuda_runtime.h>
-#include <simulation/memory/I2DAllocator.h>
-
+#include "simulation/memory/I2DAllocator.h"
+#include "util/fatal_error.h"
+#include "util/check_cuda_error.cuh"
 
 template<typename T, bool UnifiedMemory>
 class CudaUnified2DArray {
@@ -46,32 +46,32 @@ public:
     }
 
     void zero_out() {
-        cudaMemset(raw_data, 0, raw_length*sizeof(T));
+        CHECKED_CUDA(cudaMemset(raw_data, 0, raw_length*sizeof(T)));
     }
     void memcpy_in(const std::vector<T>& new_data) {
         DASSERT(new_data.size() == raw_length);
-        cudaMemcpy(raw_data, new_data.data(), raw_length * sizeof(T), cudaMemcpyDefault);
+        CHECKED_CUDA(cudaMemcpy(raw_data, new_data.data(), raw_length * sizeof(T), cudaMemcpyDefault));
     }
     template<bool OtherUnifiedMemory>
     void memcpy_in(const CudaUnified2DArray<T, OtherUnifiedMemory>& other) {
         DASSERT(other.raw_length == raw_length);
-        cudaMemcpy(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault);
+        CHECKED_CUDA(cudaMemcpy(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault));
     }
     template<bool OtherUnifiedMemory>
     void dispatch_memcpy_in(const CudaUnified2DArray<T, OtherUnifiedMemory>& other, cudaStream_t stream) {
         DASSERT(other.raw_length == raw_length);
-        cudaMemcpyAsync(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault, stream);
+        CHECKED_CUDA(cudaMemcpyAsync(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault, stream));
     }
     void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) {
         static_assert(UnifiedMemory, "cudaMemPrefetchAsync only works on Unified Memory");
-        cudaMemPrefetchAsync(raw_data, raw_length*sizeof(T), dstDevice, stream);
+        CHECKED_CUDA(cudaMemPrefetchAsync(raw_data, raw_length*sizeof(T), dstDevice, stream));
     }
     std::vector<T> extract_data() {
         if constexpr (UnifiedMemory) {
             return std::vector<T>(raw_data, raw_data + raw_length);
         } else {
             auto vec = std::vector<T>(raw_length);
-            cudaMemcpy(vec.data(), raw_data, raw_length * sizeof(T), cudaMemcpyDeviceToHost);
+            CHECKED_CUDA(cudaMemcpy(vec.data(), raw_data, raw_length * sizeof(T), cudaMemcpyDeviceToHost));
             return vec;
         }
         FATAL_ERROR("We shouldn't get to this point\n");

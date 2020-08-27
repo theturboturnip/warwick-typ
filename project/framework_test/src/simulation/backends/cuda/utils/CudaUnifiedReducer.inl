@@ -26,6 +26,7 @@ float CudaReducer<UnifiedMemoryForBacking, BlockSize>::map_reduce(CudaUnified2DA
         reduce_simple<<<gridsize, blocksize, BlockSize*sizeof(float), stream>>>(reduction_in, curr_input_size,
                 reduction_out,
                 pre, func);
+        CHECK_KERNEL_ERROR();
         //cudaStreamSynchronize(stream);
 
         if (next_direction) {
@@ -40,10 +41,10 @@ float CudaReducer<UnifiedMemoryForBacking, BlockSize>::map_reduce(CudaUnified2DA
         curr_input_size = next_output_size;
     }
 
-    cudaStreamSynchronize(stream);
+    CHECKED_CUDA(cudaStreamSynchronize(stream));
     // curr_input_size = 1 - we're finished! reduction_out has a single float with the result of the reduction
     float result = -1;
-    cudaMemcpy(&result, reduction_out, sizeof(float), cudaMemcpyDefault);
+    CHECKED_CUDA(cudaMemcpy(&result, reduction_out, sizeof(float), cudaMemcpyDefault));
     return result;
 }
 template<bool UnifiedMemoryForBacking, size_t BlockSize>

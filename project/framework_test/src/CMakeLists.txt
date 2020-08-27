@@ -88,6 +88,7 @@ add_library(cuda_sources INTERFACE)
 target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/CudaBackendV1.cu
         simulation/backends/cuda/CudaBackendV1.cuh
+        simulation/backends/cuda/BaseCudaBackend.cuh
         simulation/backends/cuda/kernels/simple.cu
         simulation/backends/cuda/kernels/simple.cuh
         simulation/backends/cuda/kernels/redblack.cu
@@ -101,6 +102,7 @@ target_sources(cuda_sources INTERFACE
         simulation/memory/CudaUnified2DAllocator.cu
         simulation/memory/vulkan/CudaVulkan2DAllocator.cu
         simulation/memory/vulkan/CudaVulkan2DAllocator.cuh
+        util/check_cuda_error.cuh
         )
 
 add_subdirectory(rendering/shaders)

@@ -14,13 +14,14 @@
 #include <simulation/file_format/FluidParams.h>
 #include <simulation/memory/CudaUnified2DAllocator.cuh>
 
+#include "BaseCudaBackend.cuh"
+
 struct CommonParams;
 
 template<bool UnifiedMemoryForExport>
-class CudaBackendV1 {
+class CudaBackendV1 : BaseCudaBackend {
 public:
     explicit CudaBackendV1(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s);
-    ~CudaBackendV1();
 
     float findMaxTimestep();
     void tick(float timestep);
@@ -29,8 +30,6 @@ public:
     SimSnapshot get_snapshot();
 
 private:
-    std::unique_ptr<CudaUnified2DAllocator> unifiedAlloc;
-
     const FluidParams params;
     const SimSize simSize;
     const Size<uint32_t> matrix_size;
@@ -66,6 +65,4 @@ private:
 
     template<RedBlack Kind>
     void dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 blocksize_redblack, int iter, CommonParams gpu_params);
-
-    cudaStream_t stream;
 };

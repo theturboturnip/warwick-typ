@@ -3,6 +3,7 @@
 //
 
 #include "CudaVulkan2DAllocator.cuh"
+#include <util/check_cuda_error.cuh>
 
 CudaVulkan2DAllocator::CudaVulkan2DAllocator(vk::Device device, vk::PhysicalDevice physicalDevice)
     : BaseVulkan2DAllocator(MemoryUsage::Device,
@@ -35,9 +36,8 @@ AllocatedMemory<void> CudaVulkan2DAllocator::mapFromVulkan_unsafe(BaseVulkan2DAl
     memoryHandle.size = sizeBytes;
     memoryHandle.handle.fd = fd;
 
-    // TODO - Cuda Error Handling
     cudaExternalMemory_t cudaExternalMemory;
-    cudaImportExternalMemory(&cudaExternalMemory, &memoryHandle);
+    CHECKED_CUDA(cudaImportExternalMemory(&cudaExternalMemory, &memoryHandle));
 
     void* mappedBuffer = nullptr;
     cudaExternalMemoryBufferDesc buffer{};
@@ -45,9 +45,11 @@ AllocatedMemory<void> CudaVulkan2DAllocator::mapFromVulkan_unsafe(BaseVulkan2DAl
     buffer.size = sizeBytes;
     buffer.flags = 0;
 
-    cudaExternalMemoryGetMappedBuffer(&mappedBuffer, cudaExternalMemory, &buffer);
-
-    cudaMemcpy(mappedBuffer, initialData, sizeBytes, cudaMemcpyHostToDevice);
+    CHECKED_CUDA(cudaExternalMemoryGetMappedBuffer(&mappedBuffer, cudaExternalMemory, &buffer));
+    if (initialData)
+        CHECKED_CUDA(cudaMemcpy(mappedBuffer, initialData, sizeBytes, cudaMemcpyDefault));
+    else
+        CHECKED_CUDA(cudaMemset(mappedBuffer, 0, sizeBytes));
 
     externalMemories.push_back(CudaMappedMemory{
             .externalMemory = cudaExternalMemory,
@@ -64,8 +66,8 @@ AllocatedMemory<void> CudaVulkan2DAllocator::mapFromVulkan_unsafe(BaseVulkan2DAl
 }
 void CudaVulkan2DAllocator::freeAll() {
     for (CudaMappedMemory externalMemory : externalMemories) {
-        cudaFree(externalMemory.cudaPtr);
-        cudaDestroyExternalMemory(externalMemory.externalMemory);
+        CHECKED_CUDA(cudaFree(externalMemory.cudaPtr));
+        CHECKED_CUDA(cudaDestroyExternalMemory(externalMemory.externalMemory));
     }
     externalMemories.clear();
     BaseVulkan2DAllocator::freeAll();
