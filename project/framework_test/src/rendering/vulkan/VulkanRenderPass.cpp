@@ -4,7 +4,7 @@
 
 #include "VulkanRenderPass.h"
 
-VulkanRenderPass::VulkanRenderPass(vk::Device device, vk::Format colorAttachmentFormat, VulkanRenderPass::Position position) {
+VulkanRenderPass::VulkanRenderPass(vk::Device device, vk::Format colorAttachmentFormat, VulkanRenderPass::Position position, vk::ImageLayout targetLayout) {
     const bool isStart = (position == Position::PipelineStart || position == Position::PipelineStartAndEnd);
     const bool isEnd = (position == Position::PipelineEnd || position == Position::PipelineStartAndEnd);
 
@@ -29,7 +29,7 @@ VulkanRenderPass::VulkanRenderPass(vk::Device device, vk::Format colorAttachment
     else
         colorAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
     if (isEnd)
-        colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR; // At the end, it should be in the correct layout for presenting
+        colorAttachment.finalLayout = targetLayout; // At the end, it should be in the correct layout for presenting
     else
         colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 

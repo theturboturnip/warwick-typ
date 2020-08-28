@@ -22,6 +22,8 @@ target_sources(generic_sources INTERFACE
         rendering/threads/ThreadWorkData.h
         rendering/threads/WorkerThreadController.h
         rendering/threads/work/SystemWorker.h
+        rendering/vulkan/VulkanDeviceMemory.cpp
+        rendering/vulkan/VulkanDeviceMemory.h
         rendering/vulkan/VulkanDescriptorSetLayout.cpp
         rendering/vulkan/VulkanDescriptorSetLayout.h
         rendering/vulkan/VulkanShader.cpp

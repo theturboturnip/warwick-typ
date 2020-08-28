@@ -271,18 +271,15 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<uint32_t> w
     }
 
     {
-        renderPass = VulkanRenderPass(*logicalDevice, swapchainProps.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd);//
-    }
-
-    {
-        pipelines = std::make_unique<VulkanPipelineSet>(*logicalDevice, *renderPass, window_size);
+        imguiRenderPass = VulkanRenderPass(*logicalDevice, swapchainProps.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::ePresentSrcKHR);//
+        simRenderPass = VulkanRenderPass(*logicalDevice, vk::Format::eR8G8B8A8Srgb, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal);//
     }
 
     {
         swapchainFramebuffers.clear();
         for (const auto& imageView : swapchainImageViews) {
             auto framebufferCreateInfo = vk::FramebufferCreateInfo();
-            framebufferCreateInfo.renderPass = *renderPass;
+            framebufferCreateInfo.renderPass = *imguiRenderPass;
             framebufferCreateInfo.attachmentCount = 1;
             framebufferCreateInfo.pAttachments = &(*imageView);
             framebufferCreateInfo.width = window_size.x;
@@ -371,6 +368,8 @@ VulkanWindow::~VulkanWindow() {
     SDL_Quit();
 }
 void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot) {
+    pipelines = std::make_unique<VulkanPipelineSet>(*logicalDevice, *simRenderPass, Size<uint32_t>{snapshot.simSize.pixel_size.x + 2, snapshot.simSize.pixel_size.y + 2});
+
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this, snapshot.simSize));
     auto simulationRunner = ISimVulkanTickedRunner::getForBackend(
             backendType,
@@ -458,13 +457,13 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
 
     logicalDevice->waitIdle();
 }
-void VulkanWindow::check_sdl_error(SDL_bool success) {
+void VulkanWindow::check_sdl_error(SDL_bool success) const {
     FATAL_ERROR_IF(!success, "SDL Error: %s\n", SDL_GetError());
 }
-void VulkanWindow::check_vulkan_error(vk::Result result) {
+void VulkanWindow::check_vulkan_error(vk::Result result) const {
     FATAL_ERROR_IF(result != vk::Result::eSuccess, "Vulkan Error: %s\n", vk::to_string(result).c_str());
 }
-vk::UniqueImageView VulkanWindow::make_identity_view(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags) {
+vk::UniqueImageView VulkanWindow::make_identity_view(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags) const {
     auto createInfo = vk::ImageViewCreateInfo();
     createInfo.image = image;
     createInfo.viewType = vk::ImageViewType::e2D;

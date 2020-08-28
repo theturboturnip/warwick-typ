@@ -19,7 +19,7 @@ public:
 
     // TODO - AFAIK this uses the copy ctor. Why does that work?
     VulkanRenderPass() : renderPass(nullptr) {}
-    VulkanRenderPass(vk::Device device, vk::Format surfaceFormat, Position position);
+    VulkanRenderPass(vk::Device device, vk::Format surfaceFormat, Position position, vk::ImageLayout targetLayout);
 
     const vk::RenderPass& operator *() const {
         return *renderPass;

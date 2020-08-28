@@ -60,7 +60,8 @@ class VulkanWindow {
     std::vector<vk::UniqueCommandBuffer> perFrameCommandBuffers;
     //vk::UniqueCommandBuffer imguiCmdBuffer;
 
-    VulkanRenderPass renderPass;
+    VulkanRenderPass imguiRenderPass;
+    VulkanRenderPass simRenderPass;
 
     std::unique_ptr<VulkanPipelineSet> pipelines;
 
@@ -85,10 +86,10 @@ public:
 #endif
 
 private:
-    void check_sdl_error(SDL_bool success);
-    void check_vulkan_error(vk::Result result);
+    void check_sdl_error(SDL_bool success) const;
+    void check_vulkan_error(vk::Result result) const;
 
-    vk::UniqueImageView make_identity_view(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags = vk::ImageAspectFlagBits::eColor);
+    vk::UniqueImageView make_identity_view(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags = vk::ImageAspectFlagBits::eColor) const;
 
     // TODO - unused, remove
     template<typename FuncPtrType>

@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include "rendering/vulkan/VulkanWindow.h"
 #include <SDL_vulkan.h>
 #include <imgui_impl_sdl.h>
 #include <imgui_impl_vulkan.h>
-#include "rendering/vulkan/VulkanWindow.h"
+#include <rendering/vulkan/VulkanDeviceMemory.h>
 
 
 struct SystemWorkerIn {
@@ -31,8 +32,10 @@ struct SystemWorkerOut {
  */
 class SystemWorker {
     SDL_Window* window;
-    vk::RenderPass renderPass;
-    vk::Rect2D renderArea;
+    vk::RenderPass imguiRenderPass;
+    vk::RenderPass simRenderPass;
+    vk::Rect2D imguiRenderArea;
+    vk::Rect2D simRenderArea;
     VulkanPipelineSet* pipelines;
     std::vector<vk::UniqueCommandBuffer> frameCmdBuffers;
     bool showDemoWindow = true;
@@ -42,12 +45,22 @@ class SystemWorker {
 
     VulkanPipelineSet::SimFragPushConstants simFragPushConstants;
 
+    vk::UniqueImage simFramebufferImage;
+    VulkanDeviceMemory simFramebufferMemory;
+    vk::UniqueImageView simFramebufferImageView;
+    vk::UniqueFramebuffer simFramebuffer;
+    vk::UniqueDescriptorSet simImageDescriptorSet;
+
+    ImGuiContext* context;
+
     // TODO - make this allocate the command pool itself?
 public:
     explicit SystemWorker(const VulkanWindow& vulkanWindow, SimSize simSize)
         : window(vulkanWindow.window),
-          renderPass(*vulkanWindow.renderPass),
-          renderArea({0, 0}, {(uint32_t)vulkanWindow.window_size.x, (uint32_t)vulkanWindow.window_size.y}),
+          imguiRenderPass(*vulkanWindow.imguiRenderPass),
+          simRenderPass(*vulkanWindow.simRenderPass),
+          imguiRenderArea({0, 0}, {vulkanWindow.window_size.x, vulkanWindow.window_size.y}),
+          simRenderArea({0, 0}, {simSize.pixel_size.x+2, simSize.pixel_size.y+2}),
           pipelines(vulkanWindow.pipelines.get()),
           simSize(simSize),
           simFragPushConstants({
@@ -58,7 +71,7 @@ public:
           })
     {
         IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
+        context = ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO(); (void)io;
         //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
         //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
@@ -81,7 +94,7 @@ public:
         init_info.MinImageCount = vulkanWindow.swapchainProps.imageCount; // TODO - this isn't right
         init_info.ImageCount = vulkanWindow.swapchainProps.imageCount;
         init_info.CheckVkResultFn = nullptr; // TODO
-        ImGui_ImplVulkan_Init(&init_info, renderPass);
+        ImGui_ImplVulkan_Init(&init_info, imguiRenderPass);
 
         {
             auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
@@ -107,11 +120,54 @@ public:
             vulkanWindow.graphicsQueue.waitIdle();
             ImGui_ImplVulkan_DestroyFontUploadObjects();
         }
+
+        // TODO - make simFramebuffer elements
+        {
+            auto imageCreateInfo = vk::ImageCreateInfo{};
+            imageCreateInfo.imageType = vk::ImageType::e2D;
+            imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+            imageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled;
+            imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+            imageCreateInfo.extent.width = simSize.pixel_size.x+2;
+            imageCreateInfo.extent.height = simSize.pixel_size.y+2;
+            imageCreateInfo.extent.depth = 1;
+            imageCreateInfo.mipLevels = 1;
+            imageCreateInfo.arrayLayers = 1;
+            imageCreateInfo.format = vk::Format::eR8G8B8A8Srgb;
+            imageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+            imageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+            simFramebufferImage = vulkanWindow.logicalDevice->createImageUnique(imageCreateInfo);
+
+            vk::MemoryRequirements memRequirements = vulkanWindow.logicalDevice->getImageMemoryRequirements(*simFramebufferImage);
+
+            simFramebufferMemory = VulkanDeviceMemory(
+                    *vulkanWindow.logicalDevice,
+                    vulkanWindow.physicalDevice,
+                    memRequirements,
+                    vk::MemoryPropertyFlagBits::eDeviceLocal
+                    );
+
+            vulkanWindow.logicalDevice->bindImageMemory(*simFramebufferImage, *simFramebufferMemory, 0);
+
+            simFramebufferImageView = vulkanWindow.make_identity_view(*simFramebufferImage, imageCreateInfo.format, vk::ImageAspectFlagBits::eColor);
+
+            auto framebufferCreateInfo = vk::FramebufferCreateInfo();
+            framebufferCreateInfo.renderPass = *vulkanWindow.simRenderPass;
+            framebufferCreateInfo.attachmentCount = 1;
+            framebufferCreateInfo.pAttachments = &(*simFramebufferImageView);
+            framebufferCreateInfo.width = imageCreateInfo.extent.width;
+            framebufferCreateInfo.height = imageCreateInfo.extent.height;
+            framebufferCreateInfo.layers = 1;
+            simFramebuffer = vulkanWindow.logicalDevice->createFramebufferUnique(framebufferCreateInfo);
+
+            vk::DescriptorSet descriptorSet = ImGui_ImplVulkan_MakeDescriptorSet(*simFramebufferImageView);
+            simImageDescriptorSet = vk::UniqueDescriptorSet(descriptorSet, vk::PoolFree(*vulkanWindow.logicalDevice, *vulkanWindow.descriptorPool, VULKAN_HPP_DEFAULT_DISPATCHER));
+        }
     }
     ~SystemWorker() {
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplSDL2_Shutdown();
-        ImGui::DestroyContext();
+        ImGui::DestroyContext(context);
     }
 
     SystemWorkerOut work(SystemWorkerIn input) {
@@ -134,7 +190,7 @@ public:
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowBgAlpha(0.1f);
         // ImGuiWindowFlags_NoBackground
-        ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize);
         {
             ImGui::Text("Frame %u", input.perf.currentFrame);
             if (input.perf.currentFrame >= input.perf.frameTimes.size()) {
@@ -148,45 +204,65 @@ public:
             ImGui::Checkbox("Running", &wantsRunSim);
         }
         ImGui::End();
+
+        //ImGui::SetNextWindowSize(ImVec2(simSize.pixel_size.x+2, simSize.pixel_size.y+2));
+        ImGui::Begin("Simulation", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Image((ImTextureID)*simImageDescriptorSet, ImVec2(simSize.pixel_size.x+2, simSize.pixel_size.y+2));
+        ImGui::End();
         ImGui::Render();
 
         const auto& cmdBuffer = *frameCmdBuffers[input.swFrameIndex];
         cmdBuffer.reset({});
 
-        auto beginInfo = vk::CommandBufferBeginInfo();
-        auto renderPassInfo = vk::RenderPassBeginInfo();
-        renderPassInfo.renderPass = renderPass;
-        renderPassInfo.framebuffer = input.swFramebuffer;
-        renderPassInfo.renderArea = renderArea;
         auto clearColor = vk::ClearValue(vk::ClearColorValue());
-        clearColor.color.setFloat32({1.0f, 0.0f, 1.0f, 1.0f});
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
+        clearColor.color.setFloat32({0.0f, 0.0f, 0.1f, 1.0f});
+
+
+        auto beginInfo = vk::CommandBufferBeginInfo();
 
         cmdBuffer.begin(beginInfo);
-        cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-        cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipelines->fullscreenPressure);
-        cmdBuffer.pushConstants(
-                *pipelines->fullscreenPressure.layout,
-                vk::ShaderStageFlagBits::eFragment,
-                0,
-                vk::ArrayProxy<const VulkanPipelineSet::SimFragPushConstants>{simFragPushConstants}
-        );
-        cmdBuffer.bindDescriptorSets(
-                         vk::PipelineBindPoint::eGraphics,
-                         *pipelines->fullscreenPressure.layout,
-                         0,
-                         {*pipelines->simulationFragDescriptors},
-                         {}
-        );
-        cmdBuffer.draw(6, 1, 0, 0);
 
         {
-            ImDrawData* draw_data = ImGui::GetDrawData();
-            ImGui_ImplVulkan_RenderDrawData(draw_data, cmdBuffer);
+            auto simRenderPassInfo = vk::RenderPassBeginInfo();
+            simRenderPassInfo.renderPass = simRenderPass;
+            simRenderPassInfo.framebuffer = *simFramebuffer;
+            simRenderPassInfo.renderArea = simRenderArea;
+            simRenderPassInfo.clearValueCount = 1;
+            simRenderPassInfo.pClearValues = &clearColor;
+            cmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
+            cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipelines->fullscreenPressure);
+            cmdBuffer.pushConstants(
+                    *pipelines->fullscreenPressure.layout,
+                    vk::ShaderStageFlagBits::eFragment,
+                    0,
+                    vk::ArrayProxy<const VulkanPipelineSet::SimFragPushConstants>{simFragPushConstants});
+            cmdBuffer.bindDescriptorSets(
+                    vk::PipelineBindPoint::eGraphics,
+                    *pipelines->fullscreenPressure.layout,
+                    0,
+                    {*pipelines->simulationFragDescriptors},
+                    {});
+            cmdBuffer.draw(6, 1, 0, 0);
+            cmdBuffer.endRenderPass();
         }
 
-        cmdBuffer.endRenderPass();
+        {
+            auto imguiRenderPassInfo = vk::RenderPassBeginInfo();
+            imguiRenderPassInfo.renderPass = imguiRenderPass;
+            imguiRenderPassInfo.framebuffer = input.swFramebuffer;
+            imguiRenderPassInfo.renderArea = imguiRenderArea;
+            imguiRenderPassInfo.clearValueCount = 1;
+            imguiRenderPassInfo.pClearValues = &clearColor;
+            cmdBuffer.beginRenderPass(imguiRenderPassInfo, vk::SubpassContents::eInline);
+
+
+            {
+                ImDrawData *draw_data = ImGui::GetDrawData();
+                ImGui_ImplVulkan_RenderDrawData(draw_data, context, cmdBuffer, imguiRenderPass, VK_SAMPLE_COUNT_1_BIT);
+            }
+
+            cmdBuffer.endRenderPass();
+        }
         cmdBuffer.end();
 
         return SystemWorkerOut{

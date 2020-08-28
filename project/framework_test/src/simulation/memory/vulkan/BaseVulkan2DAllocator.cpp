@@ -3,6 +3,8 @@
 //
 
 #include "BaseVulkan2DAllocator.h"
+
+// TODO - Refactor to use VulkanDeviceMemory
 BaseVulkan2DAllocator::BaseVulkan2DAllocator(const uint32_t usage, const vk::MemoryPropertyFlags expectedMemoryFlags, vk::Device device, vk::PhysicalDevice physicalDevice)
     : I2DAllocator(usage), memProperties(physicalDevice.getMemoryProperties()), expectedMemoryFlags(expectedMemoryFlags), device(device)
 {}
