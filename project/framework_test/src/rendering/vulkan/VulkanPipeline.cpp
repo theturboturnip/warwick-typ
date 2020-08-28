@@ -5,13 +5,15 @@
 #include "VulkanPipeline.h"
 
 
-VulkanPipeline::VulkanPipeline(vk::Device device, vk::RenderPass renderPass, Size<size_t> viewportSize, const VertexShader &vertex, const FragmentShader &fragment) {
+VulkanPipeline::VulkanPipeline(vk::Device device, vk::RenderPass renderPass, Size<size_t> viewportSize,
+                               const VertexShader &vertex, const FragmentShader &fragment,
+                               const vk::DescriptorSetLayout* descriptorSetLayout, const vk::PushConstantRange* pushConstantRange) {
     {
         auto pipelineLayoutInfo = vk::PipelineLayoutCreateInfo();
-        pipelineLayoutInfo.setLayoutCount = 0;// Descriptor sets
-        pipelineLayoutInfo.pSetLayouts = nullptr;
-        pipelineLayoutInfo.pushConstantRangeCount = 0;// Push constants
-        pipelineLayoutInfo.pPushConstantRanges = nullptr;
+        pipelineLayoutInfo.setLayoutCount = (descriptorSetLayout ? 1 : 0);// Descriptor sets
+        pipelineLayoutInfo.pSetLayouts = descriptorSetLayout;
+        pipelineLayoutInfo.pushConstantRangeCount = (pushConstantRange ? 1 : 0);// Push constants
+        pipelineLayoutInfo.pPushConstantRanges = pushConstantRange;
 
         layout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
     }

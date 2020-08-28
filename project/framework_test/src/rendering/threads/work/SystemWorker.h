@@ -119,6 +119,8 @@ public:
 //            ImGui::ShowDemoWindow(&showDemoWindow);
 
         ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowBgAlpha(0.1f);
+        // ImGuiWindowFlags_NoBackground
         ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
         {
             ImGui::Text("Frame %u", input.perf.currentFrame);

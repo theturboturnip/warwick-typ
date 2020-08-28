@@ -30,8 +30,8 @@ public:
     {}
 
     VulkanSimulationBuffers prepareBackend(const FluidParams& p, const SimSnapshot& snapshot) override {
-        auto [simAllocs, vulkanAllocs] = allocator->makeAllocs(snapshot);
-        backend = std::make_unique<CudaBackend>(simAllocs, p, snapshot);
+        auto vulkanAllocs = allocator->makeAllocs(snapshot);
+        backend = std::make_unique<CudaBackend>(vulkanAllocs.simAllocs, p, snapshot);
 
         return vulkanAllocs;
     }

@@ -13,6 +13,7 @@
 
 struct VulkanSimulationBuffers {
     vk::Buffer u, v, p, fluidmask;
+    SimulationAllocs simAllocs;
 };
 
 template<class Allocator>
@@ -31,7 +32,7 @@ public:
     VulkanSimulationAllocator(vk::Device device, vk::PhysicalDevice physicalDevice) : alloc(std::make_unique<Allocator>(device, physicalDevice)) {}
 
 
-    std::pair<SimulationAllocs, VulkanSimulationBuffers> makeAllocs (const SimSnapshot& simSnapshot) {
+    VulkanSimulationBuffers makeAllocs (const SimSnapshot& simSnapshot) {
         // TODO - Make a standard way of accessing padded size. It's weird to be constantly adding 2 to everything
         Size<uint32_t> matrixSize = {simSnapshot.simSize.pixel_size.x+2, simSnapshot.simSize.pixel_size.y+2};
 
@@ -58,7 +59,8 @@ public:
                 .v = v_vulkan,
                 .p = p_vulkan,
                 .fluidmask = fluidmask_vulkan,
+                .simAllocs = simAllocs
         };
-        return std::pair(simAllocs, vulkanAllocs);
+        return vulkanAllocs;
     }
 };

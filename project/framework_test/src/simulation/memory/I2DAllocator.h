@@ -19,6 +19,11 @@ struct AllocatedMemory {
     uint32_t height = 0;
     uint32_t columnStride = 0;
 
+    template<typename U=T, typename = typename std::enable_if<!std::is_same_v<U, void>>::type>
+    size_t elemSize() const {
+        return sizeof(T);
+    }
+
     template<typename U>
     AllocatedMemory<U> unsafe_cast() const {
         return AllocatedMemory<U> {

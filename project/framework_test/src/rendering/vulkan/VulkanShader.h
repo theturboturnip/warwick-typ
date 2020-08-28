@@ -18,6 +18,7 @@ template<ShaderStage Stage>
 class VulkanShader {
 public:
     VulkanShader(const VulkanShader&) = delete;
+    VulkanShader(VulkanShader&&) noexcept = default;
     static VulkanShader from_file(vk::Device device, std::string shader_name);
 
     vk::UniqueShaderModule shaderModule;

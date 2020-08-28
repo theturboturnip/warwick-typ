@@ -35,6 +35,7 @@ endfunction()
 compile_glsl(shader_files
         red.frag
         sim_pressure.frag
+        uv.frag
         triangle.vert
         fullscreen_quad.vert
         )

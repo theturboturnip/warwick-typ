@@ -377,6 +377,7 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
             *logicalDevice, physicalDevice, *semaphores->renderFinishedShouldSim, *semaphores->simFinished
     );
     auto vulkanBuffers = simulationRunner->prepareBackend(params, snapshot);
+    pipelines->buildSimulationFragDescriptors(*logicalDevice, *descriptorPool, vulkanBuffers);
 
     std::array<float, 32> frameTimes;
     uint32_t currentFrame = 0;
@@ -486,9 +487,9 @@ vk::UniqueImageView VulkanWindow::make_identity_view(vk::Image image, vk::Format
 
 SimSnapshot VulkanWindow::test_cuda_sim(const FluidParams &params, const SimSnapshot &snapshot) {
     VulkanSimulationAllocator<CudaVulkan2DAllocator> allocator(*logicalDevice, physicalDevice);
-    auto [simAllocs, vulkanAllocs] = allocator.makeAllocs(snapshot);
+    auto vulkanAllocs = allocator.makeAllocs(snapshot);
 
-    auto sim = CudaBackendV1<false>(simAllocs, params, snapshot);
+    auto sim = CudaBackendV1<false>(vulkanAllocs.simAllocs, params, snapshot);
     const float timeToRun = 10;
     float currentTime = 0;
     while(currentTime < timeToRun) {
