@@ -5,7 +5,7 @@
 #include "VulkanPipeline.h"
 
 
-VulkanPipeline::VulkanPipeline(vk::Device device, vk::RenderPass renderPass, Size<size_t> viewportSize,
+VulkanPipeline::VulkanPipeline(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize,
                                const VertexShader &vertex, const FragmentShader &fragment,
                                const vk::DescriptorSetLayout* descriptorSetLayout, const vk::PushConstantRange* pushConstantRange) {
     {
@@ -50,7 +50,7 @@ VulkanPipeline::VulkanPipeline(vk::Device device, vk::RenderPass renderPass, Siz
     viewport.maxDepth = 1.0f;
     auto scissor = vk::Rect2D();
     scissor.offset = vk::Offset2D{0, 0};
-    scissor.extent = vk::Extent2D{(uint32_t)viewportSize.x, (uint32_t)viewportSize.y};
+    scissor.extent = vk::Extent2D{ viewportSize.x, viewportSize.y };
     auto viewportState = vk::PipelineViewportStateCreateInfo();
     viewportState.viewportCount = 1;
     viewportState.pViewports = &viewport;

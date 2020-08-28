@@ -52,7 +52,7 @@ vk::PhysicalDevice selectDevice(const vk::UniqueInstance& instance, DeviceSelect
     FATAL_ERROR("Could not find a suitable device.\n");
 }
 
-VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> window_size) : window_size(window_size), dispatch_loader() {
+VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<uint32_t> window_size) : window_size(window_size), dispatch_loader() {
     window = SDL_CreateWindow(
             app_info.pApplicationName,
                 SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -209,10 +209,10 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<size_t> win
             // The surface doesn't specify an extent to use, so select the one we want.
             // The tutorial just clamps the x/y inside the minimum/maximum ranges. If this ever happens everything is going to look weird, so we just stop.
             if (window_size.x < surfaceCapabilities.minImageExtent.width || surfaceCapabilities.maxImageExtent.width < window_size.x) {
-                FATAL_ERROR("Window width %zu out of range [%u, %u]\n", window_size.x, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
+                FATAL_ERROR("Window width %u out of range [%u, %u]\n", window_size.x, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
             }
             if (window_size.y < surfaceCapabilities.minImageExtent.height || surfaceCapabilities.maxImageExtent.height < window_size.y) {
-                FATAL_ERROR("Window height %zu out of range [%u, %u]\n", window_size.y, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
+                FATAL_ERROR("Window height %u out of range [%u, %u]\n", window_size.y, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
             }
 
             swapchainProps.extents = vk::Extent2D(window_size.x, window_size.y);
@@ -371,7 +371,7 @@ VulkanWindow::~VulkanWindow() {
     SDL_Quit();
 }
 void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot) {
-    auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this));
+    auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this, snapshot.simSize));
     auto simulationRunner = ISimVulkanTickedRunner::getForBackend(
             backendType,
             *logicalDevice, physicalDevice, *semaphores->renderFinishedShouldSim, *semaphores->simFinished
@@ -400,7 +400,7 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
         //fprintf(stderr, "Sending SystemWorker work\n");
         systemWorker.giveNextWork(SystemWorkerIn{
                 .swFrameIndex = swFrameIndex,
-                .targetFramebuffer = *swapchainFramebuffers[swFrameIndex],
+                .swFramebuffer = *swapchainFramebuffers[swFrameIndex],
                 .perf = {
                         .frameTimes = frameTimes,
                         .currentFrame = currentFrame

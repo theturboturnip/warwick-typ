@@ -23,7 +23,7 @@ void InteractiveSubApp::run() {
 
         auto window = VulkanWindow(
                 appinfo,
-                { initial.simSize.pixel_size.x + 2, initial.simSize.pixel_size.y + 2 }
+                {1280, 720}//{ initial.simSize.pixel_size.x + 2, initial.simSize.pixel_size.y + 2 }
                         );
 
         if (outputFile) {

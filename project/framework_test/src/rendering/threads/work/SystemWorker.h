@@ -12,7 +12,7 @@
 
 struct SystemWorkerIn {
     uint32_t swFrameIndex;
-    vk::Framebuffer targetFramebuffer;
+    vk::Framebuffer swFramebuffer;
 
     struct PerfData {
         std::array<float, 32> frameTimes;
@@ -38,20 +38,23 @@ class SystemWorker {
     bool showDemoWindow = true;
     bool wantsRunSim = false;
 
+    SimSize simSize;
+
     VulkanPipelineSet::SimFragPushConstants simFragPushConstants;
 
     // TODO - make this allocate the command pool itself?
 public:
-    explicit SystemWorker(const VulkanWindow& vulkanWindow)
+    explicit SystemWorker(const VulkanWindow& vulkanWindow, SimSize simSize)
         : window(vulkanWindow.window),
           renderPass(*vulkanWindow.renderPass),
           renderArea({0, 0}, {(uint32_t)vulkanWindow.window_size.x, (uint32_t)vulkanWindow.window_size.y}),
           pipelines(vulkanWindow.pipelines.get()),
+          simSize(simSize),
           simFragPushConstants({
-                  .pixelWidth=(uint32_t)vulkanWindow.window_size.x,
-                  .pixelHeight=(uint32_t)vulkanWindow.window_size.y,
-                  .columnStride=(uint32_t)vulkanWindow.window_size.y, // TODO
-                  .totalPixels=(uint32_t)(vulkanWindow.window_size.x * vulkanWindow.window_size.y),
+                  .pixelWidth=simSize.pixel_size.x+2,
+                  .pixelHeight=simSize.pixel_size.y+2,
+                  .columnStride=simSize.pixel_size.y+2, // TODO
+                  .totalPixels=(uint32_t)simSize.pixel_count()
           })
     {
         IMGUI_CHECKVERSION();
@@ -153,7 +156,7 @@ public:
         auto beginInfo = vk::CommandBufferBeginInfo();
         auto renderPassInfo = vk::RenderPassBeginInfo();
         renderPassInfo.renderPass = renderPass;
-        renderPassInfo.framebuffer = input.targetFramebuffer;
+        renderPassInfo.framebuffer = input.swFramebuffer;
         renderPassInfo.renderArea = renderArea;
         auto clearColor = vk::ClearValue(vk::ClearColorValue());
         clearColor.color.setFloat32({1.0f, 0.0f, 1.0f, 1.0f});

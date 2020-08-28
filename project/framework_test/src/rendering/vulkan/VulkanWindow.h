@@ -25,7 +25,7 @@ extern VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
         void* pUserData);
 
 class VulkanWindow {
-    Size<size_t> window_size;
+    Size<uint32_t> window_size;
 
     SDL_Window* window;
     vk::UniqueInstance instance;
@@ -72,9 +72,9 @@ class VulkanWindow {
 
     friend class SystemWorker;
 public:
-    VulkanWindow(const vk::ApplicationInfo& info, Size<size_t> window_size);
+    VulkanWindow(const vk::ApplicationInfo& info, Size<uint32_t> window_size);
     VulkanWindow(const VulkanWindow&) = delete;
-    VulkanWindow(VulkanWindow&&) = delete; // TODO - I think this is right, we shouldn't move stuff because it may depend on pointers???
+    VulkanWindow(VulkanWindow&&) = delete;
     ~VulkanWindow();
 
     // TODO - this will change in the future

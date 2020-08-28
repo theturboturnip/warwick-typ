@@ -12,7 +12,7 @@ class IWorkerThread_Impl : public IWorkerThread<TFrameIn, TFrameOut> {
 
 public:
     template<typename... Args>
-    IWorkerThread_Impl(Args&&... args) : worker(std::forward<Args&&...>(args...)) {}
+    IWorkerThread_Impl(Args&&... args) : worker(std::forward<Args>(args)...) {}
     ~IWorkerThread_Impl() override = default;
 
     void threadLoop() override {

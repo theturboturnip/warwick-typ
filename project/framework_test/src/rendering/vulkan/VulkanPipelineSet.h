@@ -31,7 +31,7 @@ private:
     vk::PushConstantRange simulationFragPushConstantRange;
 
 public:
-    explicit VulkanPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<size_t> viewportSize);
+    explicit VulkanPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize);
     VulkanPipelineSet(VulkanPipelineSet&&) noexcept = default;
 
     vk::UniqueDescriptorSet simulationFragDescriptors;
