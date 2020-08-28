@@ -22,6 +22,7 @@ struct SystemWorkerIn {
 
 struct SystemWorkerOut {
     bool wantsQuit = false;
+    bool wantsRunSim;
     vk::CommandBuffer cmdBuffer;
 };
 
@@ -35,6 +36,9 @@ class SystemWorker {
     VulkanPipelineSet* pipelines;
     std::vector<vk::UniqueCommandBuffer> frameCmdBuffers;
     bool showDemoWindow = true;
+    bool wantsRunSim = false;
+
+    VulkanPipelineSet::SimFragPushConstants simFragPushConstants;
 
     // TODO - make this allocate the command pool itself?
 public:
@@ -42,7 +46,13 @@ public:
         : window(vulkanWindow.window),
           renderPass(*vulkanWindow.renderPass),
           renderArea({0, 0}, {(uint32_t)vulkanWindow.window_size.x, (uint32_t)vulkanWindow.window_size.y}),
-          pipelines(vulkanWindow.pipelines.get())
+          pipelines(vulkanWindow.pipelines.get()),
+          simFragPushConstants({
+                  .pixelWidth=(uint32_t)vulkanWindow.window_size.x,
+                  .pixelHeight=(uint32_t)vulkanWindow.window_size.y,
+                  .columnStride=(uint32_t)vulkanWindow.window_size.y, // TODO
+                  .totalPixels=(uint32_t)(vulkanWindow.window_size.x * vulkanWindow.window_size.y),
+          })
     {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -132,6 +142,7 @@ public:
             } else {
                 ImGui::Text("Not enough frames for FPS");
             }
+            ImGui::Checkbox("Running", &wantsRunSim);
         }
         ImGui::End();
         ImGui::Render();
@@ -151,7 +162,20 @@ public:
 
         cmdBuffer.begin(beginInfo);
         cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-        cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipelines->redQuad);
+        cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipelines->fullscreenPressure);
+        cmdBuffer.pushConstants(
+                *pipelines->fullscreenPressure.layout,
+                vk::ShaderStageFlagBits::eFragment,
+                0,
+                vk::ArrayProxy<const VulkanPipelineSet::SimFragPushConstants>{simFragPushConstants}
+        );
+        cmdBuffer.bindDescriptorSets(
+                         vk::PipelineBindPoint::eGraphics,
+                         *pipelines->fullscreenPressure.layout,
+                         0,
+                         {*pipelines->simulationFragDescriptors},
+                         {}
+        );
         cmdBuffer.draw(6, 1, 0, 0);
 
         {
@@ -164,6 +188,7 @@ public:
 
         return SystemWorkerOut{
             .wantsQuit = wantsQuit,
+            .wantsRunSim = wantsRunSim,
             .cmdBuffer = cmdBuffer
         };
     }

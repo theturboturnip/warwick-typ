@@ -36,14 +36,14 @@ public:
         return vulkanAllocs;
     }
 
-    void tick(float timeToRun, bool waitOnRender) override {
+    void tick(float timeToRun, bool waitOnRender, bool doSim) override {
         if (waitOnRender) {
             //fprintf(stderr, "Waiting on hasImage\n");
             hasImage.waitForAsync(backend->stream);
         }
 
         float currentTime = 0;
-        while(currentTime < timeToRun) {
+        while(doSim && currentTime < timeToRun) {
             //fprintf(stderr, "Starting findMaxTimestep\n");
             float maxTimestep = backend->findMaxTimestep();
             //fprintf(stderr, "Ended findMaxTimestep\n");

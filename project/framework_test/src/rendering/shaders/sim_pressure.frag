@@ -33,7 +33,9 @@ void main() {
         outColor = vec4(1, 0, 1, 0);
     } else if (fluidmask[pixIdx] != 0) {
         // pixIdx is a valid fluid square, go black for now TODO display pressure
-        outColor = vec4(0, 0, 0, 1);
+        //outColor = vec4(0, 0, 0, 1);
+        float pressure01 = pressure[pixIdx] / 10;
+        outColor = vec4(pressure[pixIdx].xxx, 1);
     } else {
         // pixIdx is a valid obstacle square, go green
         outColor = vec4(0, 1, 0, 1);

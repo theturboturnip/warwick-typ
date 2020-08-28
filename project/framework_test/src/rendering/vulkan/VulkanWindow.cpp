@@ -382,6 +382,8 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
     std::array<float, 32> frameTimes;
     uint32_t currentFrame = 0;
 
+    bool wantsRunSim = false;
+
     bool wantsQuit = false;
     while (!wantsQuit) {
         auto frameStartTime = std::chrono::steady_clock::now();
@@ -408,16 +410,17 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
 
         // This dispatches the simulation, and signals the simFinished semaphore once it's done.
         // The simulation doesn't start until renderFinishedShouldSim is signalled, unless this is the first frame, at which point it doesn't bother waiting.
-        simulationRunner->tick(1/60.0f, (currentFrame > 0));
+        simulationRunner->tick(1/60.0f, (currentFrame > 0), wantsRunSim);
 
         //fprintf(stderr, "Waiting on SystemWorker work\n");
         SystemWorkerOut systemOutput = systemWorker.getOutput();
         if (systemOutput.wantsQuit)
             wantsQuit = true;
+        wantsRunSim = systemOutput.wantsRunSim;
 
         vk::SubmitInfo submitInfo{};
-        vk::Semaphore waitSemaphores[] = {*semaphores->simFinished, *semaphores->imageCanBeChanged};
-        vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eColorAttachmentOutput};
+        vk::Semaphore waitSemaphores[] = {*semaphores->imageCanBeChanged, *semaphores->simFinished};
+        vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTopOfPipe};
         submitInfo.waitSemaphoreCount = 2;
         submitInfo.pWaitSemaphores = waitSemaphores;
         submitInfo.pWaitDstStageMask = waitStages;
@@ -428,7 +431,7 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = cmdBuffers;
 
-        vk::Semaphore signalSemaphores[] = {*semaphores->renderFinishedShouldSim, *semaphores->renderFinishedShouldPresent};
+        vk::Semaphore signalSemaphores[] = {*semaphores->renderFinishedShouldPresent, *semaphores->renderFinishedShouldSim};
         submitInfo.signalSemaphoreCount = 2;
         submitInfo.pSignalSemaphores = signalSemaphores;
 

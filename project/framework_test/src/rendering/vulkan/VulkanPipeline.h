@@ -10,8 +10,8 @@
 #include "util/Size.h"
 
 class VulkanPipeline {
-    vk::UniquePipelineLayout layout;
 public:
+    vk::UniquePipelineLayout layout;
     vk::UniquePipeline pipeline;
 
     VulkanPipeline(vk::Device device, vk::RenderPass renderPass,
