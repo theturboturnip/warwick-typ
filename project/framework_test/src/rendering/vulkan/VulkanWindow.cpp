@@ -378,9 +378,12 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
     );
     auto vulkanBuffers = simulationRunner->prepareBackend(params, snapshot);
 
-    bool firstRun = true;
+    std::array<float, 32> frameTimes;
+    uint32_t currentFrame = 0;
+
     bool wantsQuit = false;
     while (!wantsQuit) {
+        auto frameStartTime = std::chrono::steady_clock::now();
         //fprintf(stderr, "\nFrame start\n");
         uint32_t swFrameIndex;
         //fprintf(stderr, "Sending acquireNextImage (Signalling hasImage)\n");
@@ -394,13 +397,17 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
         //fprintf(stderr, "Sending SystemWorker work\n");
         systemWorker.giveNextWork(SystemWorkerIn{
                 .swFrameIndex = swFrameIndex,
-                .targetFramebuffer = *swapchainFramebuffers[swFrameIndex]
+                .targetFramebuffer = *swapchainFramebuffers[swFrameIndex],
+                .perf = {
+                        .frameTimes = frameTimes,
+                        .currentFrame = currentFrame
+                }
         });
 
 
         // This dispatches the simulation, and signals the simFinished semaphore once it's done.
         // The simulation doesn't start until renderFinishedShouldSim is signalled, unless this is the first frame, at which point it doesn't bother waiting.
-        simulationRunner->tick(1/60.0f, !firstRun);
+        simulationRunner->tick(1/60.0f, (currentFrame > 0));
 
         //fprintf(stderr, "Waiting on SystemWorker work\n");
         SystemWorkerOut systemOutput = systemWorker.getOutput();
@@ -438,9 +445,11 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
         //fprintf(stderr, "Submitting presentation (Waiting on renderFinished)\n");
         presentQueue.presentKHR(presentInfo);
 
-        firstRun = false;
-//        logicalDevice->waitIdle();
-//        usleep(1000000);
+        auto frameEndTime = std::chrono::steady_clock::now();
+        std::chrono::duration<double> frameTimeDiff = frameEndTime - frameStartTime;
+        //printf("Frame %zu Time: %f\n", currentFrame % frameTimes.size(), frameTimeDiff.count());
+        frameTimes[currentFrame % frameTimes.size()] = (frameTimeDiff).count();
+        currentFrame++;
     }
 
     logicalDevice->waitIdle();

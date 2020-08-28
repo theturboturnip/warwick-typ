@@ -11,9 +11,13 @@
 
 class VulkanPipelineSet {
     VertexShader triVert;
+    VertexShader fullscreenQuadVert;
     FragmentShader redFrag;
+    FragmentShader simPressure;
 public:
     explicit VulkanPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<size_t> viewportSize);
 
     VulkanPipeline redTriangle;
+    VulkanPipeline redQuad;
+    VulkanPipeline fullscreenPressure;
 };

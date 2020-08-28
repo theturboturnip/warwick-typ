@@ -34,6 +34,8 @@ endfunction()
 
 compile_glsl(shader_files
         red.frag
+        sim_pressure.frag
         triangle.vert
+        fullscreen_quad.vert
         )
 add_library(shaders OBJECT ${PROJECT_SHADER_DIR} ${shader_files})

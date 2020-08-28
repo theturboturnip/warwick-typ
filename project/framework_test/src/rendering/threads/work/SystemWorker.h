@@ -13,6 +13,11 @@
 struct SystemWorkerIn {
     uint32_t swFrameIndex;
     vk::Framebuffer targetFramebuffer;
+
+    struct PerfData {
+        std::array<float, 32> frameTimes;
+        uint32_t currentFrame;
+    } perf;
 };
 
 struct SystemWorkerOut {
@@ -110,9 +115,23 @@ public:
         ImGui_ImplSDL2_NewFrame(window);
         ImGui::NewFrame();
 
-        if (showDemoWindow)
-            ImGui::ShowDemoWindow(&showDemoWindow);
+//        if (showDemoWindow)
+//            ImGui::ShowDemoWindow(&showDemoWindow);
 
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+        {
+            ImGui::Text("Frame %u", input.perf.currentFrame);
+            if (input.perf.currentFrame >= input.perf.frameTimes.size()) {
+                float sumFrameTimes = std::accumulate(input.perf.frameTimes.begin(), input.perf.frameTimes.end(), 0.0f);
+                float avgFrameTime = sumFrameTimes / input.perf.frameTimes.size();
+                ImGui::Text("Avg FPS: %.1f", 1.0f / avgFrameTime);
+                ImGui::Text("Avg frame time: %.2fms", avgFrameTime*1000.0f);
+            } else {
+                ImGui::Text("Not enough frames for FPS");
+            }
+        }
+        ImGui::End();
         ImGui::Render();
 
         const auto& cmdBuffer = *frameCmdBuffers[input.swFrameIndex];
@@ -130,8 +149,8 @@ public:
 
         cmdBuffer.begin(beginInfo);
         cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-        cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipelines->redTriangle);
-        cmdBuffer.draw(3, 1, 0, 0);
+        cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipelines->redQuad);
+        cmdBuffer.draw(6, 1, 0, 0);
 
         {
             ImDrawData* draw_data = ImGui::GetDrawData();
