@@ -38,23 +38,23 @@ public:
 
     void tick(float timeToRun, bool waitOnRender) override {
         if (waitOnRender) {
-            fprintf(stderr, "Waiting on hasImage\n");
+            //fprintf(stderr, "Waiting on hasImage\n");
             hasImage.waitForAsync(backend->stream);
         }
 
         float currentTime = 0;
         while(currentTime < timeToRun) {
-            fprintf(stderr, "Starting findMaxTimestep\n");
+            //fprintf(stderr, "Starting findMaxTimestep\n");
             float maxTimestep = backend->findMaxTimestep();
-            fprintf(stderr, "Ended findMaxTimestep\n");
+            //fprintf(stderr, "Ended findMaxTimestep\n");
             if (currentTime + maxTimestep > timeToRun)
                 maxTimestep = timeToRun - currentTime;
-            fprintf(stderr, "Starting backend->tick()\n");
+            //fprintf(stderr, "Starting backend->tick()\n");
             backend->tick(maxTimestep);
-            fprintf(stderr, "Finishing findMaxTimestep\n");
+            //fprintf(stderr, "Finishing findMaxTimestep\n");
             currentTime += maxTimestep;
         }
-        fprintf(stderr, "Signalling simFinished\n");
+        //fprintf(stderr, "Signalling simFinished\n");
         simFinished.signalAsync(backend->stream);
         //CHECKED_CUDA(cudaStreamSynchronize(backend->stream));
     }

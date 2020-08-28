@@ -381,29 +381,28 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
     bool firstRun = true;
     bool wantsQuit = false;
     while (!wantsQuit) {
-        fprintf(stderr, "\nFrame start\n");
+        //fprintf(stderr, "\nFrame start\n");
         uint32_t swFrameIndex;
-        fprintf(stderr, "Sending acquireNextImage (Signalling hasImage)\n");
+        //fprintf(stderr, "Sending acquireNextImage (Signalling hasImage)\n");
 
         // NOTE - Previously the sim waited on imageCanBeChanged. This caused a complete stall.
         // I believe this occurs because imageCanBeChanged is a semaphore for "the display manager has stopped using *the current* image",
         // and that can only happen once another image has been given in.
         // See https://stackoverflow.com/a/52673669
-        auto result = logicalDevice->acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *semaphores->imageCanBeChanged, nullptr, &swFrameIndex);
-        check_vulkan_error(result);
+        logicalDevice->acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *semaphores->imageCanBeChanged, nullptr, &swFrameIndex);
 
-        fprintf(stderr, "Sending SystemWorker work\n");
+        //fprintf(stderr, "Sending SystemWorker work\n");
         systemWorker.giveNextWork(SystemWorkerIn{
                 .swFrameIndex = swFrameIndex,
                 .targetFramebuffer = *swapchainFramebuffers[swFrameIndex]
         });
 
-        // TODO - Dispatch the CUDA simulation with a CUDAified version of the renderFinished semaphore.
-        //  Then, lock the draw behind semaphores for both 1. getting the next image 2. CUDA finishing.
-        fprintf(stderr, "Entering simulation\n");
+
+        // This dispatches the simulation, and signals the simFinished semaphore once it's done.
+        // The simulation doesn't start until renderFinishedShouldSim is signalled, unless this is the first frame, at which point it doesn't bother waiting.
         simulationRunner->tick(1/60.0f, !firstRun);
 
-        fprintf(stderr, "Waiting on SystemWorker work\n");
+        //fprintf(stderr, "Waiting on SystemWorker work\n");
         SystemWorkerOut systemOutput = systemWorker.getOutput();
         if (systemOutput.wantsQuit)
             wantsQuit = true;
@@ -425,7 +424,7 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
         submitInfo.signalSemaphoreCount = 2;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
-        fprintf(stderr, "Submitting graphics work (Waiting on simFinished, signalling renderFinished)\n");
+        //fprintf(stderr, "Submitting graphics work (Waiting on simFinished, signalling renderFinished)\n");
         graphicsQueue.submit({submitInfo}, nullptr);
 
         vk::PresentInfoKHR presentInfo{};
@@ -436,7 +435,7 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
         presentInfo.pSwapchains = &(*swapchain);
         presentInfo.pImageIndices = &swFrameIndex;
         presentInfo.pResults = nullptr;
-        fprintf(stderr, "Submitting presentation (Waiting on renderFinished)\n");
+        //fprintf(stderr, "Submitting presentation (Waiting on renderFinished)\n");
         presentQueue.presentKHR(presentInfo);
 
         firstRun = false;

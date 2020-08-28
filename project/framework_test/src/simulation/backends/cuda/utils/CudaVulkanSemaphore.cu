@@ -47,7 +47,6 @@ void CudaVulkanSemaphore::waitForAsync(cudaStream_t stream) {
 }
 CudaVulkanSemaphore::~CudaVulkanSemaphore() {
     if (cudaSemaphore) {
-        fprintf(stderr, "Destructing %p\n", cudaSemaphore);
         CHECKED_CUDA(cudaDestroyExternalSemaphore(cudaSemaphore));
     }
 }

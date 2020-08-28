@@ -14,7 +14,7 @@ class CudaVulkanSemaphore {
 
 public:
     CudaVulkanSemaphore(vk::Device device, vk::Semaphore vulkanSemaphore);
-    CudaVulkanSemaphore(const CudaVulkanSemaphore& copy) = delete;
+    CudaVulkanSemaphore(CudaVulkanSemaphore&&) = default;
     ~CudaVulkanSemaphore();
 
     void signalAsync(cudaStream_t);

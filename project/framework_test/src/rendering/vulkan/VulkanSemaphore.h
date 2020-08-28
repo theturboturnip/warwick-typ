@@ -13,9 +13,6 @@ class VulkanSemaphore {
 public:
     explicit VulkanSemaphore(vk::Device device);
     VulkanSemaphore(VulkanSemaphore&&) = default;
-    VulkanSemaphore(const VulkanSemaphore&) {
-        FATAL_ERROR("VulkanSemaphore cctor\n");
-    }
 
     const vk::Semaphore& operator *() const {
         return *semaphore;
