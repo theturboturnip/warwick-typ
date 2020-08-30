@@ -11,7 +11,7 @@
 
 class CpuOptimizedSimBackend : public CpuSimBackendBase {
 public:
-    explicit CpuOptimizedSimBackend(const FluidParams & params, const SimSnapshot& s);
+    explicit CpuOptimizedSimBackend(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s);
 
     float findMaxTimestep();
     void tick(float timestep);

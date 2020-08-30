@@ -4,93 +4,88 @@
 
 #pragma once
 
-#include <util/fatal_error.h>
+#include <cuda_runtime_api.h>
+
 #include <vector>
 
-#include <cuda_runtime.h>
-#include "simulation/backends/cuda/kernels/common.cuh"
+#include "simulation/memory/I2DAllocator.h"
+#include "util/fatal_error.h"
+#include "util/check_cuda_error.cuh"
 
-enum class CudaMemoryType {
-    CudaManaged,
-    Native
-};
-
-template<typename T, CudaMemoryType MemoryType=CudaMemoryType::CudaManaged>
-// TODO - Type erasure for MemoryType? It could be feasible to expect all things to use the same MemoryType
+template<typename T, bool UnifiedMemory>
 class CudaUnified2DArray {
-    //static_assert(!PitchedAlloc, "PitchedAlloc hasn't been implemented yet");
 public:
-    CudaUnified2DArray() : width(0), height(0) {}
-    explicit CudaUnified2DArray(Size<size_t> size) : CudaUnified2DArray(size.x, size.y) {}
-    explicit CudaUnified2DArray(size_t width, size_t height) : width(width), height(height) {
-        // TODO - pitch allocation
-        //  pitched arrays MUST have zeroes in the padding for reductions to work - note this
-        if (MemoryType == CudaMemoryType::CudaManaged) {
-            auto error = cudaMallocManaged(&raw_data, width * height * sizeof(T));
-            if (error != cudaSuccess)
-                FATAL_ERROR("CUDA Alloc Error: %s\n", cudaGetErrorString(error));
-            col_pitch = height;
-            raw_length = width * height;
-        } else {
-            raw_data = (T*)malloc(width * height * sizeof(T));
-            col_pitch = height;
-            raw_length = width * height;
+    CudaUnified2DArray(I2DAllocator* alloc, Size<uint32_t> size)
+        : CudaUnified2DArray(alloc, alloc->allocate2D<T>(size))
+    {}
+    CudaUnified2DArray(I2DAllocator* alloc, AllocatedMemory<T> prealloc) : width(prealloc.width), height(prealloc.height){
+        alloc->requireDeviceUsable();
+        if constexpr (UnifiedMemory) {
+            alloc->requireHostUsable();
         }
 
+        memory = prealloc;
+        raw_data = reinterpret_cast<T*>(memory.pointer);
+        col_pitch = memory.columnStride;
+        raw_length = memory.totalSize;
+
+        // TODO - Is it worth specializing this class in order to not store CPU pointers on nonunified memory?
         cpu_pointers = std::vector<T*>();
-        for (int i = 0; i < width; i++) {
+        for (uint32_t i = 0; i < width; i++) {
             cpu_pointers.push_back(raw_data + (i * col_pitch));
         }
     }
-    CudaUnified2DArray(const CudaUnified2DArray<T>&) = delete;
-    ~CudaUnified2DArray() {
-        if (raw_data) {
-            if (MemoryType == CudaMemoryType::CudaManaged) {
-                cudaFree(raw_data);
-            } else {
-                free(raw_data);
-            }
-        }
-    }
+    CudaUnified2DArray(const CudaUnified2DArray<T, UnifiedMemory>&) = delete;
 
-    void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) {
-        cudaMemPrefetchAsync(raw_data, raw_length*sizeof(T), dstDevice, stream);
-    }
-
-    template<typename = typename std::enable_if<MemoryType == CudaMemoryType::CudaManaged>::type>
     T* as_gpu() {
-        static_assert(MemoryType == CudaMemoryType::CudaManaged, "as_gpu() only exists when NativeMemOnly = false!");
         return raw_data;
     }
     T** as_cpu() {
+        static_assert(UnifiedMemory, "Cannot get CPU pointers for not-unified data!");
         return cpu_pointers.data();
     }
 
     void zero_out() {
-        memset(raw_data, 0, raw_length*sizeof(T));
+        CHECKED_CUDA(cudaMemset(raw_data, 0, raw_length*sizeof(T)));
     }
     void memcpy_in(const std::vector<T>& new_data) {
         DASSERT(new_data.size() == raw_length);
-        // TODO - Use cudaMemcpy here?
-        memcpy(raw_data, new_data.data(), raw_length * sizeof(T));
+        CHECKED_CUDA(cudaMemcpy(raw_data, new_data.data(), raw_length * sizeof(T), cudaMemcpyDefault));
     }
-    void memcpy_in(const CudaUnified2DArray<T>& other) {
+    template<bool OtherUnifiedMemory>
+    void memcpy_in(const CudaUnified2DArray<T, OtherUnifiedMemory>& other) {
         DASSERT(other.raw_length == raw_length);
-        cudaMemcpy(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault);
+        CHECKED_CUDA(cudaMemcpy(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault));
     }
-    void dispatch_memcpy_in(const CudaUnified2DArray<T>& other, cudaStream_t stream) {
+    template<bool OtherUnifiedMemory>
+    void dispatch_memcpy_in(const CudaUnified2DArray<T, OtherUnifiedMemory>& other, cudaStream_t stream) {
         DASSERT(other.raw_length == raw_length);
-        cudaMemcpyAsync(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault, stream);
+        CHECKED_CUDA(cudaMemcpyAsync(raw_data, other.raw_data, raw_length*sizeof(T), cudaMemcpyDefault, stream));
+    }
+    void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) {
+        static_assert(UnifiedMemory, "cudaMemPrefetchAsync only works on Unified Memory");
+        CHECKED_CUDA(cudaMemPrefetchAsync(raw_data, raw_length*sizeof(T), dstDevice, stream));
     }
     std::vector<T> extract_data() {
-        return std::vector<T>(raw_data, raw_data + raw_length);
+        if constexpr (UnifiedMemory) {
+            return std::vector<T>(raw_data, raw_data + raw_length);
+        } else {
+            auto vec = std::vector<T>(raw_length);
+            CHECKED_CUDA(cudaMemcpy(vec.data(), raw_data, raw_length * sizeof(T), cudaMemcpyDeviceToHost));
+            return vec;
+        }
+        FATAL_ERROR("We shouldn't get to this point\n");
     }
 
-    const size_t width, height;
-    size_t col_pitch;
+    // TODO - These are all copies of elements of AllocatedMemory<T>. Remove them
+    const uint32_t width, height;
+    uint32_t col_pitch;
     size_t raw_length;
 private:
     T* raw_data = nullptr;
+    AllocatedMemory<T> memory;
 
     std::vector<T*> cpu_pointers;
+
+    friend class CudaUnified2DArray<T, !UnifiedMemory>;
 };

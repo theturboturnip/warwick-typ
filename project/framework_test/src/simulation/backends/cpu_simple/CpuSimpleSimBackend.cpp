@@ -20,7 +20,7 @@
 #define eps_N ((flag[i][j+1] & C_F)?1:0)
 #define eps_S ((flag[i][j-1] & C_F)?1:0)
 
-CpuSimpleSimBackend::CpuSimpleSimBackend(const FluidParams & params, const SimSnapshot& s) : CpuSimBackendBase(params, s) {}
+CpuSimpleSimBackend::CpuSimpleSimBackend(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s) : CpuSimBackendBase(allocs, params, s) {}
 
 float CpuSimpleSimBackend::findMaxTimestep() {
     int i, j;

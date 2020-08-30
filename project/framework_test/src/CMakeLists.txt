@@ -15,6 +15,33 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/CompareSubApp.h
         cmd_line/subapps/LegacyRenderPPMSubApp.cpp
         cmd_line/subapps/LegacyRenderPPMSubApp.h
+        cmd_line/subapps/InteractiveSubApp.cpp
+        cmd_line/subapps/InteractiveSubApp.h
+        rendering/threads/IWorkerThread.h
+        rendering/threads/IWorkerThread_Impl.inl
+        rendering/threads/ThreadWorkData.h
+        rendering/threads/WorkerThreadController.h
+        rendering/threads/work/SystemWorker.h
+        rendering/vulkan/VulkanDeviceMemory.cpp
+        rendering/vulkan/VulkanDeviceMemory.h
+        rendering/vulkan/VulkanDescriptorSetLayout.cpp
+        rendering/vulkan/VulkanDescriptorSetLayout.h
+        rendering/vulkan/VulkanShader.cpp
+        rendering/vulkan/VulkanShader.h
+        rendering/vulkan/VulkanSemaphore.cpp
+        rendering/vulkan/VulkanSemaphore.h
+        rendering/vulkan/VulkanSemaphoreSet.cpp
+        rendering/vulkan/VulkanSemaphoreSet.h
+        rendering/vulkan/VulkanPipeline.cpp
+        rendering/vulkan/VulkanPipeline.h
+        rendering/vulkan/VulkanPipelineSet.cpp
+        rendering/vulkan/VulkanPipelineSet.h
+        rendering/vulkan/VulkanQueueFamilies.cpp
+        rendering/vulkan/VulkanQueueFamilies.h
+        rendering/vulkan/VulkanRenderPass.cpp
+        rendering/vulkan/VulkanRenderPass.h
+        rendering/vulkan/VulkanWindow.cpp
+        rendering/vulkan/VulkanWindow.h
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp
@@ -36,6 +63,15 @@ target_sources(generic_sources INTERFACE
         simulation/file_format/SimSize.h
         simulation/file_format/SimSnapshot.h
         simulation/file_format/SimSnapshot.cpp
+        simulation/memory/BasicSimulationAllocator.h
+        simulation/memory/SimulationAllocs.h
+        simulation/memory/I2DAllocator.h
+        simulation/memory/I2DAllocator.cpp
+        simulation/memory/Host2DAllocator.cpp
+        simulation/memory/Host2DAllocator.h
+        simulation/memory/vulkan/BaseVulkan2DAllocator.cpp
+        simulation/memory/vulkan/BaseVulkan2DAllocator.h
+        simulation/memory/vulkan/VulkanSimulationAllocator.h
         simulation/runners
         simulation/runners/sim_fixedtime_runner
         simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.cpp
@@ -45,6 +81,9 @@ target_sources(generic_sources INTERFACE
         simulation/runners/sim_ticked_runner/ISimTickedRunner.cpp
         simulation/runners/sim_ticked_runner/ISimTickedRunner.h
         simulation/runners/sim_ticked_runner/SimTickedRunner.inl
+        simulation/runners/sim_vulkan_ticked_runner
+        simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.cpp
+        simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.h
         simulation/SimulationBackendEnum.h
         util/fatal_error.cpp
         util/fatal_error.h
@@ -60,6 +99,7 @@ add_library(cuda_sources INTERFACE)
 target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/CudaBackendV1.cu
         simulation/backends/cuda/CudaBackendV1.cuh
+        simulation/backends/cuda/BaseCudaBackend.cuh
         simulation/backends/cuda/kernels/simple.cu
         simulation/backends/cuda/kernels/simple.cuh
         simulation/backends/cuda/kernels/redblack.cu
@@ -69,4 +109,15 @@ target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/utils/CudaUnified2DArray.cuh
         simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh
         simulation/backends/cuda/utils/CudaUnifiedReducer.cuh
+        simulation/backends/cuda/utils/CudaUnifiedReducer.inl
+        simulation/backends/cuda/utils/CudaVulkanSemaphore.cu
+        simulation/backends/cuda/utils/CudaVulkanSemaphore.cuh
+        simulation/memory/CudaUnified2DAllocator.cuh
+        simulation/memory/CudaUnified2DAllocator.cu
+        simulation/memory/vulkan/CudaVulkan2DAllocator.cu
+        simulation/memory/vulkan/CudaVulkan2DAllocator.cuh
+        util/check_cuda_error.cuh
+        simulation/runners/sim_vulkan_ticked_runner/SimVulkanTickedCudaRunner.inl
         )
+
+add_subdirectory(rendering/shaders)

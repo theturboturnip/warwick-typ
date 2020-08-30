@@ -4,7 +4,7 @@
 
 #include "NullSimulation.h"
 
-NullSimulation::NullSimulation(const FluidParams & params, const SimSnapshot& dump)
+NullSimulation::NullSimulation(SimulationAllocs allocs, const FluidParams & params, const SimSnapshot& dump)
     : m_state(dump)
 {}
 

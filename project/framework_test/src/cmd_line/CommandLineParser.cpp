@@ -6,6 +6,7 @@
 
 #include <CLI/CLI11.hpp>
 
+#include "cmd_line/subapps/InteractiveSubApp.h"
 #include "cmd_line/subapps/CompareSubApp.h"
 #include "cmd_line/subapps/ConvertOldBinaryToNewBinarySubApp.h"
 #include "cmd_line/subapps/FixedTimeSimSubApp.h"
@@ -28,6 +29,7 @@ int CommandLineParser::parseArguments(int argc, const char *argv[]) {
                      std::make_shared<CompareSubApp>(),
                      std::make_shared<LegacyRenderPPMSubApp>(),
                      std::make_shared<ConvertOldBinaryToNewBinarySubApp>(),
+                     std::make_shared<InteractiveSubApp>(),
             }};
 
     const CommandLineConverters converters{};

@@ -14,8 +14,8 @@
 
 #include "simulation/backends/original/simulation.h"
 
-CpuOptimizedSimBackend::CpuOptimizedSimBackend(const FluidParams & params, const SimSnapshot& s) :
-    CpuSimBackendBase(params, s),
+CpuOptimizedSimBackend::CpuOptimizedSimBackend(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s) :
+    CpuSimBackendBase(allocs, params, s),
     p_beta(imax+2, jmax+2, 0),
     p_beta_red(imax+2, (jmax+2)/2, 0),
     p_beta_black(imax+2, (jmax+2)/2, 0),

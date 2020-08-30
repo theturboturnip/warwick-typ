@@ -8,7 +8,7 @@
 #include "util/Size.h"
 
 struct SimSize {
-    SimSize(Size<size_t> pixel_size, Size<float> physical_size)
+    SimSize(Size<uint32_t> pixel_size, Size<float> physical_size)
         : pixel_size(pixel_size),
           physical_size(physical_size)
     {}
@@ -20,7 +20,7 @@ struct SimSize {
     }
 
     // Size of the simulation grid in pixels
-    const Size<size_t> pixel_size;
+    const Size<uint32_t> pixel_size;
     // Size of the simulation grid in meters
     const Size<float> physical_size;
 
