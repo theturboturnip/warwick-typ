@@ -32,8 +32,7 @@ void main() {
         // Something's gone wrong - go purple!
         outColor = vec4(1, 0, 1, 0);
     } else if (fluidmask[pixIdx] != 0) {
-        // pixIdx is a valid fluid square, go black for now TODO display pressure
-        //outColor = vec4(0, 0, 0, 1);
+        // pixIdx is a valid fluid square, display pressure
         float pressure01 = pressure[pixIdx] / 10;
         outColor = vec4(pressure[pixIdx].xxx, 1);
     } else {

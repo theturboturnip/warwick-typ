@@ -29,7 +29,9 @@ int CommandLineParser::parseArguments(int argc, const char *argv[]) {
                      std::make_shared<CompareSubApp>(),
                      std::make_shared<LegacyRenderPPMSubApp>(),
                      std::make_shared<ConvertOldBinaryToNewBinarySubApp>(),
+#if CUDA_ENABLED
                      std::make_shared<InteractiveSubApp>(),
+#endif
             }};
 
     const CommandLineConverters converters{};

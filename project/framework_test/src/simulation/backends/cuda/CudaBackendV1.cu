@@ -62,10 +62,14 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, co
     // TODO - Use async GPU stuff for splitting! We have a kernel for that now!
     // Split pressure to red/black in preparation for poisson, which only operates on split matrices
     if constexpr (UnifiedMemoryForExport) {
+        // The buffer is Unified Memory, so use it directly
         OriginalOptimized::splitToRedBlack(p.joined.as_cpu(),
                                            p_buffered.red.as_cpu(), p_buffered.black.as_cpu(),
                                            imax, jmax);
     } else {
+        // The buffer is not unified memory,
+        // so create a new Unified memory buffer and copy the data in,
+        // then use that instead.
         CudaUnified2DArray<float, true> p_unified(unifiedAlloc.get(), matrix_size);
         p_unified.memcpy_in(p.joined);
         OriginalOptimized::splitToRedBlack(p_unified.as_cpu(),

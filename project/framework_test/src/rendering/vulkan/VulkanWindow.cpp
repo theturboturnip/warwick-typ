@@ -8,7 +8,6 @@
 #if CUDA_ENABLED
 #include <simulation/backends/cuda/CudaBackendV1.cuh>
 #include <simulation/memory/vulkan/CudaVulkan2DAllocator.cuh>
-#include <simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.h>
 #include <zconf.h>
 #endif
 
@@ -17,6 +16,7 @@
 #include "rendering/threads/WorkerThreadController.h"
 #include "rendering/threads/work/SystemWorker.h"
 #include "util/fatal_error.h"
+#include <simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.h>
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -361,6 +361,7 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<uint32_t> w
 
     {
         semaphores = std::make_unique<VulkanSemaphoreSet>(*logicalDevice);
+        graphicsFence = std::make_unique<VulkanFence>(*logicalDevice);
     }
 }
 VulkanWindow::~VulkanWindow() {
@@ -378,7 +379,7 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
     auto vulkanBuffers = simulationRunner->prepareBackend(params, snapshot);
     pipelines->buildSimulationFragDescriptors(*logicalDevice, *descriptorPool, vulkanBuffers);
 
-    std::array<float, 32> frameTimes;
+    std::array<float, 32> frameTimes{};
     uint32_t currentFrame = 0;
 
     bool wantsRunSim = false;
@@ -405,7 +406,6 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
                         .currentFrame = currentFrame
                 }
         });
-
 
         // This dispatches the simulation, and signals the simFinished semaphore once it's done.
         // The simulation doesn't start until renderFinishedShouldSim is signalled, unless this is the first frame, at which point it doesn't bother waiting.
@@ -435,7 +435,14 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
         submitInfo.pSignalSemaphores = signalSemaphores;
 
         //fprintf(stderr, "Submitting graphics work (Waiting on simFinished, signalling renderFinished)\n");
-        graphicsQueue.submit({submitInfo}, nullptr);
+        if (currentFrame > 0) {
+            // Now wait on the fence, to make sure we don't try to render two graphics at once
+            logicalDevice->waitForFences({**graphicsFence}, true, UINT64_MAX);
+            // Reset the fence so we can use it again later
+            logicalDevice->resetFences({**graphicsFence});
+        }
+        graphicsQueue.submit({submitInfo}, **graphicsFence);
+
 
         vk::PresentInfoKHR presentInfo{};
         vk::Semaphore presentWaitSemaphores[] = {*semaphores->renderFinishedShouldPresent};

@@ -37,10 +37,10 @@ struct FluidParams {
     //      (dui/dx = (u(xi+1) - u(xi-1))/2dx)
     // or with forward/backward differences.
     //      (dui/dx = (u(xi+1) - u(xi))/dx for forward difference)
-    // If you use central differences, the "discretization error" is O(dx^2),
+    // If you use central differences, the "discretization error" is big-O(dx^2),
     // but if dx is too large then the simulation can begin to oscillate. (p23)
     // If you use forward/backwards differences this is completely prevented,
-    // but the discretization error drops to O(dx).
+    // but the discretization error drops to big-O(dx).
     // Combining these two using a weighted average allows for a compromise between
     // a stable simulation and a low discretization error.
     // gamma is the weight of that average

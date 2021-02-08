@@ -26,9 +26,11 @@ void InteractiveSubApp::run() {
                 {1280, 720}//{ initial.simSize.pixel_size.x + 2, initial.simSize.pixel_size.y + 2 }
                         );
 
+#if CUDA_ENABLED
         if (outputFile) {
             window.test_cuda_sim(fluid_props, initial).to_file(outputFile.value());
         }
+#endif
 
         window.main_loop(backend, fluid_props, initial);
     }

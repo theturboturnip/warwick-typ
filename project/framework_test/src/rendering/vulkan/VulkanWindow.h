@@ -10,6 +10,7 @@
 #include <simulation/file_format/SimSnapshot.h>
 #include <vulkan/vulkan.hpp>
 
+#include "VulkanFence.h"
 #include "VulkanPipelineSet.h"
 #include "VulkanQueueFamilies.h"
 #include "VulkanRenderPass.h"
@@ -70,6 +71,7 @@ class VulkanWindow {
     // However, we aren't planning on drawing multiple frames at once. The GPU will be busy most of the time doing CUDA work.
     // So we only create two semaphores - has image, and finished rendering.
     std::unique_ptr<VulkanSemaphoreSet> semaphores;
+    std::unique_ptr<VulkanFence> graphicsFence;
 
     friend class SystemWorker;
 public:
