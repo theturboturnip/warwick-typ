@@ -3,24 +3,31 @@
 //
 
 #include "VulkanQueueFamilies.h"
-VulkanQueueFamilies VulkanQueueFamilies::fill_from_vulkan(vk::PhysicalDevice device, vk::UniqueSurfaceKHR& surface) {
-    auto families = VulkanQueueFamilies();
-
+std::optional<VulkanQueueFamilies> VulkanQueueFamilies::getForDevice(vk::PhysicalDevice device, vk::UniqueSurfaceKHR& surface) {
     auto queueFamilyProperties = device.getQueueFamilyProperties();
     uint32_t queueFamilyIndex = 0;
+
+    std::optional<uint32_t> graphicsFamily = std::nullopt;
+    std::optional<uint32_t> presentFamily = std::nullopt;
+
     for (const auto& queueFamily : queueFamilyProperties) {
         if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
-            families.graphics_family = queueFamilyIndex;
+            graphicsFamily = queueFamilyIndex;
 
         if (device.getSurfaceSupportKHR(queueFamilyIndex, *surface)) {
-            families.present_family = queueFamilyIndex;
+            presentFamily = queueFamilyIndex;
         }
 
-        if (families.complete())
-            break;
+        if (graphicsFamily.has_value() && presentFamily.has_value()) {
+            return VulkanQueueFamilies{
+                    .graphicsFamily = graphicsFamily.value(),
+                    .presentFamily = presentFamily.value()
+            };
+        }
 
         queueFamilyIndex++;
     }
 
-    return families;
+    // We didn't find both a graphics and present family, we failed.
+    return std::nullopt;
 }
