@@ -113,26 +113,6 @@ VulkanSetup::VulkanSetup(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize)
         VkSurfaceKHR rawSurface = nullptr;
         CHECKED_SDL(SDL_Vulkan_CreateSurface(window, *instance, &rawSurface));
         surface = vk::UniqueSurfaceKHR(rawSurface, *instance);
-
-        // Try to select a specific format first,
-        // as in the tutorial https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
-        surfaceFormat = selectOrFallback<vk::SurfaceFormatKHR>(
-                physicalDevice.getSurfaceFormatsKHR(*surface),
-                {
-                        vk::SurfaceFormatKHR(
-                                vk::Format::eB8G8R8A8Srgb,
-                                vk::ColorSpaceKHR::eSrgbNonlinear
-                        )
-                }
-        );
-
-        presentMode = selectIfPossible<vk::PresentModeKHR>(
-                physicalDevice.getSurfacePresentModesKHR(*surface),
-                {
-                        vk::PresentModeKHR::eMailbox,
-                        vk::PresentModeKHR::eFifo
-                }
-        );
     }
 
     // Select the physical device,
@@ -144,7 +124,7 @@ VulkanSetup::VulkanSetup(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize)
                 VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,
                 VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
         };
-        auto requiredDeviceExtensionsSet = std::set<const char*>(requiredDeviceExtensions.begin(), requiredDeviceExtensions.end());
+        auto requiredDeviceExtensionsSet = std::set<std::string>(requiredDeviceExtensions.begin(), requiredDeviceExtensions.end());
 
         physicalDevice = selectAnySuitable<vk::PhysicalDevice>(
                 instance->enumeratePhysicalDevices(),
@@ -161,7 +141,8 @@ VulkanSetup::VulkanSetup(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize)
                     auto availableExtensions = potentialDevice.enumerateDeviceExtensionProperties();
                     auto missingExtensions = requiredDeviceExtensionsSet;
                     for (const auto& extension : availableExtensions) {
-                        missingExtensions.erase(extension.extensionName);
+                        // Use std::string so that it doesn't check for pointer equality
+                        missingExtensions.erase(std::string(extension.extensionName));
                     }
                     if (!missingExtensions.empty())
                         return false; // Some extensions missing
@@ -210,6 +191,29 @@ VulkanSetup::VulkanSetup(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize)
         graphicsQueue = device->getQueue(queueFamilies.graphicsFamily, 0);
         presentQueue = device->getQueue(queueFamilies.presentFamily, 0);
     }
+
+    // Get possible surface formats
+
+    // Try to select a specific format first,
+    // as in the tutorial https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
+    surfaceFormat = selectOrFallback<vk::SurfaceFormatKHR>(
+            physicalDevice.getSurfaceFormatsKHR(*surface),
+            {
+                    vk::SurfaceFormatKHR(
+                            vk::Format::eB8G8R8A8Srgb,
+                            vk::ColorSpaceKHR::eSrgbNonlinear
+                    )
+            }
+    );
+
+    presentMode = selectIfPossible<vk::PresentModeKHR>(
+            physicalDevice.getSurfacePresentModesKHR(*surface),
+            {
+                    vk::PresentModeKHR::eMailbox,
+                    vk::PresentModeKHR::eFifo
+            }
+    );
+
 }
 
 VulkanSetup::~VulkanSetup() {
