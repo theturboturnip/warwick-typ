@@ -10,5 +10,5 @@ struct VulkanSemaphoreSet {
 public:
     VulkanSemaphore imageCanBeChanged, simFinished, renderFinishedShouldPresent, renderFinishedShouldSim;
 
-    VulkanSemaphoreSet(vk::Device);
+    explicit VulkanSemaphoreSet(vk::Device);
 };
