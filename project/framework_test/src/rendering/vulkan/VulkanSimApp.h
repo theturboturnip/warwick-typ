@@ -10,12 +10,13 @@
 #include <simulation/file_format/SimSnapshot.h>
 #include <vulkan/vulkan.hpp>
 
+#include "VulkanSetup.h"
+#include "VulkanSimPipelineSet.h"
+#include "VulkanSimSemaphoreSet.h"
 #include "rendering/vulkan/helpers/VulkanFence.h"
-#include "rendering/vulkan/helpers/VulkanPipelineSet.h"
 #include "rendering/vulkan/helpers/VulkanQueueFamilies.h"
 #include "rendering/vulkan/helpers/VulkanRenderPass.h"
 #include "rendering/vulkan/helpers/VulkanSemaphore.h"
-#include "rendering/vulkan/helpers/VulkanSemaphoreSet.h"
 #include "rendering/vulkan/helpers/VulkanShader.h"
 #include "util/Size.h"
 
@@ -26,19 +27,10 @@ extern VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
         void* pUserData);
 
 class VulkanSimApp {
-    Size<uint32_t> window_size;
+    Size<uint32_t> windowSize;
+    VulkanSetup setup;
+    vk::Device device;
 
-    SDL_Window* window;
-    vk::UniqueInstance instance;
-    vk::DispatchLoaderDynamic dispatch_loader;
-    vk::UniqueSurfaceKHR surface;
-    // This uses a dynamic loader, becuase the loader functions vkCreateDebugUtilsMessengerEXT etc. need to be dynamically linked at runtime
-    vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::DispatchLoaderDynamic> debug_messenger;
-    vk::PhysicalDevice physicalDevice;
-    vk::UniqueDevice logicalDevice;
-    // TODO - this isn't necessary to keep in the class
-    VulkanQueueFamilies queueFamilies;
-    vk::Queue graphicsQueue, presentQueue;
     vk::UniqueCommandPool cmdPool;
     vk::UniqueDescriptorPool descriptorPool;
 
@@ -49,36 +41,28 @@ class VulkanSimApp {
         uint32_t imageCount;
     } swapchainProps;
     vk::UniqueSwapchainKHR swapchain;
-//    struct SWFrameData {
-//        vk::Image image;
-//        vk::UniqueImageView imageView;
-//        vk::UniqueFramebuffer framebuffer;
-//        vk::UniqueCommandBuffer cmdBuffer;
-//    };
     std::vector<vk::Image> swapchainImages;
     std::vector<vk::UniqueImageView> swapchainImageViews;
     std::vector<vk::UniqueFramebuffer> swapchainFramebuffers;
     std::vector<vk::UniqueCommandBuffer> perFrameCommandBuffers;
-    //vk::UniqueCommandBuffer imguiCmdBuffer;
 
     VulkanRenderPass imguiRenderPass;
     VulkanRenderPass simRenderPass;
 
-    std::unique_ptr<VulkanPipelineSet> pipelines;
+    std::unique_ptr<VulkanSimPipelineSet> pipelines;
 
     // The tutorial creates multiple sets of semaphores so that multiple frames can be in-flight at once.
     // i.e. multiple frames can be drawn at once.
     // However, we aren't planning on drawing multiple frames at once. The GPU will be busy most of the time doing CUDA work.
     // So we only create two semaphores - has image, and finished rendering.
-    std::unique_ptr<VulkanSemaphoreSet> semaphores;
+    std::unique_ptr<VulkanSimSemaphoreSet> semaphores;
     std::unique_ptr<VulkanFence> graphicsFence;
 
     friend class SystemWorker;
 public:
-    VulkanSimApp(const vk::ApplicationInfo& info, Size<uint32_t> window_size);
+    VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> windowSize);
     VulkanSimApp(const VulkanSimApp &) = delete;
     VulkanSimApp(VulkanSimApp &&) = delete;
-    ~VulkanSimApp();
 
     // TODO - this will change in the future
     void main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot);
@@ -88,21 +72,5 @@ public:
 #endif
 
 private:
-    void check_sdl_error(SDL_bool success) const;
-    void check_vulkan_error(vk::Result result) const;
-
     vk::UniqueImageView make_identity_view(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags = vk::ImageAspectFlagBits::eColor) const;
-
-    // TODO - unused, remove
-    template<typename FuncPtrType>
-    FuncPtrType get_vulkan_function(const char* name) {
-        static_assert(std::is_pointer<FuncPtrType>::value && std::is_function<std::remove_pointer_t<FuncPtrType>>::value,
-                      "FuncPtrType must be a pointer to a function.");
-        return (FuncPtrType)vkGetInstanceProcAddr(*instance, name);
-    }
-#if !NDEBUG
-    constexpr static bool VulkanDebug = true;
-#else
-    constexpr static bool VulkanDebug = false;
-#endif
 };

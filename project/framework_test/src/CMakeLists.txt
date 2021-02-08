@@ -22,6 +22,7 @@ target_sources(generic_sources INTERFACE
         rendering/threads/ThreadWorkData.h
         rendering/threads/WorkerThreadController.h
         rendering/threads/work/SystemWorker.h
+        rendering/vulkan/helpers/VulkanDebug.h
         rendering/vulkan/helpers/VulkanDeviceMemory.cpp
         rendering/vulkan/helpers/VulkanDeviceMemory.h
         rendering/vulkan/helpers/VulkanDescriptorSetLayout.cpp
@@ -32,18 +33,22 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanShader.h
         rendering/vulkan/helpers/VulkanSemaphore.cpp
         rendering/vulkan/helpers/VulkanSemaphore.h
-        rendering/vulkan/helpers/VulkanSemaphoreSet.cpp
-        rendering/vulkan/helpers/VulkanSemaphoreSet.h
+        rendering/vulkan/VulkanSimSemaphoreSet.cpp
+        rendering/vulkan/VulkanSimSemaphoreSet.h
         rendering/vulkan/helpers/VulkanPipeline.cpp
         rendering/vulkan/helpers/VulkanPipeline.h
-        rendering/vulkan/helpers/VulkanPipelineSet.cpp
-        rendering/vulkan/helpers/VulkanPipelineSet.h
+        rendering/vulkan/VulkanSimPipelineSet.cpp
+        rendering/vulkan/VulkanSimPipelineSet.h
         rendering/vulkan/helpers/VulkanQueueFamilies.cpp
         rendering/vulkan/helpers/VulkanQueueFamilies.h
         rendering/vulkan/helpers/VulkanRenderPass.cpp
         rendering/vulkan/helpers/VulkanRenderPass.h
+        rendering/vulkan/helpers/VulkanSwapchain.cpp
+        rendering/vulkan/helpers/VulkanSwapchain.h
         rendering/vulkan/VulkanSimApp.cpp
         rendering/vulkan/VulkanSimApp.h
+        rendering/vulkan/VulkanSetup.cpp
+        rendering/vulkan/VulkanSetup.h
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp
@@ -92,6 +97,7 @@ target_sources(generic_sources INTERFACE
         util/Size.h
         util/HostVisibleArray.h
         util/LegacyCompat2DBackingArray.h
+        util/selectors.h
         validation/SimDumpDifferenceData.cpp
         validation/SimDumpDifferenceData.h
         main.cpp

@@ -3,43 +3,18 @@
 //
 #include "VulkanSimApp.h"
 
-#include <SDL_vulkan.h>
+#include "rendering/vulkan/helpers/VulkanDebug.h"
 
 #if CUDA_ENABLED
 #include <simulation/backends/cuda/CudaBackendV1.cuh>
 #include <simulation/memory/vulkan/CudaVulkan2DAllocator.cuh>
-#include <zconf.h>
 #endif
 
 #include "rendering/threads/WorkerThreadController.h"
 #include "rendering/threads/work/SystemWorker.h"
 #include "rendering/vulkan/helpers/VulkanQueueFamilies.h"
 #include "rendering/vulkan/helpers/VulkanRenderPass.h"
-#include "util/fatal_error.h"
 #include <simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.h>
-
-VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
-        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT messageType,
-        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-        void* pUserData){
-
-    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
-        return VK_FALSE;
-    }
-
-    auto severity = vk::to_string(vk::DebugUtilsMessageSeverityFlagsEXT(messageSeverity));
-    auto type = vk::to_string(vk::DebugUtilsMessageTypeFlagsEXT(messageType));
-
-    auto print_to = (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) ? stderr : stdout;
-//    fprintf(print_to, "VulkanDebug [%s] [%s]: [%s] %s [%d]\n",
-//            type.c_str(), severity.c_str(),
-//            pCallbackData->pMessageIdName, pCallbackData->pMessage, pCallbackData->messageIdNumber);
-    fprintf(print_to, "%s\n", pCallbackData->pMessage);
-
-    // VK_FALSE => don't stop the application
-    return VK_FALSE;
-}
 
 template<typename DeviceSelectorType>
 vk::PhysicalDevice selectDevice(const vk::UniqueInstance& instance, DeviceSelectorType selector) {
@@ -52,143 +27,10 @@ vk::PhysicalDevice selectDevice(const vk::UniqueInstance& instance, DeviceSelect
     FATAL_ERROR("Could not find a suitable device.\n");
 }
 
-VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& app_info, Size<uint32_t> window_size) : window_size(window_size), dispatch_loader() {
-    window = SDL_CreateWindow(
-            app_info.pApplicationName,
-                SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                window_size.x, window_size.y,
-                SDL_WINDOW_VULKAN
-            );
-
-
-    uint32_t extension_count;
-    check_sdl_error(SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr));
-    auto extension_names = std::vector<const char *>(extension_count);
-    check_sdl_error(SDL_Vulkan_GetInstanceExtensions(window, &extension_count, extension_names.data()));
-    extension_names.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
-    extension_names.push_back(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
-
-    auto layer_names = std::vector<const char *>();
-    if (VulkanDebug) {
-        layer_names.push_back("VK_LAYER_KHRONOS_validation");
-        extension_names.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    }
-
-    {
-        printf("Creating Vulkan instance\nLayers\n");
-        for (const auto layer_name : layer_names) {
-            printf("\t%s\n", layer_name);
-        }
-        printf("Extensions\n");
-        for (const auto extension_name : extension_names) {
-            printf("\t%s\n", extension_name);
-        }
-
-        auto create_info = vk::InstanceCreateInfo(
-                vk::InstanceCreateFlags(),
-                &app_info,
-                layer_names.size(),
-                layer_names.data(),
-                extension_names.size(),
-                extension_names.data());
-        instance = vk::createInstanceUnique(create_info);
-
-        dispatch_loader.init(*instance, vkGetInstanceProcAddr);
-    }
-
-    if (VulkanDebug) {
-        auto messenger_create = vk::DebugUtilsMessengerCreateInfoEXT(
-                vk::DebugUtilsMessengerCreateFlagsEXT(),
-                vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose | vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo |
-                    vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
-                vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
-                    vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation,
-                &vulkanDebug,
-                nullptr
-        );
-
-        debug_messenger = instance->createDebugUtilsMessengerEXTUnique(
-                messenger_create,
-                nullptr,
-                dispatch_loader
-        );
-    }
-
-    {
-        VkSurfaceKHR c_surface = nullptr;
-        check_sdl_error(SDL_Vulkan_CreateSurface(window, *instance, &c_surface));
-        surface = vk::UniqueSurfaceKHR(c_surface, *instance);
-    }
-
-    {
-        std::vector<const char*> requiredDeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-        requiredDeviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
-        requiredDeviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
-        requiredDeviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
-        requiredDeviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
-
-        physicalDevice = selectDevice(instance, [this, &requiredDeviceExtensions](vk::PhysicalDevice potential_device){
-            auto deviceProperties = potential_device.getProperties();
-            if (deviceProperties.deviceType != vk::PhysicalDeviceType::eDiscreteGpu)
-                return false; // Only accept discrete GPUs
-
-            auto potential_queueFamilies = VulkanQueueFamilies::fill_from_vulkan(potential_device, surface);
-            if (!potential_queueFamilies.complete())
-                return false; // Can't support all of the queues we want
-
-            auto availableExtensions = potential_device.enumerateDeviceExtensionProperties();
-            // TODO - why does this work? Is there an implicit conversion between const char* and std::string??
-            std::set<std::string> requiredExtensionsSet(requiredDeviceExtensions.begin(), requiredDeviceExtensions.end());
-
-            for (const auto& extension : availableExtensions) {
-                requiredExtensionsSet.erase(std::string(extension.extensionName));
-            }
-            if (!requiredExtensionsSet.empty())
-                return false; // Not all extensions present
-
-            //auto surfaceCapabilities = potential_device.getSurfaceCapabilitiesKHR(*surface);
-            auto swapchainFormats = potential_device.getSurfaceFormatsKHR(*surface);
-            auto swapchainPresentModes = potential_device.getSurfacePresentModesKHR(*surface);
-            if (swapchainFormats.empty() || swapchainPresentModes.empty())
-                return false;
-
-            return true;
-        });
-        queueFamilies = VulkanQueueFamilies::fill_from_vulkan(physicalDevice, surface);
-        fprintf(stdout, "Selected Vulkan device %s\n", physicalDevice.getProperties().deviceName.data());
-
-        const float queuePriority = 1.0f;
-        auto families = queueFamilies.get_families();
-        auto queueCreateInfos = std::vector<vk::DeviceQueueCreateInfo>();
-        for (uint32_t queueFamily : families) {
-            queueCreateInfos.push_back(
-                    vk::DeviceQueueCreateInfo(
-                            vk::DeviceQueueCreateFlags(),
-                            queueFamily,
-                            1,
-                            &queuePriority
-                    )
-                );
-        }
-
-        auto requestedDeviceFeatures = vk::PhysicalDeviceFeatures();
-
-        auto logicalDeviceCreateInfo = vk::DeviceCreateInfo();
-        logicalDeviceCreateInfo.pEnabledFeatures = &requestedDeviceFeatures;
-        logicalDeviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
-        logicalDeviceCreateInfo.queueCreateInfoCount = queueCreateInfos.size();
-        // This is not needed but nice for legacy implementations
-        logicalDeviceCreateInfo.ppEnabledLayerNames = layer_names.data();
-        logicalDeviceCreateInfo.enabledLayerCount = layer_names.size();
-        // Device-specific Vulkan extensions
-        logicalDeviceCreateInfo.ppEnabledExtensionNames = requiredDeviceExtensions.data();
-        logicalDeviceCreateInfo.enabledExtensionCount = requiredDeviceExtensions.size();
-
-        logicalDevice = physicalDevice.createDeviceUnique(logicalDeviceCreateInfo);
-
-        graphicsQueue = logicalDevice->getQueue(queueFamilies.graphics_family.value(), 0);
-        presentQueue = logicalDevice->getQueue(queueFamilies.present_family.value(), 0);
-    }
+VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> windowSize) :
+    setup(appInfo, windowSize),
+    device(*setup.device)
+{
 
     {
         // The tutorial https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
@@ -238,8 +80,8 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& app_info, Size<uint32_t> w
         swapchainCreateInfo.imageArrayLayers = 1; // We're not rendering in stereoscopic 3D => set this to 1
         swapchainCreateInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment; // Use eColorAttachment so we can directly render to the swapchain images.
 
-        auto queueFamilyVector = std::vector<uint32_t>({queueFamilies.graphics_family.value(), queueFamilies.present_family.value()});
-        if (queueFamilies.graphics_family != queueFamilies.present_family) {
+        auto queueFamilyVector = std::vector<uint32_t>({queueFamilies.graphicsFamily, queueFamilies.presentFamily});
+        if (queueFamilies.graphicsFamily != queueFamilies.presentFamily) {
             // The swapchain images need to be able to be used by both families.
             // Use Concurrent mode to make that possible.
             swapchainCreateInfo.imageSharingMode = vk::SharingMode::eConcurrent;
@@ -296,7 +138,7 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& app_info, Size<uint32_t> w
         //  i.e. command buffers are destroyed *before* the pool is destroyed
         //  so the pool is declared before it's children.
         auto poolInfo = vk::CommandPoolCreateInfo();
-        poolInfo.queueFamilyIndex = queueFamilies.graphics_family.value();
+        poolInfo.queueFamilyIndex = queueFamilies.graphicsFamily.value();
         poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer; // Allow command buffers to be reset outside of the pool?
 
         cmdPool = logicalDevice->createCommandPoolUnique(poolInfo);
@@ -307,33 +149,6 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& app_info, Size<uint32_t> w
         cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
         cmdBufferAlloc.commandBufferCount = swapchainProps.imageCount;
         perFrameCommandBuffers = logicalDevice->allocateCommandBuffersUnique(cmdBufferAlloc);
-
-        cmdBufferAlloc.commandBufferCount = 1;
-        //imguiCmdBuffer = std::move(logicalDevice->allocateCommandBuffersUnique(cmdBufferAlloc)[0]);
-
-        // Record command buffers
-        // TODO - Turn struct-of-arrays for frame data into array-of-structs, then this i isn't needed
-//        for (size_t i = 0; i < perFrameCommandBuffers.size(); i++) {
-//            const auto& cmdBuffer = *perFrameCommandBuffers[i];
-//
-//            auto beginInfo = vk::CommandBufferBeginInfo();
-//            auto renderPassInfo = vk::RenderPassBeginInfo();
-//            renderPassInfo.renderPass = *renderPass;
-//            renderPassInfo.framebuffer = *swapchainFramebuffers[i];
-//            renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
-//            renderPassInfo.renderArea.extent = vk::Extent2D{(uint32_t)window_size.x, (uint32_t)window_size.y};
-//            auto clearColor = vk::ClearValue(vk::ClearColorValue());
-//            clearColor.color.setFloat32({1.0f, 0.0f, 1.0f, 1.0f});
-//            renderPassInfo.clearValueCount = 1;
-//            renderPassInfo.pClearValues = &clearColor;
-//
-//            cmdBuffer.begin(beginInfo);
-//            cmdBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-//            cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines->redTriangle);
-//            cmdBuffer.draw(3, 1, 0, 0);
-//            cmdBuffer.endRenderPass();
-//            cmdBuffer.end();
-//        }
     }
     
     {
@@ -360,16 +175,13 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& app_info, Size<uint32_t> w
     }
 
     {
-        semaphores = std::make_unique<VulkanSemaphoreSet>(*logicalDevice);
+        semaphores = std::make_unique<VulkanSimSemaphoreSet>(*logicalDevice);
         graphicsFence = std::make_unique<VulkanFence>(*logicalDevice);
     }
 }
-VulkanSimApp::~VulkanSimApp() {
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-}
+
 void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot) {
-    pipelines = std::make_unique<VulkanPipelineSet>(*logicalDevice, *simRenderPass, Size<uint32_t>{snapshot.simSize.pixel_size.x + 2, snapshot.simSize.pixel_size.y + 2});
+    pipelines = std::make_unique<VulkanSimPipelineSet>(*logicalDevice, *simRenderPass, Size<uint32_t>{snapshot.simSize.pixel_size.x + 2, snapshot.simSize.pixel_size.y + 2});
 
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this, snapshot.simSize));
     auto simulationRunner = ISimVulkanTickedRunner::getForBackend(
