@@ -27,110 +27,13 @@ vk::PhysicalDevice selectDevice(const vk::UniqueInstance& instance, DeviceSelect
     FATAL_ERROR("Could not find a suitable device.\n");
 }
 
-VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> windowSize) :
-    setup(appInfo, windowSize),
-    device(*setup.device)
+VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> windowSize)
+    : setup(appInfo, windowSize),
+      device(*setup.device),
+      imguiRenderPass(device, setup.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::ePresentSrcKHR),
+      simRenderPass(device, vk::Format::eR8G8B8A8Srgb, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal),
+      swapchain(setup, imguiRenderPass)
 {
-
-    {
-        // The tutorial https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
-        // tries to select a certain format first, but we don't care about color spaces or exact formats rn.
-        swapchainProps.surfaceFormat = physicalDevice.getSurfaceFormatsKHR(*surface)[0];
-
-        auto swapchainPresentModes = physicalDevice.getSurfacePresentModesKHR(*surface);
-        if (std::find(swapchainPresentModes.begin(), swapchainPresentModes.end(), vk::PresentModeKHR::eMailbox) != swapchainPresentModes.end())
-            swapchainProps.presentMode = vk::PresentModeKHR::eMailbox;
-        else
-            swapchainProps.presentMode = vk::PresentModeKHR::eFifo; // This is mandated to always be present
-
-        auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
-        if (surfaceCapabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
-            // If the surface currently has an extent, just use that for the swapchain
-            swapchainProps.extents = surfaceCapabilities.currentExtent;
-        } else {
-            // The surface doesn't specify an extent to use, so select the one we want.
-            // The tutorial just clamps the x/y inside the minimum/maximum ranges. If this ever happens everything is going to look weird, so we just stop.
-            if (window_size.x < surfaceCapabilities.minImageExtent.width || surfaceCapabilities.maxImageExtent.width < window_size.x) {
-                FATAL_ERROR("Window width %u out of range [%u, %u]\n", window_size.x, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
-            }
-            if (window_size.y < surfaceCapabilities.minImageExtent.height || surfaceCapabilities.maxImageExtent.height < window_size.y) {
-                FATAL_ERROR("Window height %u out of range [%u, %u]\n", window_size.y, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
-            }
-
-            swapchainProps.extents = vk::Extent2D(window_size.x, window_size.y);
-        }
-
-        // If we just took the minimum, we could end up having to wait on the driver before getting another image.
-        // Get 1 extra, so 1 is always free at any given time
-        swapchainProps.imageCount = surfaceCapabilities.minImageCount + 1;
-        if (surfaceCapabilities.maxImageCount > 0 &&
-            swapchainProps.imageCount > surfaceCapabilities.maxImageCount) {
-            // Make sure we don't exceed the maximum
-            swapchainProps.imageCount = surfaceCapabilities.maxImageCount;
-        }
-
-        auto swapchainCreateInfo = vk::SwapchainCreateInfoKHR();
-        swapchainCreateInfo.surface = *surface;
-
-        swapchainCreateInfo.presentMode = swapchainProps.presentMode;
-        swapchainCreateInfo.minImageCount = swapchainProps.imageCount;
-        swapchainCreateInfo.imageExtent = swapchainProps.extents;
-        swapchainCreateInfo.imageFormat = swapchainProps.surfaceFormat.format;
-        swapchainCreateInfo.imageColorSpace = swapchainProps.surfaceFormat.colorSpace;
-        swapchainCreateInfo.imageArrayLayers = 1; // We're not rendering in stereoscopic 3D => set this to 1
-        swapchainCreateInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment; // Use eColorAttachment so we can directly render to the swapchain images.
-
-        auto queueFamilyVector = std::vector<uint32_t>({queueFamilies.graphicsFamily, queueFamilies.presentFamily});
-        if (queueFamilies.graphicsFamily != queueFamilies.presentFamily) {
-            // The swapchain images need to be able to be used by both families.
-            // Use Concurrent mode to make that possible.
-            swapchainCreateInfo.imageSharingMode = vk::SharingMode::eConcurrent;
-            swapchainCreateInfo.queueFamilyIndexCount = queueFamilyVector.size();
-            swapchainCreateInfo.pQueueFamilyIndices = queueFamilyVector.data();
-        } else {
-            // Same queue families => images can be owned exclusively by that queue family.
-            // In this case we don't need to specify the different queues, because there is only one.
-            swapchainCreateInfo.imageSharingMode = vk::SharingMode::eExclusive;
-            swapchainCreateInfo.queueFamilyIndexCount = 0;
-            swapchainCreateInfo.pQueueFamilyIndices = nullptr;
-        }
-
-        // Extra stuff
-        // Set the swapchain rotation to the current rotation of the surface
-        swapchainCreateInfo.preTransform = surfaceCapabilities.currentTransform;
-        // Don't apply the alpha channel as transparency to the window
-        // i.e. if a pixel has alpha = 0 in the presented image it will be opqaue in the window system
-        swapchainCreateInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
-        swapchainCreateInfo.clipped = VK_TRUE;
-        swapchainCreateInfo.oldSwapchain = nullptr;
-
-        swapchain = logicalDevice->createSwapchainKHRUnique(swapchainCreateInfo);
-        swapchainImages = logicalDevice->getSwapchainImagesKHR(*swapchain);
-        swapchainImageViews.clear();
-        for (vk::Image image : swapchainImages) {
-            swapchainImageViews.push_back(make_identity_view(image, swapchainProps.surfaceFormat.format));
-        }
-    }
-
-    {
-        imguiRenderPass = VulkanRenderPass(*logicalDevice, swapchainProps.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::ePresentSrcKHR);//
-        simRenderPass = VulkanRenderPass(*logicalDevice, vk::Format::eR8G8B8A8Srgb, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal);//
-    }
-
-    {
-        swapchainFramebuffers.clear();
-        for (const auto& imageView : swapchainImageViews) {
-            auto framebufferCreateInfo = vk::FramebufferCreateInfo();
-            framebufferCreateInfo.renderPass = *imguiRenderPass;
-            framebufferCreateInfo.attachmentCount = 1;
-            framebufferCreateInfo.pAttachments = &(*imageView);
-            framebufferCreateInfo.width = window_size.x;
-            framebufferCreateInfo.height = window_size.y;
-            framebufferCreateInfo.layers = 1;
-
-            swapchainFramebuffers.push_back(logicalDevice->createFramebufferUnique(framebufferCreateInfo));
-        }
-    }
 
     {
         // TODO - Make init order consistent with declare order
@@ -138,17 +41,17 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> wi
         //  i.e. command buffers are destroyed *before* the pool is destroyed
         //  so the pool is declared before it's children.
         auto poolInfo = vk::CommandPoolCreateInfo();
-        poolInfo.queueFamilyIndex = queueFamilies.graphicsFamily.value();
+        poolInfo.queueFamilyIndex = setup.queueFamilies.graphicsFamily;
         poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer; // Allow command buffers to be reset outside of the pool?
 
-        cmdPool = logicalDevice->createCommandPoolUnique(poolInfo);
+        cmdPool = device.createCommandPoolUnique(poolInfo);
 
         perFrameCommandBuffers.clear();
         auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
         cmdBufferAlloc.commandPool = *cmdPool;
         cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
-        cmdBufferAlloc.commandBufferCount = swapchainProps.imageCount;
-        perFrameCommandBuffers = logicalDevice->allocateCommandBuffersUnique(cmdBufferAlloc);
+        cmdBufferAlloc.commandBufferCount = swapchain.imageCount;
+        perFrameCommandBuffers = device.allocateCommandBuffersUnique(cmdBufferAlloc);
     }
     
     {
@@ -171,25 +74,25 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> wi
         pool_info.maxSets = 1000 * pool_sizes.size();
         pool_info.poolSizeCount = pool_sizes.size();
         pool_info.pPoolSizes = pool_sizes.data();
-        descriptorPool = logicalDevice->createDescriptorPoolUnique(pool_info);
+        descriptorPool = device.createDescriptorPoolUnique(pool_info);
     }
 
     {
-        semaphores = std::make_unique<VulkanSimSemaphoreSet>(*logicalDevice);
-        graphicsFence = std::make_unique<VulkanFence>(*logicalDevice);
+        semaphores = std::make_unique<VulkanSimSemaphoreSet>(device);
+        graphicsFence = std::make_unique<VulkanFence>(device);
     }
 }
 
 void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot) {
-    pipelines = std::make_unique<VulkanSimPipelineSet>(*logicalDevice, *simRenderPass, Size<uint32_t>{snapshot.simSize.pixel_size.x + 2, snapshot.simSize.pixel_size.y + 2});
+    pipelines = std::make_unique<VulkanSimPipelineSet>(device, *simRenderPass, Size<uint32_t>{snapshot.simSize.pixel_size.x + 2, snapshot.simSize.pixel_size.y + 2});
 
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this, snapshot.simSize));
     auto simulationRunner = ISimVulkanTickedRunner::getForBackend(
             backendType,
-            *logicalDevice, physicalDevice, *semaphores->renderFinishedShouldSim, *semaphores->simFinished
+            device, setup.physicalDevice, *semaphores->renderFinishedShouldSim, *semaphores->simFinished
     );
     auto vulkanBuffers = simulationRunner->prepareBackend(params, snapshot);
-    pipelines->buildSimulationFragDescriptors(*logicalDevice, *descriptorPool, vulkanBuffers);
+    pipelines->buildSimulationFragDescriptors(device, *descriptorPool, vulkanBuffers);
 
     std::array<float, 32> frameTimes{};
     uint32_t currentFrame = 0;
@@ -207,12 +110,12 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         // I believe this occurs because imageCanBeChanged is a semaphore for "the display manager has stopped using *the current* image",
         // and that can only happen once another image has been given in.
         // See https://stackoverflow.com/a/52673669
-        logicalDevice->acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *semaphores->imageCanBeChanged, nullptr, &swFrameIndex);
+        device.acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *semaphores->imageCanBeChanged, nullptr, &swFrameIndex);
 
         //fprintf(stderr, "Sending SystemWorker work\n");
         systemWorker.giveNextWork(SystemWorkerIn{
                 .swFrameIndex = swFrameIndex,
-                .swFramebuffer = *swapchainFramebuffers[swFrameIndex],
+                .swFramebuffer = *swapchain.framebuffers[swFrameIndex],
                 .perf = {
                         .frameTimes = frameTimes,
                         .currentFrame = currentFrame
@@ -249,11 +152,11 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         //fprintf(stderr, "Submitting graphics work (Waiting on simFinished, signalling renderFinished)\n");
         if (currentFrame > 0) {
             // Now wait on the fence, to make sure we don't try to render two graphics at once
-            logicalDevice->waitForFences({**graphicsFence}, true, UINT64_MAX);
+            device.waitForFences({**graphicsFence}, true, UINT64_MAX);
             // Reset the fence so we can use it again later
-            logicalDevice->resetFences({**graphicsFence});
+            device.resetFences({**graphicsFence});
         }
-        graphicsQueue.submit({submitInfo}, **graphicsFence);
+        setup.graphicsQueue.submit({submitInfo}, **graphicsFence);
 
 
         vk::PresentInfoKHR presentInfo{};
@@ -265,7 +168,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         presentInfo.pImageIndices = &swFrameIndex;
         presentInfo.pResults = nullptr;
         //fprintf(stderr, "Submitting presentation (Waiting on renderFinished)\n");
-        presentQueue.presentKHR(presentInfo);
+        setup.presentQueue.presentKHR(presentInfo);
 
         auto frameEndTime = std::chrono::steady_clock::now();
         std::chrono::duration<double> frameTimeDiff = frameEndTime - frameStartTime;
@@ -274,40 +177,14 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         currentFrame++;
     }
 
-    logicalDevice->waitIdle();
-}
-void VulkanSimApp::check_sdl_error(SDL_bool success) const {
-    FATAL_ERROR_IF(!success, "SDL Error: %s\n", SDL_GetError());
-}
-void VulkanSimApp::check_vulkan_error(vk::Result result) const {
-    FATAL_ERROR_IF(result != vk::Result::eSuccess, "Vulkan Error: %s\n", vk::to_string(result).c_str());
-}
-vk::UniqueImageView VulkanSimApp::make_identity_view(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags) const {
-    auto createInfo = vk::ImageViewCreateInfo();
-    createInfo.image = image;
-    createInfo.viewType = vk::ImageViewType::e2D;
-    createInfo.format = format;
-
-    createInfo.components.r = vk::ComponentSwizzle::eIdentity;
-    createInfo.components.g = vk::ComponentSwizzle::eIdentity;
-    createInfo.components.b = vk::ComponentSwizzle::eIdentity;
-    createInfo.components.a = vk::ComponentSwizzle::eIdentity;
-
-    createInfo.subresourceRange.aspectMask = aspectFlags;
-    // We don't do any mipmapping/texture arrays ever - only use the first mip level, and the first array layer
-    createInfo.subresourceRange.baseMipLevel = 0;
-    createInfo.subresourceRange.levelCount = 1;
-    createInfo.subresourceRange.baseArrayLayer = 0;
-    createInfo.subresourceRange.layerCount = 1;
-
-    return logicalDevice->createImageViewUnique(createInfo);
+    device.waitIdle();
 }
 
 #if CUDA_ENABLED
 #include "simulation/memory/vulkan/VulkanSimulationAllocator.h"
 
 SimSnapshot VulkanSimApp::test_cuda_sim(const FluidParams &params, const SimSnapshot &snapshot) {
-    VulkanSimulationAllocator<CudaVulkan2DAllocator> allocator(*logicalDevice, physicalDevice);
+    VulkanSimulationAllocator<CudaVulkan2DAllocator> allocator(device, setup.physicalDevice);
     auto vulkanAllocs = allocator.makeAllocs(snapshot);
 
     auto sim = CudaBackendV1<false>(vulkanAllocs.simAllocs, params, snapshot);

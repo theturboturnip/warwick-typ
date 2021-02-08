@@ -8,7 +8,6 @@
 #include <vulkan/vulkan.hpp>
 
 #include "rendering/vulkan/helpers/VulkanQueueFamilies.h"
-#include "rendering/vulkan/helpers/VulkanSwapchain.h"
 #include "util/Size.h"
 
 /*
@@ -21,6 +20,8 @@ public:
     Size<uint32_t> windowSize;
     SDL_Window* window;
     vk::UniqueSurfaceKHR surface;
+    vk::SurfaceFormatKHR surfaceFormat;
+    vk::PresentModeKHR presentMode;
 
     vk::DispatchLoaderDynamic dynamicLoader;
     // This uses a dynamic loader, becuase the loader functions vkCreateDebugUtilsMessengerEXT etc. need to be dynamically linked at runtime

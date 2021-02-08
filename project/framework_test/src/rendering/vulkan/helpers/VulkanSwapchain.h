@@ -4,20 +4,23 @@
 
 #pragma once
 
-#include <vulkan/vulkan.hpp>
+#include "VulkanRenderPass.h"
+#include "rendering/vulkan/VulkanSetup.h"
+
 #include <vector>
+#include <functional>
+#include <vulkan/vulkan.hpp>
 
 class VulkanSwapchain {
 public:
     vk::UniqueSwapchainKHR swapchain;
-    vk::SurfaceFormatKHR format;
-    vk::PresentModeKHR presentMode;
     vk::Extent2D extents;
+    uint32_t imageCount;
     std::vector<vk::Image> images;
     std::vector<vk::UniqueImageView> imageViews;
     std::vector<vk::UniqueFramebuffer> framebuffers;
 
-    VulkanSwapchain();
+    VulkanSwapchain(VulkanSetup& setup, VulkanRenderPass& swapchainRenderPass);
     VulkanSwapchain(VulkanSwapchain&&) noexcept = default;
 
     const vk::SwapchainKHR& operator *() const{

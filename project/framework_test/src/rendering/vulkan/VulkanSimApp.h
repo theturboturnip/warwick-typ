@@ -5,6 +5,7 @@
 #pragma once
 
 #include <SDL.h>
+#include <rendering/vulkan/helpers/VulkanSwapchain.h>
 #include <simulation/SimulationBackendEnum.h>
 #include <simulation/file_format/FluidParams.h>
 #include <simulation/file_format/SimSnapshot.h>
@@ -20,34 +21,19 @@
 #include "rendering/vulkan/helpers/VulkanShader.h"
 #include "util/Size.h"
 
-extern VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
-        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT messageType,
-        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-        void* pUserData);
-
 class VulkanSimApp {
-    Size<uint32_t> windowSize;
     VulkanSetup setup;
     vk::Device device;
+
+    VulkanRenderPass imguiRenderPass;
+    VulkanRenderPass simRenderPass;
+
+    VulkanSwapchain swapchain;
 
     vk::UniqueCommandPool cmdPool;
     vk::UniqueDescriptorPool descriptorPool;
 
-    struct {
-        vk::SurfaceFormatKHR surfaceFormat;
-        vk::PresentModeKHR presentMode;
-        vk::Extent2D extents;
-        uint32_t imageCount;
-    } swapchainProps;
-    vk::UniqueSwapchainKHR swapchain;
-    std::vector<vk::Image> swapchainImages;
-    std::vector<vk::UniqueImageView> swapchainImageViews;
-    std::vector<vk::UniqueFramebuffer> swapchainFramebuffers;
     std::vector<vk::UniqueCommandBuffer> perFrameCommandBuffers;
-
-    VulkanRenderPass imguiRenderPass;
-    VulkanRenderPass simRenderPass;
 
     std::unique_ptr<VulkanSimPipelineSet> pipelines;
 
@@ -70,7 +56,4 @@ public:
 #if CUDA_ENABLED
     SimSnapshot test_cuda_sim(const FluidParams& params, const SimSnapshot& snapshot);
 #endif
-
-private:
-    vk::UniqueImageView make_identity_view(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags = vk::ImageAspectFlagBits::eColor) const;
 };

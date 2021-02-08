@@ -108,11 +108,31 @@ VulkanSetup::VulkanSetup(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize)
         );
     }
 
-    // Create the SDL/Vulkan Surface
+    // Create the SDL/Vulkan Surface, and select the format/present mode to use
     {
         VkSurfaceKHR rawSurface = nullptr;
         CHECKED_SDL(SDL_Vulkan_CreateSurface(window, *instance, &rawSurface));
         surface = vk::UniqueSurfaceKHR(rawSurface, *instance);
+
+        // Try to select a specific format first,
+        // as in the tutorial https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
+        surfaceFormat = selectOrFallback<vk::SurfaceFormatKHR>(
+                physicalDevice.getSurfaceFormatsKHR(*surface),
+                {
+                        vk::SurfaceFormatKHR(
+                                vk::Format::eB8G8R8A8Srgb,
+                                vk::ColorSpaceKHR::eSrgbNonlinear
+                        )
+                }
+        );
+
+        presentMode = selectIfPossible<vk::PresentModeKHR>(
+                physicalDevice.getSurfacePresentModesKHR(*surface),
+                {
+                        vk::PresentModeKHR::eMailbox,
+                        vk::PresentModeKHR::eFifo
+                }
+        );
     }
 
     // Select the physical device,
