@@ -11,7 +11,7 @@
 #include <simulation/file_format/SimSnapshot.h>
 #include <vulkan/vulkan.hpp>
 
-#include "VulkanSetup.h"
+#include "VulkanContext.h"
 #include "VulkanSimPipelineSet.h"
 #include "VulkanSimSemaphoreSet.h"
 #include "rendering/vulkan/helpers/VulkanFence.h"
@@ -22,7 +22,7 @@
 #include "util/Size.h"
 
 class VulkanSimApp {
-    VulkanSetup setup;
+    VulkanContext context;
     vk::Device device;
 
     VulkanRenderPass imguiRenderPass;

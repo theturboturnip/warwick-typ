@@ -5,7 +5,7 @@
 #pragma once
 
 #include "VulkanRenderPass.h"
-#include "rendering/vulkan/VulkanSetup.h"
+#include "rendering/vulkan/VulkanContext.h"
 
 #include <vector>
 #include <functional>
@@ -20,7 +20,7 @@ public:
     std::vector<vk::UniqueImageView> imageViews;
     std::vector<vk::UniqueFramebuffer> framebuffers;
 
-    VulkanSwapchain(VulkanSetup& setup, VulkanRenderPass& swapchainRenderPass);
+    VulkanSwapchain(VulkanContext& setup, VulkanRenderPass& swapchainRenderPass);
     VulkanSwapchain(VulkanSwapchain&&) noexcept = default;
 
     const vk::SwapchainKHR& operator *() const{

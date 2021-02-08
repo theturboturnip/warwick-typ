@@ -28,11 +28,11 @@ vk::PhysicalDevice selectDevice(const vk::UniqueInstance& instance, DeviceSelect
 }
 
 VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> windowSize)
-    : setup(appInfo, windowSize),
-      device(*setup.device),
-      imguiRenderPass(device, setup.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::ePresentSrcKHR),
+    : context(appInfo, windowSize),
+      device(*context.device),
+      imguiRenderPass(device, context.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::ePresentSrcKHR),
       simRenderPass(device, vk::Format::eR8G8B8A8Srgb, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal),
-      swapchain(setup, imguiRenderPass)
+      swapchain(context, imguiRenderPass)
 {
 
     {
@@ -41,7 +41,7 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> wi
         //  i.e. command buffers are destroyed *before* the pool is destroyed
         //  so the pool is declared before it's children.
         auto poolInfo = vk::CommandPoolCreateInfo();
-        poolInfo.queueFamilyIndex = setup.queueFamilies.graphicsFamily;
+        poolInfo.queueFamilyIndex = context.queueFamilies.graphicsFamily;
         poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer; // Allow command buffers to be reset outside of the pool?
 
         cmdPool = device.createCommandPoolUnique(poolInfo);
@@ -89,7 +89,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this, snapshot.simSize));
     auto simulationRunner = ISimVulkanTickedRunner::getForBackend(
             backendType,
-            device, setup.physicalDevice, *semaphores->renderFinishedShouldSim, *semaphores->simFinished
+            device, context.physicalDevice, *semaphores->renderFinishedShouldSim, *semaphores->simFinished
     );
     auto vulkanBuffers = simulationRunner->prepareBackend(params, snapshot);
     pipelines->buildSimulationFragDescriptors(device, *descriptorPool, vulkanBuffers);
@@ -156,7 +156,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
             // Reset the fence so we can use it again later
             device.resetFences({**graphicsFence});
         }
-        setup.graphicsQueue.submit({submitInfo}, **graphicsFence);
+        context.graphicsQueue.submit({submitInfo}, **graphicsFence);
 
 
         vk::PresentInfoKHR presentInfo{};
@@ -168,7 +168,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         presentInfo.pImageIndices = &swFrameIndex;
         presentInfo.pResults = nullptr;
         //fprintf(stderr, "Submitting presentation (Waiting on renderFinished)\n");
-        setup.presentQueue.presentKHR(presentInfo);
+        context.presentQueue.presentKHR(presentInfo);
 
         auto frameEndTime = std::chrono::steady_clock::now();
         std::chrono::duration<double> frameTimeDiff = frameEndTime - frameStartTime;
@@ -184,7 +184,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 #include "simulation/memory/vulkan/VulkanSimulationAllocator.h"
 
 SimSnapshot VulkanSimApp::test_cuda_sim(const FluidParams &params, const SimSnapshot &snapshot) {
-    VulkanSimulationAllocator<CudaVulkan2DAllocator> allocator(device, setup.physicalDevice);
+    VulkanSimulationAllocator<CudaVulkan2DAllocator> allocator(device, context.physicalDevice);
     auto vulkanAllocs = allocator.makeAllocs(snapshot);
 
     auto sim = CudaBackendV1<false>(vulkanAllocs.simAllocs, params, snapshot);

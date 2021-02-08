@@ -5,7 +5,7 @@
 #include "VulkanSwapchain.h"
 #include <util/selectors.h>
 
-VulkanSwapchain::VulkanSwapchain(VulkanSetup& setup, VulkanRenderPass& swapchainRenderPass) {
+VulkanSwapchain::VulkanSwapchain(VulkanContext& setup, VulkanRenderPass& swapchainRenderPass) {
     auto physicalDevice = setup.physicalDevice;
     auto logicalDevice = *setup.device;
 

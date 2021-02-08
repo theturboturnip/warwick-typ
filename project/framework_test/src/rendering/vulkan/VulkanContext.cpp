@@ -2,7 +2,7 @@
 // Created by samuel on 08/02/2021.
 //
 
-#include "VulkanSetup.h"
+#include "VulkanContext.h"
 
 #include <SDL_vulkan.h>
 #include <rendering/vulkan/helpers/VulkanDebug.h>
@@ -36,7 +36,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
     return VK_FALSE;
 }
 
-VulkanSetup::VulkanSetup(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize)
+VulkanContext::VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize)
     : windowSize(windowSize) {
 
     window = SDL_CreateWindow(
@@ -216,7 +216,7 @@ VulkanSetup::VulkanSetup(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize)
 
 }
 
-VulkanSetup::~VulkanSetup() {
+VulkanContext::~VulkanContext() {
     SDL_DestroyWindow(window);
     SDL_Quit();
 }

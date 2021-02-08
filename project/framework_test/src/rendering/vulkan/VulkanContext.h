@@ -13,7 +13,7 @@
 /*
  * Creates SDL Window, vk instance, vk physical device, vk logical device.
  */
-class VulkanSetup {
+class VulkanContext {
 public:
     vk::UniqueInstance instance;
 
@@ -34,7 +34,7 @@ public:
     vk::Queue graphicsQueue;
     vk::Queue presentQueue;
 
-    VulkanSetup(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize);
-    VulkanSetup(VulkanSetup&&) = delete;
-    ~VulkanSetup();
+    VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize);
+    VulkanContext(VulkanContext&&) = delete;
+    ~VulkanContext();
 };

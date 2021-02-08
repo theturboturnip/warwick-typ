@@ -56,10 +56,10 @@ class SystemWorker {
     // TODO - make this allocate the command pool itself?
 public:
     explicit SystemWorker(const VulkanSimApp & vulkanWindow, SimSize simSize)
-        : window(vulkanWindow.setup.window),
+        : window(vulkanWindow.context.window),
           imguiRenderPass(*vulkanWindow.imguiRenderPass),
           simRenderPass(*vulkanWindow.simRenderPass),
-          imguiRenderArea({0, 0}, {vulkanWindow.setup.windowSize.x, vulkanWindow.setup.windowSize.y}),
+          imguiRenderArea({0, 0}, {vulkanWindow.context.windowSize.x, vulkanWindow.context.windowSize.y}),
           simRenderArea({0, 0}, {simSize.pixel_size.x+2, simSize.pixel_size.y+2}),
           pipelines(vulkanWindow.pipelines.get()),
           simSize(simSize),
@@ -83,11 +83,11 @@ public:
         // Setup Platform/Renderer bindings
         ImGui_ImplSDL2_InitForVulkan(window);
         ImGui_ImplVulkan_InitInfo init_info = {};
-        init_info.Instance = *vulkanWindow.setup.instance;
-        init_info.PhysicalDevice = vulkanWindow.setup.physicalDevice;
-        init_info.Device = *vulkanWindow.setup.device;
-        init_info.QueueFamily = vulkanWindow.setup.queueFamilies.graphicsFamily;
-        init_info.Queue = vulkanWindow.setup.graphicsQueue;
+        init_info.Instance = *vulkanWindow.context.instance;
+        init_info.PhysicalDevice = vulkanWindow.context.physicalDevice;
+        init_info.Device = *vulkanWindow.context.device;
+        init_info.QueueFamily = vulkanWindow.context.queueFamilies.graphicsFamily;
+        init_info.Queue = vulkanWindow.context.graphicsQueue;
         init_info.PipelineCache = nullptr;
         init_info.DescriptorPool = *vulkanWindow.descriptorPool;
         init_info.Allocator = nullptr;
@@ -116,8 +116,8 @@ public:
             vk::SubmitInfo submitInfo = {};
             submitInfo.commandBufferCount = 1;
             submitInfo.pCommandBuffers = &(*fontCmdBuffer);
-            vulkanWindow.setup.graphicsQueue.submit({submitInfo}, nullptr);
-            vulkanWindow.setup.graphicsQueue.waitIdle();
+            vulkanWindow.context.graphicsQueue.submit({submitInfo}, nullptr);
+            vulkanWindow.context.graphicsQueue.waitIdle();
             ImGui_ImplVulkan_DestroyFontUploadObjects();
         }
 
@@ -142,7 +142,7 @@ public:
 
             simFramebufferMemory = VulkanDeviceMemory(
                     vulkanWindow.device,
-                    vulkanWindow.setup.physicalDevice,
+                    vulkanWindow.context.physicalDevice,
                     memRequirements,
                     vk::MemoryPropertyFlagBits::eDeviceLocal
                     );

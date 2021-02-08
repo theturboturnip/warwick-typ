@@ -47,8 +47,8 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanSwapchain.h
         rendering/vulkan/VulkanSimApp.cpp
         rendering/vulkan/VulkanSimApp.h
-        rendering/vulkan/VulkanSetup.cpp
-        rendering/vulkan/VulkanSetup.h
+        rendering/vulkan/VulkanContext.cpp
+        rendering/vulkan/VulkanContext.h
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp
