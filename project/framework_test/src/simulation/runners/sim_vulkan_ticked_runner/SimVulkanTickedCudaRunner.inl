@@ -20,12 +20,12 @@ class SimVulkanTickedCudaRunner : public ISimVulkanTickedRunner {
     std::unique_ptr<VulkanSimulationAllocator<CudaVulkan2DAllocator>> allocator;
     std::unique_ptr<CudaBackend> backend;
 
-    CudaVulkanSemaphore hasImage, simFinished;
+    CudaVulkanSemaphore renderFinishedShouldSim, simFinished;
 
 public:
-    SimVulkanTickedCudaRunner(vk::Device device, vk::PhysicalDevice physicalDevice, vk::Semaphore hasImage, vk::Semaphore simFinished)
+    SimVulkanTickedCudaRunner(vk::Device device, vk::PhysicalDevice physicalDevice, vk::Semaphore renderFinishedShouldSim, vk::Semaphore simFinished)
         : allocator(std::make_unique<VulkanSimulationAllocator<CudaVulkan2DAllocator>>(device, physicalDevice)),
-          hasImage(device, hasImage),
+          renderFinishedShouldSim(device, renderFinishedShouldSim),
           simFinished(device, simFinished)
     {}
 
@@ -38,8 +38,8 @@ public:
 
     void tick(float timeToRun, bool waitOnRender, bool doSim) override {
         if (waitOnRender) {
-            //fprintf(stderr, "Waiting on hasImage\n");
-            hasImage.waitForAsync(backend->stream);
+            //fprintf(stderr, "Waiting on renderFinishedShouldSim\n");
+            renderFinishedShouldSim.waitForAsync(backend->stream);
         }
 
         float currentTime = 0;
@@ -56,7 +56,7 @@ public:
         }
         //fprintf(stderr, "Signalling simFinished\n");
         simFinished.signalAsync(backend->stream);
-        //CHECKED_CUDA(cudaStreamSynchronize(backend->stream));
+        CHECKED_CUDA(cudaStreamSynchronize(backend->stream));
     }
 };
 #endif

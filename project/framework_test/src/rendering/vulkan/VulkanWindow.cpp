@@ -196,11 +196,10 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<uint32_t> w
         swapchainProps.surfaceFormat = physicalDevice.getSurfaceFormatsKHR(*surface)[0];
 
         auto swapchainPresentModes = physicalDevice.getSurfacePresentModesKHR(*surface);
-        swapchainProps.presentMode = vk::PresentModeKHR::eFifo; // This is mandated to always be present
-//        if (std::find(swapchainPresentModes.begin(), swapchainPresentModes.end(), vk::PresentModeKHR::eMailbox) != swapchainPresentModes.end())
-//            swapchainProps.presentMode = vk::PresentModeKHR::eMailbox;
-//        else
-//            swapchainProps.presentMode = vk::PresentModeKHR::eFifo; // This is mandated to always be present
+        if (std::find(swapchainPresentModes.begin(), swapchainPresentModes.end(), vk::PresentModeKHR::eMailbox) != swapchainPresentModes.end())
+            swapchainProps.presentMode = vk::PresentModeKHR::eMailbox;
+        else
+            swapchainProps.presentMode = vk::PresentModeKHR::eFifo; // This is mandated to always be present
 
         auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
         if (surfaceCapabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
