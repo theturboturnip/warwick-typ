@@ -10,13 +10,13 @@
 #include <simulation/file_format/SimSnapshot.h>
 #include <vulkan/vulkan.hpp>
 
-#include "VulkanFence.h"
-#include "VulkanPipelineSet.h"
-#include "VulkanQueueFamilies.h"
-#include "VulkanRenderPass.h"
-#include "VulkanSemaphore.h"
-#include "VulkanSemaphoreSet.h"
-#include "VulkanShader.h"
+#include "rendering/vulkan/helpers/VulkanFence.h"
+#include "rendering/vulkan/helpers/VulkanPipelineSet.h"
+#include "rendering/vulkan/helpers/VulkanQueueFamilies.h"
+#include "rendering/vulkan/helpers/VulkanRenderPass.h"
+#include "rendering/vulkan/helpers/VulkanSemaphore.h"
+#include "rendering/vulkan/helpers/VulkanSemaphoreSet.h"
+#include "rendering/vulkan/helpers/VulkanShader.h"
 #include "util/Size.h"
 
 extern VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
@@ -25,7 +25,7 @@ extern VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData);
 
-class VulkanWindow {
+class VulkanSimApp {
     Size<uint32_t> window_size;
 
     SDL_Window* window;
@@ -75,10 +75,10 @@ class VulkanWindow {
 
     friend class SystemWorker;
 public:
-    VulkanWindow(const vk::ApplicationInfo& info, Size<uint32_t> window_size);
-    VulkanWindow(const VulkanWindow&) = delete;
-    VulkanWindow(VulkanWindow&&) = delete;
-    ~VulkanWindow();
+    VulkanSimApp(const vk::ApplicationInfo& info, Size<uint32_t> window_size);
+    VulkanSimApp(const VulkanSimApp &) = delete;
+    VulkanSimApp(VulkanSimApp &&) = delete;
+    ~VulkanSimApp();
 
     // TODO - this will change in the future
     void main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot);

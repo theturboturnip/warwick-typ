@@ -22,28 +22,28 @@ target_sources(generic_sources INTERFACE
         rendering/threads/ThreadWorkData.h
         rendering/threads/WorkerThreadController.h
         rendering/threads/work/SystemWorker.h
-        rendering/vulkan/VulkanDeviceMemory.cpp
-        rendering/vulkan/VulkanDeviceMemory.h
-        rendering/vulkan/VulkanDescriptorSetLayout.cpp
-        rendering/vulkan/VulkanDescriptorSetLayout.h
-        rendering/vulkan/VulkanFence.cpp
-        rendering/vulkan/VulkanFence.h
-        rendering/vulkan/VulkanShader.cpp
-        rendering/vulkan/VulkanShader.h
-        rendering/vulkan/VulkanSemaphore.cpp
-        rendering/vulkan/VulkanSemaphore.h
-        rendering/vulkan/VulkanSemaphoreSet.cpp
-        rendering/vulkan/VulkanSemaphoreSet.h
-        rendering/vulkan/VulkanPipeline.cpp
-        rendering/vulkan/VulkanPipeline.h
-        rendering/vulkan/VulkanPipelineSet.cpp
-        rendering/vulkan/VulkanPipelineSet.h
-        rendering/vulkan/VulkanQueueFamilies.cpp
-        rendering/vulkan/VulkanQueueFamilies.h
-        rendering/vulkan/VulkanRenderPass.cpp
-        rendering/vulkan/VulkanRenderPass.h
-        rendering/vulkan/VulkanWindow.cpp
-        rendering/vulkan/VulkanWindow.h
+        rendering/vulkan/helpers/VulkanDeviceMemory.cpp
+        rendering/vulkan/helpers/VulkanDeviceMemory.h
+        rendering/vulkan/helpers/VulkanDescriptorSetLayout.cpp
+        rendering/vulkan/helpers/VulkanDescriptorSetLayout.h
+        rendering/vulkan/helpers/VulkanFence.cpp
+        rendering/vulkan/helpers/VulkanFence.h
+        rendering/vulkan/helpers/VulkanShader.cpp
+        rendering/vulkan/helpers/VulkanShader.h
+        rendering/vulkan/helpers/VulkanSemaphore.cpp
+        rendering/vulkan/helpers/VulkanSemaphore.h
+        rendering/vulkan/helpers/VulkanSemaphoreSet.cpp
+        rendering/vulkan/helpers/VulkanSemaphoreSet.h
+        rendering/vulkan/helpers/VulkanPipeline.cpp
+        rendering/vulkan/helpers/VulkanPipeline.h
+        rendering/vulkan/helpers/VulkanPipelineSet.cpp
+        rendering/vulkan/helpers/VulkanPipelineSet.h
+        rendering/vulkan/helpers/VulkanQueueFamilies.cpp
+        rendering/vulkan/helpers/VulkanQueueFamilies.h
+        rendering/vulkan/helpers/VulkanRenderPass.cpp
+        rendering/vulkan/helpers/VulkanRenderPass.h
+        rendering/vulkan/VulkanSimApp.cpp
+        rendering/vulkan/VulkanSimApp.h
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp

@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "rendering/vulkan/VulkanWindow.h"
+#include "rendering/vulkan/VulkanSimApp.h"
 #include <SDL_vulkan.h>
 #include <imgui_impl_sdl.h>
 #include <imgui_impl_vulkan.h>
-#include <rendering/vulkan/VulkanDeviceMemory.h>
+#include <rendering/vulkan/helpers/VulkanDeviceMemory.h>
 
 
 struct SystemWorkerIn {
@@ -55,7 +55,7 @@ class SystemWorker {
 
     // TODO - make this allocate the command pool itself?
 public:
-    explicit SystemWorker(const VulkanWindow& vulkanWindow, SimSize simSize)
+    explicit SystemWorker(const VulkanSimApp & vulkanWindow, SimSize simSize)
         : window(vulkanWindow.window),
           imguiRenderPass(*vulkanWindow.imguiRenderPass),
           simRenderPass(*vulkanWindow.simRenderPass),

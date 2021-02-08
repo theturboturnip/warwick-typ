@@ -3,7 +3,7 @@
 //
 
 #include "InteractiveSubApp.h"
-#include <rendering/vulkan/VulkanWindow.h>
+#include <rendering/vulkan/VulkanSimApp.h>
 #include <simulation/file_format/FluidParams.h>
 #include <simulation/file_format/SimSnapshot.h>
 
@@ -21,7 +21,7 @@ void InteractiveSubApp::run() {
                 VK_API_VERSION_1_1 // DCS only has v1.1, not v1.2
                 );
 
-        auto window = VulkanWindow(
+        auto window = VulkanSimApp(
                 appinfo,
                 {1280, 720}//{ initial.simSize.pixel_size.x + 2, initial.simSize.pixel_size.y + 2 }
                         );

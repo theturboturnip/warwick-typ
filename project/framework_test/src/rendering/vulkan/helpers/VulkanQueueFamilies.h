@@ -13,11 +13,11 @@ struct VulkanQueueFamilies {
 
     static VulkanQueueFamilies fill_from_vulkan(vk::PhysicalDevice device, vk::UniqueSurfaceKHR& surface);
 
-    std::set<uint32_t> get_families() {
+    [[nodiscard]] std::set<uint32_t> get_families() const {
         return {graphics_family.value(), present_family.value()};
     }
 
-    [[nodiscard]] bool complete() {
+    [[nodiscard]] bool complete() const {
         return graphics_family.has_value() && present_family.has_value();
     }
 };

@@ -1,7 +1,7 @@
 //
 // Created by samuel on 22/08/2020.
 //
-#include "VulkanWindow.h"
+#include "VulkanSimApp.h"
 
 #include <SDL_vulkan.h>
 
@@ -11,10 +11,10 @@
 #include <zconf.h>
 #endif
 
-#include "VulkanQueueFamilies.h"
-#include "VulkanRenderPass.h"
 #include "rendering/threads/WorkerThreadController.h"
 #include "rendering/threads/work/SystemWorker.h"
+#include "rendering/vulkan/helpers/VulkanQueueFamilies.h"
+#include "rendering/vulkan/helpers/VulkanRenderPass.h"
 #include "util/fatal_error.h"
 #include <simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.h>
 
@@ -52,7 +52,7 @@ vk::PhysicalDevice selectDevice(const vk::UniqueInstance& instance, DeviceSelect
     FATAL_ERROR("Could not find a suitable device.\n");
 }
 
-VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<uint32_t> window_size) : window_size(window_size), dispatch_loader() {
+VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& app_info, Size<uint32_t> window_size) : window_size(window_size), dispatch_loader() {
     window = SDL_CreateWindow(
             app_info.pApplicationName,
                 SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -364,11 +364,11 @@ VulkanWindow::VulkanWindow(const vk::ApplicationInfo& app_info, Size<uint32_t> w
         graphicsFence = std::make_unique<VulkanFence>(*logicalDevice);
     }
 }
-VulkanWindow::~VulkanWindow() {
+VulkanSimApp::~VulkanSimApp() {
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
-void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot) {
+void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot) {
     pipelines = std::make_unique<VulkanPipelineSet>(*logicalDevice, *simRenderPass, Size<uint32_t>{snapshot.simSize.pixel_size.x + 2, snapshot.simSize.pixel_size.y + 2});
 
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this, snapshot.simSize));
@@ -464,13 +464,13 @@ void VulkanWindow::main_loop(SimulationBackendEnum backendType, const FluidParam
 
     logicalDevice->waitIdle();
 }
-void VulkanWindow::check_sdl_error(SDL_bool success) const {
+void VulkanSimApp::check_sdl_error(SDL_bool success) const {
     FATAL_ERROR_IF(!success, "SDL Error: %s\n", SDL_GetError());
 }
-void VulkanWindow::check_vulkan_error(vk::Result result) const {
+void VulkanSimApp::check_vulkan_error(vk::Result result) const {
     FATAL_ERROR_IF(result != vk::Result::eSuccess, "Vulkan Error: %s\n", vk::to_string(result).c_str());
 }
-vk::UniqueImageView VulkanWindow::make_identity_view(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags) const {
+vk::UniqueImageView VulkanSimApp::make_identity_view(vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags) const {
     auto createInfo = vk::ImageViewCreateInfo();
     createInfo.image = image;
     createInfo.viewType = vk::ImageViewType::e2D;
@@ -494,7 +494,7 @@ vk::UniqueImageView VulkanWindow::make_identity_view(vk::Image image, vk::Format
 #if CUDA_ENABLED
 #include "simulation/memory/vulkan/VulkanSimulationAllocator.h"
 
-SimSnapshot VulkanWindow::test_cuda_sim(const FluidParams &params, const SimSnapshot &snapshot) {
+SimSnapshot VulkanSimApp::test_cuda_sim(const FluidParams &params, const SimSnapshot &snapshot) {
     VulkanSimulationAllocator<CudaVulkan2DAllocator> allocator(*logicalDevice, physicalDevice);
     auto vulkanAllocs = allocator.makeAllocs(snapshot);
 
