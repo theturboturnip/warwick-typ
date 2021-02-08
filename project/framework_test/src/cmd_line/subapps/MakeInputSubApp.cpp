@@ -27,6 +27,7 @@ void MakeInputSubApp::run() {
         FATAL_ERROR("Image %s is %dx%d, but must be >2 in each direction\n", inputPath.c_str(), width, height);
     }
 
+    // NOTE - Input produced includes the boundary padding
     auto size = SimSize(
             {(uint32_t) width-2, (uint32_t) height-2},
             physicalSize
