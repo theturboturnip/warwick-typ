@@ -17,8 +17,7 @@ class BasicSimulationAllocator {
 public:
     BasicSimulationAllocator() : alloc(std::make_unique<Allocator>()) {}
     SimulationAllocs makeAllocs (const SimSnapshot& simSnapshot) {
-        // TODO - Make a standard way of accessing padded size. It's weird to be constantly adding 2 to everything
-        Size<uint32_t> matrixSize = {simSnapshot.simSize.pixel_size.x+2, simSnapshot.simSize.pixel_size.y+2};
+        Size<uint32_t> matrixSize = simSnapshot.simSize.padded_pixel_size;
 
         auto fluidmask = std::vector<uint32_t>(simSnapshot.simSize.pixel_count());
         for (size_t i = 0; i < fluidmask.size(); i++) {

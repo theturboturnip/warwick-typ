@@ -84,7 +84,7 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> wi
 }
 
 void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot) {
-    pipelines = std::make_unique<VulkanSimPipelineSet>(device, *simRenderPass, Size<uint32_t>{snapshot.simSize.pixel_size.x + 2, snapshot.simSize.pixel_size.y + 2});
+    pipelines = std::make_unique<VulkanSimPipelineSet>(device, *simRenderPass, Size<uint32_t>{snapshot.simSize.padded_pixel_size.x, snapshot.simSize.padded_pixel_size.y});
 
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this, snapshot.simSize));
     auto simulationRunner = ISimVulkanTickedRunner::getForBackend(

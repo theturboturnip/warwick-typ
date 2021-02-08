@@ -13,4 +13,8 @@ struct Size {
     Size() : x(-1), y(-1) {}
     Size(T x, T y) : x(x), y(y) {}
     Size(std::pair<T, T> pair) : x(pair.first), y(pair.second) {}
+
+    T area() const {
+        return x * y;
+    }
 };

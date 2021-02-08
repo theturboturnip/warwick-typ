@@ -22,11 +22,12 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, co
     : BaseCudaBackend(),
       params(params),
       simSize(s.simSize),
-      matrix_size(simSize.pixel_size.x + 2, simSize.pixel_size.y + 2),
+      matrix_size(simSize.padded_pixel_size),
       redblack_matrix_size(matrix_size.x, matrix_size.y / 2),
 
-      imax(simSize.pixel_size.x),
-      jmax(simSize.pixel_size.y),
+      // TODO eliminate/rename imax/jmax
+      imax(simSize.internal_pixel_size.x),
+      jmax(simSize.internal_pixel_size.y),
       x_length(simSize.physical_size.x),
       y_length(simSize.physical_size.y),
       del_x(simSize.del_x()),

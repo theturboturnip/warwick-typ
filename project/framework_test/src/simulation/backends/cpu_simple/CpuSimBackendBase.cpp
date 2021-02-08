@@ -49,8 +49,8 @@ SimSnapshot CpuSimBackendBase::get_snapshot() {
 CpuSimBackendBase::CpuSimBackendBase(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s)
     : params(params),
       simSize(s.simSize),
-      imax(simSize.pixel_size.x),
-      jmax(simSize.pixel_size.y),
+      imax(simSize.internal_pixel_size.x),
+      jmax(simSize.internal_pixel_size.y),
       xlength(simSize.physical_size.x),
       ylength(simSize.physical_size.y),
       delx(simSize.del_x()),

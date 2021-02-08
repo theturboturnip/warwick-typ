@@ -60,13 +60,13 @@ public:
           imguiRenderPass(*vulkanWindow.imguiRenderPass),
           simRenderPass(*vulkanWindow.simRenderPass),
           imguiRenderArea({0, 0}, {vulkanWindow.context.windowSize.x, vulkanWindow.context.windowSize.y}),
-          simRenderArea({0, 0}, {simSize.pixel_size.x+2, simSize.pixel_size.y+2}),
+          simRenderArea({0, 0}, {simSize.padded_pixel_size.x, simSize.padded_pixel_size.y}),
           pipelines(vulkanWindow.pipelines.get()),
           simSize(simSize),
           simFragPushConstants({
-                  .pixelWidth=simSize.pixel_size.x+2,
-                  .pixelHeight=simSize.pixel_size.y+2,
-                  .columnStride=simSize.pixel_size.y+2, // TODO
+                  .pixelWidth=simSize.padded_pixel_size.x,
+                  .pixelHeight=simSize.padded_pixel_size.y,
+                  .columnStride=simSize.padded_pixel_size.y, // TODO
                   .totalPixels=(uint32_t)simSize.pixel_count()
           })
     {
@@ -128,8 +128,8 @@ public:
             imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
             imageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled;
             imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
-            imageCreateInfo.extent.width = simSize.pixel_size.x+2;
-            imageCreateInfo.extent.height = simSize.pixel_size.y+2;
+            imageCreateInfo.extent.width = simSize.padded_pixel_size.x;
+            imageCreateInfo.extent.height = simSize.padded_pixel_size.y;
             imageCreateInfo.extent.depth = 1;
             imageCreateInfo.mipLevels = 1;
             imageCreateInfo.arrayLayers = 1;
@@ -228,7 +228,7 @@ public:
 
         //ImGui::SetNextWindowSize(ImVec2(simSize.pixel_size.x+2, simSize.pixel_size.y+2));
         ImGui::Begin("Simulation", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-        ImGui::Image((ImTextureID)*simImageDescriptorSet, ImVec2(simSize.pixel_size.x+2, simSize.pixel_size.y+2));
+        ImGui::Image((ImTextureID)*simImageDescriptorSet, ImVec2(simSize.padded_pixel_size.x, simSize.padded_pixel_size.y+2));
         ImGui::End();
         ImGui::Render();
 
