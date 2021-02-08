@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "VulkanSemaphore.h"
+#include "rendering/vulkan/helpers/VulkanSemaphore.h"
 
-struct VulkanSemaphoreSet {
+struct VulkanSimSemaphoreSet {
 public:
     VulkanSemaphore imageCanBeChanged, simFinished, renderFinishedShouldPresent, renderFinishedShouldSim;
 
-    explicit VulkanSemaphoreSet(vk::Device);
+    explicit VulkanSimSemaphoreSet(vk::Device);
 };

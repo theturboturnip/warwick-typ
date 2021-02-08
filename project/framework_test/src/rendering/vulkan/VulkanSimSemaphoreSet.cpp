@@ -1,9 +1,9 @@
 //
 // Created by samuel on 27/08/2020.
 //
-#include "VulkanSemaphoreSet.h"
+#include "VulkanSimSemaphoreSet.h"
 
-VulkanSemaphoreSet::VulkanSemaphoreSet(vk::Device device)
+VulkanSimSemaphoreSet::VulkanSimSemaphoreSet(vk::Device device)
     : imageCanBeChanged(device),
       simFinished(device),
       renderFinishedShouldPresent(device),

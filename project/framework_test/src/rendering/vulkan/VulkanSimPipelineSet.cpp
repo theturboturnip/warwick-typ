@@ -2,9 +2,9 @@
 // Created by samuel on 24/08/2020.
 //
 
-#include "VulkanPipelineSet.h"
+#include "VulkanSimPipelineSet.h"
 
-VulkanPipelineSet::VulkanPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize)
+VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize)
     : triVert(VertexShader::from_file(device, "triangle.vert")),
       fullscreenQuadVert(VertexShader::from_file(device, "fullscreen_quad.vert")),
       redFrag(FragmentShader::from_file(device, "red.frag")),
@@ -48,7 +48,7 @@ VulkanPipelineSet::VulkanPipelineSet(vk::Device device, vk::RenderPass renderPas
       fullscreenPressure(device, renderPass, viewportSize, fullscreenQuadVert, simPressure, &*simulationFragDescriptorLayout, &simulationFragPushConstantRange)
 {}
 
-void VulkanPipelineSet::buildSimulationFragDescriptors(vk::Device device, vk::DescriptorPool pool, VulkanSimulationBuffers buffers) {
+void VulkanSimPipelineSet::buildSimulationFragDescriptors(vk::Device device, vk::DescriptorPool pool, VulkanSimulationBuffers buffers) {
     auto allocInfo = vk::DescriptorSetAllocateInfo{};
     allocInfo.descriptorPool = pool;
     allocInfo.descriptorSetCount = 1;

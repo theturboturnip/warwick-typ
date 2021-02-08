@@ -4,7 +4,8 @@
 
 #include "VulkanRenderPass.h"
 
-VulkanRenderPass::VulkanRenderPass(vk::Device device, vk::Format colorAttachmentFormat, VulkanRenderPass::Position position, vk::ImageLayout targetLayout) {
+VulkanRenderPass::VulkanRenderPass(vk::Device device, vk::Format colorAttachmentFormat, VulkanRenderPass::Position position, vk::ImageLayout targetLayout)
+    : colorAttachmentFormat(colorAttachmentFormat) {
     const bool isStart = (position == Position::PipelineStart || position == Position::PipelineStartAndEnd);
     const bool isEnd = (position == Position::PipelineEnd || position == Position::PipelineStartAndEnd);
 

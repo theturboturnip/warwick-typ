@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "rendering/vulkan/VulkanWindow.h"
+#include "rendering/vulkan/VulkanSimApp.h"
 #include <SDL_vulkan.h>
 #include <imgui_impl_sdl.h>
 #include <imgui_impl_vulkan.h>
-#include <rendering/vulkan/VulkanDeviceMemory.h>
+#include <rendering/vulkan/helpers/VulkanDeviceMemory.h>
 
 
 struct SystemWorkerIn {
@@ -36,14 +36,14 @@ class SystemWorker {
     vk::RenderPass simRenderPass;
     vk::Rect2D imguiRenderArea;
     vk::Rect2D simRenderArea;
-    VulkanPipelineSet* pipelines;
+    VulkanSimPipelineSet * pipelines;
     std::vector<vk::UniqueCommandBuffer> frameCmdBuffers;
     bool showDemoWindow = true;
     bool wantsRunSim = false;
 
     SimSize simSize;
 
-    VulkanPipelineSet::SimFragPushConstants simFragPushConstants;
+    VulkanSimPipelineSet::SimFragPushConstants simFragPushConstants;
 
     vk::UniqueImage simFramebufferImage;
     VulkanDeviceMemory simFramebufferMemory;
@@ -55,11 +55,11 @@ class SystemWorker {
 
     // TODO - make this allocate the command pool itself?
 public:
-    explicit SystemWorker(const VulkanWindow& vulkanWindow, SimSize simSize)
-        : window(vulkanWindow.window),
+    explicit SystemWorker(const VulkanSimApp & vulkanWindow, SimSize simSize)
+        : window(vulkanWindow.context.window),
           imguiRenderPass(*vulkanWindow.imguiRenderPass),
           simRenderPass(*vulkanWindow.simRenderPass),
-          imguiRenderArea({0, 0}, {vulkanWindow.window_size.x, vulkanWindow.window_size.y}),
+          imguiRenderArea({0, 0}, {vulkanWindow.context.windowSize.x, vulkanWindow.context.windowSize.y}),
           simRenderArea({0, 0}, {simSize.pixel_size.x+2, simSize.pixel_size.y+2}),
           pipelines(vulkanWindow.pipelines.get()),
           simSize(simSize),
@@ -83,16 +83,16 @@ public:
         // Setup Platform/Renderer bindings
         ImGui_ImplSDL2_InitForVulkan(window);
         ImGui_ImplVulkan_InitInfo init_info = {};
-        init_info.Instance = *vulkanWindow.instance;
-        init_info.PhysicalDevice = vulkanWindow.physicalDevice;
-        init_info.Device = *vulkanWindow.logicalDevice;
-        init_info.QueueFamily = vulkanWindow.queueFamilies.graphics_family.value();
-        init_info.Queue = vulkanWindow.graphicsQueue;
+        init_info.Instance = *vulkanWindow.context.instance;
+        init_info.PhysicalDevice = vulkanWindow.context.physicalDevice;
+        init_info.Device = *vulkanWindow.context.device;
+        init_info.QueueFamily = vulkanWindow.context.queueFamilies.graphicsFamily;
+        init_info.Queue = vulkanWindow.context.graphicsQueue;
         init_info.PipelineCache = nullptr;
         init_info.DescriptorPool = *vulkanWindow.descriptorPool;
         init_info.Allocator = nullptr;
-        init_info.MinImageCount = vulkanWindow.swapchainProps.imageCount; // TODO - this isn't right
-        init_info.ImageCount = vulkanWindow.swapchainProps.imageCount;
+        init_info.MinImageCount = vulkanWindow.swapchain.imageCount; // TODO - this isn't right
+        init_info.ImageCount = vulkanWindow.swapchain.imageCount;
         init_info.CheckVkResultFn = nullptr; // TODO
         ImGui_ImplVulkan_Init(&init_info, imguiRenderPass);
 
@@ -100,8 +100,8 @@ public:
             auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
             cmdBufferAlloc.commandPool = *vulkanWindow.cmdPool;
             cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
-            cmdBufferAlloc.commandBufferCount = 1 + vulkanWindow.swapchainProps.imageCount;
-            frameCmdBuffers = vulkanWindow.logicalDevice->allocateCommandBuffersUnique(cmdBufferAlloc);
+            cmdBufferAlloc.commandBufferCount = 1 + vulkanWindow.swapchain.imageCount;
+            frameCmdBuffers = vulkanWindow.device.allocateCommandBuffersUnique(cmdBufferAlloc);
             const auto fontCmdBuffer = std::move(frameCmdBuffers.back());
             frameCmdBuffers.pop_back();
 
@@ -116,8 +116,8 @@ public:
             vk::SubmitInfo submitInfo = {};
             submitInfo.commandBufferCount = 1;
             submitInfo.pCommandBuffers = &(*fontCmdBuffer);
-            vulkanWindow.graphicsQueue.submit({submitInfo}, nullptr);
-            vulkanWindow.graphicsQueue.waitIdle();
+            vulkanWindow.context.graphicsQueue.submit({submitInfo}, nullptr);
+            vulkanWindow.context.graphicsQueue.waitIdle();
             ImGui_ImplVulkan_DestroyFontUploadObjects();
         }
 
@@ -136,20 +136,41 @@ public:
             imageCreateInfo.format = vk::Format::eR8G8B8A8Srgb;
             imageCreateInfo.tiling = vk::ImageTiling::eOptimal;
             imageCreateInfo.samples = vk::SampleCountFlagBits::e1;
-            simFramebufferImage = vulkanWindow.logicalDevice->createImageUnique(imageCreateInfo);
+            simFramebufferImage = vulkanWindow.device.createImageUnique(imageCreateInfo);
 
-            vk::MemoryRequirements memRequirements = vulkanWindow.logicalDevice->getImageMemoryRequirements(*simFramebufferImage);
+            vk::MemoryRequirements memRequirements = vulkanWindow.device.getImageMemoryRequirements(*simFramebufferImage);
 
             simFramebufferMemory = VulkanDeviceMemory(
-                    *vulkanWindow.logicalDevice,
-                    vulkanWindow.physicalDevice,
+                    vulkanWindow.device,
+                    vulkanWindow.context.physicalDevice,
                     memRequirements,
                     vk::MemoryPropertyFlagBits::eDeviceLocal
                     );
 
-            vulkanWindow.logicalDevice->bindImageMemory(*simFramebufferImage, *simFramebufferMemory, 0);
+            vulkanWindow.device.bindImageMemory(*simFramebufferImage, *simFramebufferMemory, 0);
 
-            simFramebufferImageView = vulkanWindow.make_identity_view(*simFramebufferImage, imageCreateInfo.format, vk::ImageAspectFlagBits::eColor);
+            // TODO - refactor into common function with VulkanSwapchain
+            auto makeIdentityView = [&](vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags = vk::ImageAspectFlagBits::eColor){
+                auto createInfo = vk::ImageViewCreateInfo();
+                createInfo.image = image;
+                createInfo.viewType = vk::ImageViewType::e2D;
+                createInfo.format = format;
+
+                createInfo.components.r = vk::ComponentSwizzle::eIdentity;
+                createInfo.components.g = vk::ComponentSwizzle::eIdentity;
+                createInfo.components.b = vk::ComponentSwizzle::eIdentity;
+                createInfo.components.a = vk::ComponentSwizzle::eIdentity;
+
+                createInfo.subresourceRange.aspectMask = aspectFlags;
+                // We don't do any mipmapping/texture arrays ever - only use the first mip level, and the first array layer
+                createInfo.subresourceRange.baseMipLevel = 0;
+                createInfo.subresourceRange.levelCount = 1;
+                createInfo.subresourceRange.baseArrayLayer = 0;
+                createInfo.subresourceRange.layerCount = 1;
+
+                return vulkanWindow.device.createImageViewUnique(createInfo);
+            };
+            simFramebufferImageView = makeIdentityView(*simFramebufferImage, imageCreateInfo.format);
 
             auto framebufferCreateInfo = vk::FramebufferCreateInfo();
             framebufferCreateInfo.renderPass = *vulkanWindow.simRenderPass;
@@ -158,10 +179,10 @@ public:
             framebufferCreateInfo.width = imageCreateInfo.extent.width;
             framebufferCreateInfo.height = imageCreateInfo.extent.height;
             framebufferCreateInfo.layers = 1;
-            simFramebuffer = vulkanWindow.logicalDevice->createFramebufferUnique(framebufferCreateInfo);
+            simFramebuffer = vulkanWindow.device.createFramebufferUnique(framebufferCreateInfo);
 
             vk::DescriptorSet descriptorSet = ImGui_ImplVulkan_MakeDescriptorSet(*simFramebufferImageView);
-            simImageDescriptorSet = vk::UniqueDescriptorSet(descriptorSet, vk::PoolFree(*vulkanWindow.logicalDevice, *vulkanWindow.descriptorPool, VULKAN_HPP_DEFAULT_DISPATCHER));
+            simImageDescriptorSet = vk::UniqueDescriptorSet(descriptorSet, vk::PoolFree(vulkanWindow.device, *vulkanWindow.descriptorPool, VULKAN_HPP_DEFAULT_DISPATCHER));
         }
     }
     ~SystemWorker() {
@@ -235,7 +256,7 @@ public:
                     *pipelines->fullscreenPressure.layout,
                     vk::ShaderStageFlagBits::eFragment,
                     0,
-                    vk::ArrayProxy<const VulkanPipelineSet::SimFragPushConstants>{simFragPushConstants});
+                    vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simFragPushConstants});
             cmdBuffer.bindDescriptorSets(
                     vk::PipelineBindPoint::eGraphics,
                     *pipelines->fullscreenPressure.layout,
