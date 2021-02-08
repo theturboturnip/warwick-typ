@@ -26,6 +26,8 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/VulkanDeviceMemory.h
         rendering/vulkan/VulkanDescriptorSetLayout.cpp
         rendering/vulkan/VulkanDescriptorSetLayout.h
+        rendering/vulkan/VulkanFence.cpp
+        rendering/vulkan/VulkanFence.h
         rendering/vulkan/VulkanShader.cpp
         rendering/vulkan/VulkanShader.h
         rendering/vulkan/VulkanSemaphore.cpp
