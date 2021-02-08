@@ -36,14 +36,14 @@ class SystemWorker {
     vk::RenderPass simRenderPass;
     vk::Rect2D imguiRenderArea;
     vk::Rect2D simRenderArea;
-    VulkanPipelineSet* pipelines;
+    VulkanSimPipelineSet * pipelines;
     std::vector<vk::UniqueCommandBuffer> frameCmdBuffers;
     bool showDemoWindow = true;
     bool wantsRunSim = false;
 
     SimSize simSize;
 
-    VulkanPipelineSet::SimFragPushConstants simFragPushConstants;
+    VulkanSimPipelineSet::SimFragPushConstants simFragPushConstants;
 
     vk::UniqueImage simFramebufferImage;
     VulkanDeviceMemory simFramebufferMemory;
@@ -86,7 +86,7 @@ public:
         init_info.Instance = *vulkanWindow.instance;
         init_info.PhysicalDevice = vulkanWindow.physicalDevice;
         init_info.Device = *vulkanWindow.logicalDevice;
-        init_info.QueueFamily = vulkanWindow.queueFamilies.graphics_family.value();
+        init_info.QueueFamily = vulkanWindow.queueFamilies.graphicsFamily.value();
         init_info.Queue = vulkanWindow.graphicsQueue;
         init_info.PipelineCache = nullptr;
         init_info.DescriptorPool = *vulkanWindow.descriptorPool;
@@ -235,7 +235,7 @@ public:
                     *pipelines->fullscreenPressure.layout,
                     vk::ShaderStageFlagBits::eFragment,
                     0,
-                    vk::ArrayProxy<const VulkanPipelineSet::SimFragPushConstants>{simFragPushConstants});
+                    vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simFragPushConstants});
             cmdBuffer.bindDescriptorSets(
                     vk::PipelineBindPoint::eGraphics,
                     *pipelines->fullscreenPressure.layout,

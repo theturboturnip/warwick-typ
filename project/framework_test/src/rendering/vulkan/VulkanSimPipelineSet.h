@@ -7,11 +7,11 @@
 #include <simulation/memory/vulkan/VulkanSimulationAllocator.h>
 #include <vulkan/vulkan.hpp>
 
-#include "VulkanDescriptorSetLayout.h"
-#include "VulkanPipeline.h"
-#include "VulkanShader.h"
+#include "rendering/vulkan/helpers/VulkanDescriptorSetLayout.h"
+#include "rendering/vulkan/helpers/VulkanPipeline.h"
+#include "rendering/vulkan/helpers/VulkanShader.h"
 
-class VulkanPipelineSet {
+class VulkanSimPipelineSet {
 public:
     struct SimFragPushConstants {
         uint32_t pixelWidth;
@@ -31,8 +31,8 @@ private:
     vk::PushConstantRange simulationFragPushConstantRange;
 
 public:
-    explicit VulkanPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize);
-    VulkanPipelineSet(VulkanPipelineSet&&) noexcept = default;
+    explicit VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize);
+    VulkanSimPipelineSet(VulkanSimPipelineSet &&) noexcept = default;
 
     vk::UniqueDescriptorSet simulationFragDescriptors;
     void buildSimulationFragDescriptors(vk::Device device, vk::DescriptorPool pool, VulkanSimulationBuffers buffers);
