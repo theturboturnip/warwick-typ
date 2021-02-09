@@ -68,7 +68,7 @@ private:
     SimRedBlackArray(SimRedBlackArray&&) = default;
     SimRedBlackArray(const SimRedBlackArray&) = delete;
 
-    friend class Allocator<MemType>;
+    friend class FrameAllocator<MemType>;
 };
 
 template<class T, MType MemType>
@@ -106,5 +106,5 @@ private:
     SimRedBlackArray(SimRedBlackArray&&) = default;
     SimRedBlackArray(const SimRedBlackArray&) = delete;
 
-    friend class Allocator<MemType>;
+    friend class FrameAllocator<MemType>;
 };

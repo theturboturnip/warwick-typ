@@ -5,7 +5,7 @@
 #pragma once
 
 #include "MType.h"
-#include "Allocator_fwd.h"
+#include "FrameAllocator_fwd.h"
 
 #include <cstdint>
 #include <vector>
@@ -38,6 +38,8 @@ template<class T>
 class Sim2DArray<T, MType::Cpu> {
 public:
     Sim2DArrayStats stats;
+
+    Sim2DArray(Sim2DArray&&) noexcept = default;
 
     const T** as_cpu() const {
         return cpu_pointers.data();
@@ -80,10 +82,9 @@ private:
             cpu_pointers[i] = data + i * stats.col_pitch;
         }
     }
-    Sim2DArray(Sim2DArray&&) = default;
     Sim2DArray(const Sim2DArray&) = delete;
 
-    friend class Allocator<MType::Cpu>;
+    friend class FrameAllocator<MType::Cpu>;
 };
 
 #if CUDA_ENABLED
@@ -91,6 +92,8 @@ template<class T>
 class Sim2DArray<T, MType::Cuda> {
 public:
     Sim2DArrayStats stats;
+
+    Sim2DArray(Sim2DArray&&) noexcept = default;
 
     const T** as_cpu() const {
         return cpu_pointers.data();
@@ -151,16 +154,17 @@ private:
             cpu_pointers[i] = data + i * stats.col_pitch;
         }
     }
-    Sim2DArray(Sim2DArray&&) = default;
     Sim2DArray(const Sim2DArray&) = delete;
 
-    friend class Allocator<MType::Cuda>;
+    friend class FrameAllocator<MType::Cuda>;
 };
 
 template<class T>
 class Sim2DArray<T, MType::VulkanCuda> {
 public:
     Sim2DArrayStats stats;
+
+    Sim2DArray(Sim2DArray&&) noexcept = default;
 
     const T** as_cpu() const {
         static_assert(false, "Sim2DArray<T, MType::VulkanCuda> does not support as_cpu() - it is not unified memory.");
@@ -219,9 +223,8 @@ private:
               raw_data(data),
               vulkanBufferInfo(vulkanBufferInfo)
     {}
-    Sim2DArray(Sim2DArray&&) = default;
     Sim2DArray(const Sim2DArray&) = delete;
 
-    friend class Allocator<MType::VulkanCuda>;
+    friend class FrameAllocator<MType::VulkanCuda>;
 };
 #endif

@@ -7,4 +7,4 @@
 #include "MType.h"
 
 template<MType MemType>
-class Allocator;
+class FrameAllocator;

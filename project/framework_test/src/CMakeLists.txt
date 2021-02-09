@@ -17,6 +17,12 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/LegacyRenderPPMSubApp.h
         cmd_line/subapps/InteractiveSubApp.cpp
         cmd_line/subapps/InteractiveSubApp.h
+        memory/FrameSetAllocator.h
+        memory/FrameAllocator.h
+        memory/FrameAllocator_fwd.h
+        memory/MType.h
+        memory/Sim2DArray.h
+        memory/SimRedBlackArray.h
         rendering/threads/IWorkerThread.h
         rendering/threads/IWorkerThread_Impl.inl
         rendering/threads/ThreadWorkData.h

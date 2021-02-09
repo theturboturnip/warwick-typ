@@ -6,6 +6,8 @@
 
 enum class MType {
     Cpu,
+#if CUDA_ENABLED
     VulkanCuda,
-    Cuda
+    Cuda,
+#endif
 };
