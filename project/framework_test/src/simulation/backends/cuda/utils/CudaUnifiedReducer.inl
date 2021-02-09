@@ -4,9 +4,9 @@
 
 #include "simulation/backends/cuda/kernels/reduction.cuh"
 
-template<bool UnifiedMemoryForBacking, size_t BlockSize>
+template<size_t BlockSize>
 template<bool UnifiedMemory, typename Preproc, typename Func>
-float CudaReducer<UnifiedMemoryForBacking, BlockSize>::map_reduce(CudaUnified2DArray<float, UnifiedMemory>& input, Preproc pre, Func func, cudaStream_t stream) {
+float CudaReducer<BlockSize>::map_reduce(CudaUnified2DArray<float, UnifiedMemory>& input, Preproc pre, Func func, cudaStream_t stream) {
     FATAL_ERROR_UNLESS(input.raw_length == input_size, "Got input of length %zu, expected %u", input.raw_length, input_size);
 
     dim3 blocksize(BlockSize);
@@ -47,9 +47,9 @@ float CudaReducer<UnifiedMemoryForBacking, BlockSize>::map_reduce(CudaUnified2DA
     CHECKED_CUDA(cudaMemcpy(&result, reduction_out, sizeof(float), cudaMemcpyDefault));
     return result;
 }
-template<bool UnifiedMemoryForBacking, size_t BlockSize>
+template<size_t BlockSize>
 template<bool UnifiedMemory, typename Func>
-float CudaReducer<UnifiedMemoryForBacking, BlockSize>::reduce(CudaUnified2DArray<float, UnifiedMemory>& input, Func func, cudaStream_t stream) {
+float CudaReducer<BlockSize>::reduce(CudaUnified2DArray<float, UnifiedMemory>& input, Func func, cudaStream_t stream) {
     // Run a reduction with an identity preprocess
     return get_reduction(input, [](float x) { return x; }, func, stream);
 }

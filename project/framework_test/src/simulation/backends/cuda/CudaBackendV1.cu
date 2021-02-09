@@ -16,7 +16,7 @@ inline float host_min(float x, float y) {
 inline float host_max(float x, float y) {
     return (x>y) ? x : y;
 }
-
+/*
 template<bool UnifiedMemoryForExport>
 CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s)
     : BaseCudaBackend(),
@@ -384,7 +384,26 @@ template<bool UnifiedMemoryForExport>
 SimSnapshot CudaBackendV1<UnifiedMemoryForExport>::get_snapshot() {
     return SimSnapshot::from_legacy(dumpStateAsLegacy());
 }
-
+*/
 
 template class CudaBackendV1<true>;
 template class CudaBackendV1<false>;
+
+template<bool UnifiedMemoryForExport>
+CudaBackendV1<UnifiedMemoryForExport>::Frame::Frame(CudaBackendV1::Frame::AllocType &alloc)
+    : u(alloc.allocate2D_renderable(u)),
+      v(alloc.allocate2D_renderable(v)),
+      p(alloc.allocateRedBlack_renderable(p)),
+      fluidmask(alloc.allocate2D_renderable(fluidmask)),
+
+      f(alloc.allocate2D(f)),
+      g(alloc.allocate2D(g)),
+      p_buffered(alloc.allocateRedBlack(p_buffered)),
+      p_sum_squares(alloc.allocate2D(p_sum_squares)),
+      p_beta(alloc.allocateRedBlack(p_beta)),
+      rhs(alloc.allocateRedBlack(rhs)),
+      flag(alloc.allocate2D(flag)),
+      surroundmask(alloc.allocateRedBlack(surroundmask)),
+
+      reducer_fullsize(alloc, alloc.paddedSize.area())
+{}

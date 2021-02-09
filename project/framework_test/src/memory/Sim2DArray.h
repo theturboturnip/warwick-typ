@@ -54,14 +54,14 @@ public:
     }
 
     const T* as_cuda() const {
-        static_assert(false, "Sim2DArray<T, MType::Cpu> does not support as_cuda()");
+        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::Cpu> does not support as_cuda()");
     }
     T* as_cuda() {
-        static_assert(false, "Sim2DArray<T, MType::Cpu> does not support as_cuda()");
+        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::Cpu> does not support as_cuda()");
     }
 
     const vk::DescriptorBufferInfo as_vulkan() const {
-        static_assert(false, "Sim2DArray<T, MType::Cpu> does not support as_vulkan()");
+        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::Cpu> does not support as_vulkan()");
     }
 
     void zero_out() {
@@ -118,7 +118,7 @@ public:
     }
 
     const vk::DescriptorBufferInfo as_vulkan() const {
-        static_assert(false, "Sim2DArray<T, MType::Cuda> does not support as_vulkan()");
+        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::Cuda> does not support as_vulkan()");
     }
 
     void zero_out() {
@@ -178,10 +178,10 @@ public:
     Sim2DArray(Sim2DArray&&) noexcept = default;
 
     const T** as_cpu() const {
-        static_assert(false, "Sim2DArray<T, MType::VulkanCuda> does not support as_cpu() - it is not unified memory.");
+        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::VulkanCuda> does not support as_cpu() - it is not unified memory.");
     }
     T** as_cpu() {
-        static_assert(false, "Sim2DArray<T, MType::VulkanCuda> does not support as_cpu() - it is not unified memory.");
+        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::VulkanCuda> does not support as_cpu() - it is not unified memory.");
     }
 
     const T* as_cuda() const {
@@ -217,7 +217,7 @@ public:
         CHECKED_CUDA(cudaMemcpyAsync(raw_data, other.raw_data, stats.raw_length*sizeof(T), cudaMemcpyDefault, stream));
     }
     void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) {
-        static_assert(false, "cudaMemPrefetchAsync only works on Unified Memory");
+        FATAL_ERROR("B");//static_assert(false, "cudaMemPrefetchAsync only works on Unified Memory");
     }
     std::vector<T> extract_data() {
         auto vec = std::vector<T>(stats.raw_length);
@@ -239,3 +239,5 @@ private:
     friend class FrameAllocator<MType::VulkanCuda>;
 };
 #endif
+
+#include "FrameAllocator.h"

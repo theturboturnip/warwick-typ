@@ -11,14 +11,13 @@
 
 class BaseCudaBackend {
 protected:
-    BaseCudaBackend() : unifiedAlloc(std::make_unique<CudaUnified2DAllocator>()) {
+    BaseCudaBackend() {
         CHECKED_CUDA(cudaStreamCreate(&stream));
     }
     ~BaseCudaBackend() {
         CHECKED_CUDA(cudaStreamDestroy(stream));
     }
 
-    std::unique_ptr<CudaUnified2DAllocator> unifiedAlloc;
 public: // TODO - make this use a more controlled access model?
     cudaStream_t stream;
 };

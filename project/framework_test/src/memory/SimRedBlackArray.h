@@ -65,11 +65,11 @@ public:
         black.zero_out();
     }
 
-private:
+protected:
     SimRedBlackArray(ArrayType&& red, ArrayType&& black)
         : splitStats(red.stats),
-        red(red),
-        black(black) {}
+        red(std::move(red)),
+        black(std::move(black)) {}
     SimRedBlackArray(SimRedBlackArray&&) = default;
     SimRedBlackArray(const SimRedBlackArray&) = delete;
 
@@ -113,8 +113,8 @@ public:
 
 private:
     SimRedBlackArray(BaseArrayType&& joined, BaseArrayType&& red, BaseArrayType&& black)
-            : Base(red, black),
-              joined(joined) {}
+            : Base(std::move(red), std::move(black)),
+              joined(std::move(joined)) {}
     SimRedBlackArray(SimRedBlackArray&&) = default;
     SimRedBlackArray(const SimRedBlackArray&) = delete;
 
