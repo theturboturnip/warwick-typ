@@ -25,6 +25,11 @@ class SimRedBlackArray<T, MemType, RedBlackStorage::RedBlackOnly> {
 public:
     using ArrayType = SimRedBlackArray<T, MemType>;
 
+    static size_t sizeBytesOf(Size<uint32_t> paddedFullSize) {
+        // Half are red, half are black => total amount of elements is paddedFullSize.area()
+        return paddedFullSize.area() * sizeof(T);
+    }
+
     Sim2DArrayStats splitStats;
 
     ArrayType red;
@@ -78,6 +83,12 @@ class SimRedBlackArray<T, MemType, RedBlackStorage::WithJoined> : private SimRed
 
 public:
     BaseArrayType joined;
+
+    static size_t sizeBytesOf(Size<uint32_t> paddedFullSize) {
+        // Half-size red + Half-size black + full-size joined => every pixel is repeated twice
+
+        return paddedFullSize.area() * 2 * sizeof(T);
+    }
 
     using Base::red;
     using Base::black;

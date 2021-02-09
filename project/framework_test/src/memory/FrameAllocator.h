@@ -13,6 +13,9 @@
 
 #if CUDA_ENABLED
 #include <cuda_runtime_api.h>
+#include <rendering/vulkan/helpers/VulkanDeviceMemory.h>
+#include <rendering/vulkan/VulkanContext.h>
+#include <memory/vulkan/VulkanCudaBufferMemory.h>
 #include "util/check_cuda_error.cuh"
 #endif
 
@@ -187,12 +190,10 @@ private:
 template<>
 class FrameAllocator<MType::VulkanCuda> : FrameAllocator<MType::Cuda> {
 public:
-    // INCOMPLETE
-    static_assert(false, "Incomplete");
-
-    // TODO - allocate device memory
-    explicit FrameAllocator(Size<uint32_t> paddedSize)
-            : FrameAllocator<MType::Cuda>(paddedSize) {}
+    explicit FrameAllocator(VulkanContext& context, Size<uint32_t> paddedSize, size_t totalAllocationBytes)
+            : FrameAllocator<MType::Cuda>(paddedSize),
+                    memory(context, totalAllocationBytes),
+                    bytesUsed(0) {}
 
     template<class T>
     Sim2DArray<T, MType::VulkanCuda> allocate2D_vkcuda() {
@@ -221,15 +222,10 @@ public:
         }
     }
 
-
-    ~FrameAllocator() {
-        // TODO - free device memory
-    }
-
 private:
     template<class T>
     Sim2DArray<T, MType::VulkanCuda> allocate2D(Size<uint32_t> size) {
-
+        // Create T* cudaPointer, and vk::DescriptorBufferInfo
         Sim2DArrayStats stats = {
                 .width = size.x,
                 .height = size.y,
@@ -237,9 +233,27 @@ private:
                 .raw_length = sizeof(T) * size.x * size.y
         };
 
-        T* data = ;// TODO
+        // Cast to char* to get correct pointer arithmetic, then cast back to T
+        T* data = (T*)((char*)memory.as_cuda() + bytesUsed);
 
-        return Sim2DArray<T, MType::VulkanCuda>(stats, data);
+        vk::DescriptorBufferInfo vulkanBufferInfo;
+        vulkanBufferInfo.buffer = memory.as_buffer();
+        vulkanBufferInfo.offset = bytesUsed;
+        vulkanBufferInfo.range = stats.raw_length;
+
+        // Check if this allocation is actually valid
+        bytesUsed += stats.raw_length;
+        FATAL_ERROR_IF(bytesUsed > memory.sizeBytes, "FrameAllocator<Vulkan> out of memory");
+        FATAL_ERROR_IF(
+                (static_cast<std::uintptr_t>(data) % alignof(T)) == 0,
+                "FrameAllocator<Vulkan> allocated misaligned data pointer for %s", typeid(T).name()
+        );
+
+        // Done - return the memory
+        return Sim2DArray<T, MType::VulkanCuda>(stats, data, vulkanBufferInfo);
     }
+
+    VulkanCudaBufferMemory memory;
+    size_t bytesUsed;
 };
 #endif

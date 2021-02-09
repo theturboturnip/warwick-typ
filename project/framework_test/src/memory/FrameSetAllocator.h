@@ -49,15 +49,19 @@ class FrameSetAllocator<MType::VulkanCuda, TFrame> {
     static_assert(std::is_same_v<decltype(TFrame::fluidmask), Sim2DArray<int, MType::VulkanCuda>>);
 
 public:
-    static_assert(false, "In progress, need to finalize FrameAllocator<Vulkan> mem management and pass correct stuff in");
 
-    FrameSetAllocator(vk::Device device, Size<uint32_t> paddedSize, size_t frameCount) {
+    FrameSetAllocator(VulkanContext& context, Size<uint32_t> paddedSize, size_t frameCount) {
         frameAllocs.clear();
         frames.clear();
         vulkanFrames.clear();
 
+        const size_t totalFrameSize = decltype(TFrame::u)::sizeBytesOf(paddedSize) +
+                decltype(TFrame::v)::sizeBytesOf(paddedSize) +
+                decltype(TFrame::p)::sizeBytesOf(paddedSize) +
+                decltype(TFrame::fluidmask)::sizeBytesOf(paddedSize);
+
         for (size_t i = 0; i < frameCount; i++) {
-            frameAllocs.emplace_back(FrameAllocator<MType::VulkanCuda>(paddedSize));
+            frameAllocs.emplace_back(FrameAllocator<MType::VulkanCuda>(context, paddedSize, totalFrameSize));
             frames.emplace_back(TFrame(paddedSize, frameAllocs[i]));
             const auto& frameRef = frames[i];
             vulkanFrames.emplace_back(VulkanSimFrameData{

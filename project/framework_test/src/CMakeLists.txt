@@ -23,6 +23,8 @@ target_sources(generic_sources INTERFACE
         memory/MType.h
         memory/Sim2DArray.h
         memory/SimRedBlackArray.h
+        memory/vulkan/VulkanCudaBufferMemory.cpp
+        memory/vulkan/VulkanCudaBufferMemory.h
         rendering/threads/IWorkerThread.h
         rendering/threads/IWorkerThread_Impl.inl
         rendering/threads/ThreadWorkData.h

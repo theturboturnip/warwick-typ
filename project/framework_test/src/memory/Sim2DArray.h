@@ -16,6 +16,8 @@
 #include "util/check_cuda_error.cuh"
 #endif
 
+#include "util/Size.h"
+
 struct Sim2DArrayStats {
     const uint32_t width, height;
     uint32_t col_pitch;
@@ -38,6 +40,9 @@ template<class T>
 class Sim2DArray<T, MType::Cpu> {
 public:
     Sim2DArrayStats stats;
+    static size_t sizeBytesOf(Size<uint32_t> size) {
+        return size.area() * sizeof(T);
+    }
 
     Sim2DArray(Sim2DArray&&) noexcept = default;
 
@@ -92,6 +97,9 @@ template<class T>
 class Sim2DArray<T, MType::Cuda> {
 public:
     Sim2DArrayStats stats;
+    static size_t sizeBytesOf(Size<uint32_t> size) {
+        return size.area() * sizeof(T);
+    }
 
     Sim2DArray(Sim2DArray&&) noexcept = default;
 
@@ -163,6 +171,9 @@ template<class T>
 class Sim2DArray<T, MType::VulkanCuda> {
 public:
     Sim2DArrayStats stats;
+    static size_t sizeBytesOf(Size<uint32_t> size) {
+        return size.area() * sizeof(T);
+    }
 
     Sim2DArray(Sim2DArray&&) noexcept = default;
 
