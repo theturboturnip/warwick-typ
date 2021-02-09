@@ -20,7 +20,7 @@ inline float host_max(float x, float y) {
 template<bool UnifiedMemoryForExport>
 CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s)
     : BaseCudaBackend(),
-      params(params),
+      fluidParams(params),
       simSize(s.simSize),
       matrix_size(simSize.padded_pixel_size),
       redblack_matrix_size(matrix_size.x, matrix_size.y / 2),
@@ -137,14 +137,14 @@ float CudaBackendV1<UnifiedMemoryForExport>::findMaxTimestep() {
     // This used to be deltRe = 1/(1/(delx*delx)+1/(dely*dely))*Re/2.0;
     // the original version has 2.0 at the end, but this only ends up doing the rest of the equation, promoting it to double, dividing it, and demoting back to int.
     // this is equivalent to dividing by 2.0f without any double-promotions.
-    float deltRe = 1.0f/(1.0f/(del_x*del_x)+1.0f/(del_y*del_y))*params.Re/2.0f;
+    float deltRe = 1.0f / (1.0f/(del_x*del_x)+1.0f/(del_y*del_y)) * fluidParams.Re / 2.0f;
 
     if (delt_u<delt_v) {
         delta_t = host_min(delt_u, deltRe);
     } else {
         delta_t = host_min(delt_v, deltRe);
     }
-    delta_t = params.timestep_safety * (delta_t); // multiply by safety factor
+    delta_t = fluidParams.timestep_safety * (delta_t); // multiply by safety factor
 
 //    printf("GPU del_t\n");
 //    printf("u_max: %a\tv_max: %a\n", u_max, v_max);
@@ -196,18 +196,18 @@ void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep) {
     dim3 gridsize_horizontal((matrix_size.x + blocksize_horizontal.x - 1) / blocksize_horizontal.x);
 
     computeTentativeVelocity_apply<<<gridsize_2d, blocksize_2d, 0, stream>>>(
-            u.as_gpu(), v.as_gpu(), fluidmask.as_gpu(),
-            f.as_gpu(), g.as_gpu(),
-            gpu_params, params.gamma, params.Re
+            u.as_cuda(), v.as_cuda(), fluidmask.as_cuda(),
+            f.as_cuda(), g.as_cuda(),
+            gpu_params, fluidParams.gamma, fluidParams.Re
             );
 
-    computeTentativeVelocity_postproc_vertical<<<gridsize_vertical, blocksize_vertical, 0, stream>>>(u.as_gpu(), f.as_gpu(), gpu_params);
-    computeTentativeVelocity_postproc_horizontal<<<gridsize_horizontal, blocksize_horizontal, 0, stream>>>(v.as_gpu(), g.as_gpu(), gpu_params);
+    computeTentativeVelocity_postproc_vertical<<<gridsize_vertical, blocksize_vertical, 0, stream>>>(u.as_cuda(), f.as_cuda(), gpu_params);
+    computeTentativeVelocity_postproc_horizontal<<<gridsize_horizontal, blocksize_horizontal, 0, stream>>>(v.as_cuda(), g.as_cuda(), gpu_params);
 
 //    OriginalOptimized::computeRhs(f.as_cpu(), g.as_cpu(), rhs2.as_cpu(), flag.as_cpu(),
 //               imax, jmax, timestep, del_x, del_y);
 
-    computeRHS_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(f.as_gpu(), g.as_gpu(), fluidmask.as_gpu(), rhs.joined.as_gpu(), gpu_params);
+    computeRHS_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(f.as_cuda(), g.as_cuda(), fluidmask.as_cuda(), rhs.joined.as_cuda(), gpu_params);
     //cudaStreamSynchronize(stream);
     CHECK_KERNEL_ERROR();
 
@@ -221,11 +221,11 @@ void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep) {
                                                     (int **) fluidmask.as_cpu(), (int **) surroundmask.black.as_cpu(),
                                                     flag.as_cpu(), imax, jmax,
                                                     del_x, del_y,
-                                                    params.poisson_error_threshold, params.poisson_max_iterations, params.poisson_omega,
+                                                    fluidParams.poisson_error_threshold, fluidParams.poisson_max_iterations, fluidParams.poisson_omega,
                                                     ifluid);
         } else {
             // Sum of squares of pressure - reduction
-            // poisson_pSquareSumReduce(p.joined.as_gpu(), p_sum_squares.as_gpu())
+            // poisson_pSquareSumReduce(p.joined.as_cuda(), p_sum_squares.as_cuda())
             // p0 = p_sum_squares.as_cpu(?????)???
             // TODO - accessing memory like this is very convenient with managed memory
             //  We *might* be able to us VK_EXT_external_memory_host to import CUDA Managed Memory as Vulkan, bypassing Vulkan allocations
@@ -238,7 +238,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep) {
             // cudaStreamSynchronize(stream);
 
             // Red/Black SOR-iteration
-            for (int iter = 0; iter < params.poisson_max_iterations; iter++) {
+            for (int iter = 0; iter < fluidParams.poisson_max_iterations; iter++) {
             //  redblack<Red>();
                 dispatch_poissonRedBlackCUDA<RedBlack::Red>(gridsize_redblack, blocksize_redblack, iter, gpu_params);
             //  float approxRes = redblack<Black>(); (capture approximate residual here)
@@ -263,20 +263,20 @@ void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep) {
 //                       f.as_cpu(), g.as_cpu(),
 //                       p.as_cpu(), flag.as_cpu(),
 //                       imax, jmax, timestep, del_x, del_y);
-    updateVelocity_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(f.as_gpu(), g.as_gpu(), p.joined.as_gpu(), fluidmask.as_gpu(),
-                                                                      u.as_gpu(), v.as_gpu(),
+    updateVelocity_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(f.as_cuda(), g.as_cuda(), p.joined.as_cuda(), fluidmask.as_cuda(),
+                                                                      u.as_cuda(), v.as_cuda(),
                                                                       gpu_params);
 
-    boundaryConditions_preproc_vertical<<<gridsize_vertical, blocksize_vertical, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
-    boundaryConditions_preproc_horizontal<<<gridsize_horizontal, blocksize_horizontal, 0, stream>>>( u.as_gpu(),  v.as_gpu(), gpu_params);
+    boundaryConditions_preproc_vertical<<<gridsize_vertical, blocksize_vertical, 0, stream>>>( u.as_cuda(),  v.as_cuda(), gpu_params);
+    boundaryConditions_preproc_horizontal<<<gridsize_horizontal, blocksize_horizontal, 0, stream>>>( u.as_cuda(),  v.as_cuda(), gpu_params);
 
-    boundaryConditions_apply<<<gridsize_2d, blocksize_2d, 0, stream>>>( flag.as_gpu(),
-                                                                           u.as_gpu(),  v.as_gpu(),
+    boundaryConditions_apply<<<gridsize_2d, blocksize_2d, 0, stream>>>( flag.as_cuda(),
+                                                                           u.as_cuda(),  v.as_cuda(),
                                                                            gpu_params);
 
     boundaryConditions_inputflow_west_vertical<<<gridsize_vertical, blocksize_vertical, 0, stream>>>(
-            u.as_gpu(),  v.as_gpu(),
-            float2{params.initial_velocity_x, params.initial_velocity_y},
+            u.as_cuda(),  v.as_cuda(),
+            float2{fluidParams.initial_velocity_x, fluidParams.initial_velocity_y},
             gpu_params
             );
     CHECK_KERNEL_ERROR();
@@ -291,8 +291,8 @@ void CudaBackendV1<UnifiedMemoryForExport>::dispatch_splitRedBlackCUDA(CudaUnifi
                                                CommonParams params)
 {
     split_redblack_simple<<<gridsize_2d, blocksize_2d, 0, stream>>>(
-            to_split.joined.as_gpu(),
-            to_split.red.as_gpu(), to_split.black.as_gpu(),
+            to_split.joined.as_cuda(),
+            to_split.red.as_cuda(), to_split.black.as_cuda(),
             params
     );
     CHECK_KERNEL_ERROR();
@@ -304,8 +304,8 @@ void CudaBackendV1<UnifiedMemoryForExport>::dispatch_joinRedBlackCUDA(CudaUnifie
                                               CommonParams params)
 {
     join_redblack_simple<<<gridsize_2d, blocksize_2d,0, stream>>>(
-            to_join.red.as_gpu(), to_join.black.as_gpu(),
-            to_join.joined.as_gpu(),
+            to_join.red.as_cuda(), to_join.black.as_cuda(),
+            to_join.joined.as_cuda(),
             params
     );
     CHECK_KERNEL_ERROR();
@@ -333,35 +333,35 @@ void CudaBackendV1<UnifiedMemoryForExport>::dispatch_poissonRedBlackCUDA(dim3 gr
 
     if (DoubleBuffer) {
         poisson_single_tick<<<gridsize_redblack, blocksize_redblack, 0, stream>>>(
-                p.template get<Kind>().as_gpu(),
-                p_buffered.template get_other<Kind>().as_gpu(),
-                rhs.template get<Kind>().as_gpu(),
-                p_beta.template get<Kind>().as_gpu(),
+                p.template get<Kind>().as_cuda(),
+                p_buffered.template get_other<Kind>().as_cuda(),
+                rhs.template get<Kind>().as_cuda(),
+                p_beta.template get<Kind>().as_cuda(),
 
-                p_buffered.template get<Kind>().as_gpu(),
+                p_buffered.template get<Kind>().as_cuda(),
 
                 (Kind == RedBlack::Black) ? 1 : 0,// 0 if red, 1 if black
 
-                params.poisson_omega,
+                fluidParams.poisson_omega,
 
                 iter,
 
                 gpu_params);
 
         // TODO - this needs to be done in a separate stream to overlap
-        p.template get_other<Kind>().dispatch_memcpy_in(p_buffered.template get_other<Kind>(), stream);
+        p.template get_other<Kind>().dispatch_memcpy_in(p_buffered.get_other<Kind>(), stream);
     } else {
         poisson_single_tick<<<gridsize_redblack, blocksize_redblack, 0, stream>>>(
-                p.template get<Kind>().as_gpu(),
-                p.template get_other<Kind>().as_gpu(),
-                rhs.template get<Kind>().as_gpu(),
-                p_beta.template get<Kind>().as_gpu(),
+                p.template get<Kind>().as_cuda(),
+                p.template get_other<Kind>().as_cuda(),
+                rhs.get<Kind>().as_cuda(),
+                p_beta.get<Kind>().as_cuda(),
 
-                p.template get<Kind>().as_gpu(),
+                p.template get<Kind>().as_cuda(),
 
                 (Kind == RedBlack::Black) ? 1 : 0,// 0 if red, 1 if black
 
-                params.poisson_omega,
+                fluidParams.poisson_omega,
 
                 iter,
 

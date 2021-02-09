@@ -30,7 +30,7 @@ public:
     SimSnapshot get_snapshot();
 
 private:
-    const FluidParams params;
+    const FluidParams fluidParams;
     const SimSize simSize;
     const Size<uint32_t> matrix_size;
     const Size<uint32_t> redblack_matrix_size;
