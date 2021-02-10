@@ -53,7 +53,10 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(std::vector<Frame> frames, 
       frames(std::move(frames)),
       lastWrittenFrame(0)
 {
-    for (auto& frame : frames) {
+    DASSERT(!this->frames.empty());
+
+    // Use this->frames because `frames` on it's own is the newly-removed argument
+    for (auto& frame : this->frames) {
         resetFrame(frame, s);
     }
 }
