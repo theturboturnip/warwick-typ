@@ -259,7 +259,6 @@ private:
         vulkanBufferInfo.buffer = memory.as_buffer();
         vulkanBufferInfo.offset = bytesUsed;
         vulkanBufferInfo.range = stats.raw_length;
-        fprintf(stderr, "Allocating range %zu+%zu to buffer %p\n", bytesUsed, stats.raw_length, memory.as_buffer());
 
         // Check if this allocation is actually valid
         bytesUsed += stats.raw_length;

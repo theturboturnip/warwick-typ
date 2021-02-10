@@ -27,7 +27,6 @@ VulkanCudaBufferMemory::VulkanCudaBufferMemory(VulkanContext& context, size_t si
         bufferCreate.usage = vk::BufferUsageFlagBits::eStorageBuffer;
         bufferCreate.sharingMode = vk::SharingMode::eExclusive;
         buffer = context.device->createBufferUnique(bufferCreate);
-        fprintf(stderr, "VulkanCudaBufferMemory allocated a uniquebuffer length %zu %p\n", sizeBytes, (void*)*buffer);
     }
 
     {
@@ -44,7 +43,6 @@ VulkanCudaBufferMemory::VulkanCudaBufferMemory(VulkanContext& context, size_t si
 
         deviceMemory = context.device->allocateMemoryUnique(allocInfo);
 
-        fprintf(stderr, "Binding some devicememory to %p\n", (void*)(*buffer));
         context.device->bindBufferMemory(*buffer, *deviceMemory, 0);
     }
 
@@ -75,7 +73,6 @@ VulkanCudaBufferMemory::VulkanCudaBufferMemory(VulkanContext& context, size_t si
 }
 
 VulkanCudaBufferMemory::~VulkanCudaBufferMemory() {
-    fprintf(stderr, "VulkanCudaBufferMemory being destructed - buffer %p will die\n", (void*)(*buffer));
     if (cudaPointer) {
         CHECKED_CUDA(cudaFree(cudaPointer));
     }
