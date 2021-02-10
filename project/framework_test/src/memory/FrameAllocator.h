@@ -118,10 +118,10 @@ private:
                 .width = size.x,
                 .height = size.y,
                 .col_pitch = size.y,
-                .raw_length = sizeof(T) * size.x * size.y
+                .raw_length = size.x * size.y
         };
 
-        T* data = static_cast<T*>(malloc(stats.raw_length));
+        T* data = static_cast<T*>(malloc(sizeof(T) * stats.raw_length));
         allocatedPtrs.push_back(data);
 
         return Sim2DArray<T, MType::Cpu>(stats, data);
@@ -180,11 +180,11 @@ private:
                 .width = size.x,
                 .height = size.y,
                 .col_pitch = size.y,
-                .raw_length = sizeof(T) * size.x * size.y
+                .raw_length = size.x * size.y
         };
 
         T* data = nullptr;
-        CHECKED_CUDA(cudaMalloc(&data, stats.raw_length));
+        CHECKED_CUDA(cudaMalloc(&data, sizeof(T) * stats.raw_length));
         allocatedPtrs.push_back(data);
 
         return Sim2DArray<T, MType::Cuda>(stats, data);
@@ -249,7 +249,7 @@ private:
                 .width = size.x,
                 .height = size.y,
                 .col_pitch = size.y,
-                .raw_length = sizeof(T) * size.x * size.y
+                .raw_length = size.x * size.y
         };
 
         // Cast to char* to get correct pointer arithmetic, then cast back to T
@@ -258,10 +258,10 @@ private:
         vk::DescriptorBufferInfo vulkanBufferInfo;
         vulkanBufferInfo.buffer = memory.as_buffer();
         vulkanBufferInfo.offset = bytesUsed;
-        vulkanBufferInfo.range = stats.raw_length;
+        vulkanBufferInfo.range = sizeof(T) * stats.raw_length;
 
         // Check if this allocation is actually valid
-        bytesUsed += stats.raw_length;
+        bytesUsed += sizeof(T) * stats.raw_length;
         FATAL_ERROR_IF(bytesUsed > memory.sizeBytes, "FrameAllocator<Vulkan> out of memory");
 
         //TODO
