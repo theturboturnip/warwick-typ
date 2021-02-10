@@ -22,9 +22,7 @@ CpuOptimizedSimBackend::CpuOptimizedSimBackend(std::vector<Frame> frames, const 
     DASSERT(jmax % 2 == 0);
     DASSERT(!this->frames.empty());
 
-//    fprintf(stderr, "CpuOptimizedSimBackend resetFrame() loop\n");
     for (auto& frame : this->frames) {
-//        fprintf(stderr, "CpuOptimizedSimBackend resetFrame()\n");
         resetFrame(frame, s);
     }
 }
@@ -85,12 +83,6 @@ void CpuOptimizedSimBackend::resetFrame(CpuOptimizedSimBackend::Frame &frame, co
     frame.p.memcpy_in(s.pressure);
     frame.rhs.zero_out();
     frame.flag.memcpy_in(s.get_legacy_cell_flags());
-
-//    fprintf(stderr, "u ptrs:\n");
-    for (uint i = 0; i < frame.u.stats.width; i++) {
-        float* u_ptr = frame.u.as_cpu()[i];
-//        fprintf(stderr, "\t%p\n", u_ptr);
-    }
 
     OriginalOptimized::calculatePBeta(frame.p_beta.as_cpu(), frame.flag.as_cpu(), imax, jmax, delx, dely, params.poisson_error_threshold, params.poisson_omega);
     OriginalOptimized::splitToRedBlack(frame.p.as_cpu(), frame.p_red.as_cpu(), frame.p_black.as_cpu(), imax, jmax);
