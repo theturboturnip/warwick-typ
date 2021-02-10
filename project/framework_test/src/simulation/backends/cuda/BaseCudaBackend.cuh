@@ -7,8 +7,6 @@
 #include <cuda_runtime_api.h>
 #include <util/check_cuda_error.cuh>
 
-#include "simulation/memory/CudaUnified2DAllocator.cuh"
-
 class BaseCudaBackend {
 protected:
     BaseCudaBackend() {

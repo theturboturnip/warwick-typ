@@ -11,10 +11,8 @@
 #include "simulation/backends/cpu_simple/CpuSimpleSimBackend.h"
 #include "simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h"
 #include "simulation/backends/null/NullSimulation.h"
-#include "simulation/memory/Host2DAllocator.h"
 #if CUDA_ENABLED
 #include "simulation/backends/cuda/CudaBackendV1.cuh"
-#include "simulation/memory/CudaUnified2DAllocator.cuh"
 #endif
 
 #include "util/fatal_error.h"

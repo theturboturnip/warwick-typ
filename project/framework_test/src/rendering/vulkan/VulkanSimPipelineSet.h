@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <simulation/memory/vulkan/VulkanSimulationAllocator.h>
 #include <vulkan/vulkan.hpp>
 #include <memory/FrameSetAllocator.h>
 

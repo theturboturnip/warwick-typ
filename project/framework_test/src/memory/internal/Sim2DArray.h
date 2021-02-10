@@ -17,6 +17,7 @@
 #endif
 
 #include "util/Size.h"
+#include "util/fatal_error.h"
 
 struct Sim2DArrayStats {
     const uint32_t width, height;

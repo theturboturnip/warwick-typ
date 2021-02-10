@@ -10,7 +10,6 @@
 #include "util/LegacyCompat2DBackingArray.h"
 #include <simulation/file_format/FluidParams.h>
 #include "memory/FrameAllocator.h"
-#include "simulation/memory/SimulationAllocs.h"
 
 class CpuSimBackendBase {
 public:

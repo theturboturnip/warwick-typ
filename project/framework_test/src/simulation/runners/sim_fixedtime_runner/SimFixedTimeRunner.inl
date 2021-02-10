@@ -6,7 +6,6 @@
 
 #include "ISimFixedTimeRunner.h"
 
-#include "simulation/memory/BasicSimulationAllocator.h"
 #include "memory/FrameSetAllocator.h"
 
 template<typename T, MType MemType>

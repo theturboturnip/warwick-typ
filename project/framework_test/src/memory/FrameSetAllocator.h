@@ -7,6 +7,7 @@
 #include "memory/internal/MType.h"
 #include "memory/internal/Sim2DArray.h"
 #include "FrameAllocator.h"
+#include "VulkanFrameSetAllocator.h"
 
 #include <cstdint>
 #include <vector>
@@ -32,6 +33,7 @@ protected:
     std::vector<FrameAllocator<MemType>> frameAllocs;
 };
 
+#if CUDA_ENABLED
 template<class TFrame>
 class FrameSetAllocator<MType::Cuda, TFrame> {
 public:
@@ -48,22 +50,6 @@ public:
     std::vector<TFrame> frames;
 protected:
     std::vector<FrameAllocator<MType::Cuda>> frameAllocs;
-};
-
-struct VulkanSimFrameData {
-    Size<uint32_t> matrixSize = {0, 0};
-
-    vk::DescriptorBufferInfo u;
-    vk::DescriptorBufferInfo v;
-    vk::DescriptorBufferInfo p;
-    vk::DescriptorBufferInfo fluidmask;
-};
-
-class VulkanFrameSetAllocator {
-public:
-    virtual ~VulkanFrameSetAllocator() = default;
-
-    std::vector<VulkanSimFrameData> vulkanFrames;
 };
 
 template<class TFrame>
@@ -108,3 +94,4 @@ protected:
     std::vector<FrameAllocator<MType::VulkanCuda>> frameAllocs;
     FrameAllocator<MType::Cuda> cudaAlloc;
 };
+#endif

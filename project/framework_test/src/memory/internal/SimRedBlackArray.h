@@ -55,12 +55,13 @@ public:
 
     // TODO - memcpy_in?
 
-// TODO - enable_if CUDA
+#if CUDA_ENABLED
     void dispatch_gpu_prefetch(int deviceId, cudaStream_t stream) {
         static_assert(MemType == MType::Cuda, "cudaMemPrefetchAsync only works on Unified Memory");
         red.dispatch_gpu_prefetch(deviceId, stream);
         black.dispatch_gpu_prefetch(deviceId, stream);
     }
+#endif
 
     void zero_out() {
         red.zero_out();
@@ -107,12 +108,13 @@ public:
 
     // TODO - memcpy_in?
 
-// TODO - enable_if CUDA
+#if CUDA_ENABLED
     void dispatch_gpu_prefetch(int deviceId, cudaStream_t stream) {
         static_assert(MemType == MType::Cuda, "cudaMemPrefetchAsync only works on Unified Memory");
         Base::dispatch_gpu_prefetch(deviceId, stream);
         joined.dispatch_gpu_prefetch(deviceId, stream);
     }
+#endif
 
 private:
     SimRedBlackArray(BaseArrayType&& joined, BaseArrayType&& red, BaseArrayType&& black)

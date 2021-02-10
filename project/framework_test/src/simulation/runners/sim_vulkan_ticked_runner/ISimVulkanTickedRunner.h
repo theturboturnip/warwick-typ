@@ -10,7 +10,6 @@
 #include "simulation/SimulationBackendEnum.h"
 #include "simulation/file_format/SimSnapshot.h"
 #include "simulation/file_format/FluidParams.h"
-#include "simulation/memory/vulkan/VulkanSimulationAllocator.h"
 #include <vulkan/vulkan.hpp>
 #include <rendering/vulkan/VulkanContext.h>
 #include <memory/FrameSetAllocator.h>

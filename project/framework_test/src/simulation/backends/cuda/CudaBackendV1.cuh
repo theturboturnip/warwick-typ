@@ -7,12 +7,10 @@
 #include "simulation/file_format/LegacySimDump.h"
 #include "simulation/file_format/SimSnapshot.h"
 
-#include "simulation/memory/SimulationAllocs.h"
 #include <simulation/backends/cuda/utils/CudaUnified2DArray.cuh>
 #include <simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh>
 #include <simulation/backends/cuda/utils/CudaUnifiedReducer.cuh>
 #include <simulation/file_format/FluidParams.h>
-#include <simulation/memory/CudaUnified2DAllocator.cuh>
 
 #include "BaseCudaBackend.cuh"
 

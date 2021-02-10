@@ -7,7 +7,6 @@
 
 #if CUDA_ENABLED
 #include <simulation/backends/cuda/CudaBackendV1.cuh>
-#include <simulation/memory/vulkan/CudaVulkan2DAllocator.cuh>
 #endif
 
 #include "rendering/threads/WorkerThreadController.h"
@@ -184,8 +183,6 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 }
 
 #if CUDA_ENABLED
-#include "simulation/memory/vulkan/VulkanSimulationAllocator.h"
-
 SimSnapshot VulkanSimApp::test_cuda_sim(const FluidParams &params, const SimSnapshot &snapshot) {
     const size_t frameCount = 1;
     auto allocator = FrameSetAllocator<MType::VulkanCuda, CudaBackendV1<false>::Frame>(

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#if CUDA_ENABLED
 #include <vulkan/vulkan.hpp>
 #include <rendering/vulkan/helpers/VulkanDeviceMemory.h>
 #include <rendering/vulkan/VulkanContext.h>
@@ -33,4 +34,4 @@ public:
         return cudaPointer;
     }
 };
-
+#endif
