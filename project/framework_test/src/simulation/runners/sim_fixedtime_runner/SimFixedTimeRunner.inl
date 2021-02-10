@@ -24,7 +24,7 @@ public:
             if (currentTime + maxTimestep > timeToRun)
                 maxTimestep = timeToRun - currentTime;
             fprintf(stdout, "t: %f\tts: %f\r", currentTime, maxTimestep);
-            sim.tick(maxTimestep);
+            sim.tick(maxTimestep, 0);
             currentTime += maxTimestep;
         }
         fprintf(stdout, "\n");

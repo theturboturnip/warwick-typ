@@ -15,5 +15,5 @@ public:
     explicit CpuOptimizedAdaptedSimBackend(std::vector<Frame> frames, const FluidParams& params, const SimSnapshot& s);
 
     float findMaxTimestep();
-    int tick(float timestep);
+    void tick(float timestep, int frameToWriteIdx);
 };

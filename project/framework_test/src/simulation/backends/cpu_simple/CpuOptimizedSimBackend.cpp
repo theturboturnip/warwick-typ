@@ -26,13 +26,11 @@ CpuOptimizedSimBackend::CpuOptimizedSimBackend(std::vector<Frame> frames, const 
     }
 }
 
-int CpuOptimizedSimBackend::tick(float del_t) {
+void CpuOptimizedSimBackend::tick(float del_t, int frameToWriteIdx) {
     const int ifluid = (imax * jmax) - ibound;
 
-    const int nextFrameIdx = (lastWrittenFrame + 1) % frames.size();
-
     const Frame& previousFrame = frames[lastWrittenFrame];
-    Frame& frame = frames[nextFrameIdx];
+    Frame& frame = frames[frameToWriteIdx];
 
     // Use the <double> variant for bit-accuracy
     OriginalOptimized::computeTentativeVelocity<double>(previousFrame.u.as_cpu(), previousFrame.v.as_cpu(), frame.f.as_cpu(), frame.g.as_cpu(), frame.flag.as_cpu(),
@@ -58,8 +56,7 @@ int CpuOptimizedSimBackend::tick(float del_t) {
                                       imax, jmax, del_t, delx, dely);
     OriginalOptimized::applyBoundaryConditions(frame.u.as_cpu(), frame.v.as_cpu(), frame.flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
 
-    lastWrittenFrame = nextFrameIdx;
-    return lastWrittenFrame;
+    lastWrittenFrame = frameToWriteIdx;
 }
 
 float CpuOptimizedSimBackend::findMaxTimestep() {

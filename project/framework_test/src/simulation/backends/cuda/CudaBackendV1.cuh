@@ -24,8 +24,7 @@ template<bool UnifiedMemoryForExport>
 class CudaBackendV1 : public BaseCudaBackend {
 public:
     float findMaxTimestep();
-    // Returns the index of the frame that has been written.
-    int tick(float timestep);
+    void tick(float timestep, int frameToWriteIdx);
 
     LegacySimDump dumpStateAsLegacy();
     SimSnapshot get_snapshot();

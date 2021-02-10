@@ -14,7 +14,7 @@ public:
     explicit CpuSimpleSimBackend(std::vector<BaseFrame> frames, const FluidParams& params, const SimSnapshot& s);
 
     float findMaxTimestep();
-    int tick(float timestep);
+    void tick(float timestep, int frameToWriteIdx);
 
     LegacySimDump dumpStateAsLegacy();
     SimSnapshot get_snapshot();

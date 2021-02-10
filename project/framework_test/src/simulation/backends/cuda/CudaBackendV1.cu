@@ -106,14 +106,10 @@ float CudaBackendV1<UnifiedMemoryForExport>::findMaxTimestep() {
 }
 
 template<bool UnifiedMemoryForExport>
-int CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep) {
-    const int nextFrame = (lastWrittenFrame + 1) % frames.size();
+void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep, int frameToWriteIdx) {
+    tickBetweenFrames(frames[lastWrittenFrame], frames[frameToWriteIdx], timestep);
 
-    tickBetweenFrames(frames[lastWrittenFrame], frames[nextFrame], timestep);
-
-    lastWrittenFrame = nextFrame;
-
-    return lastWrittenFrame;
+    lastWrittenFrame = frameToWriteIdx;
 }
 
 template<bool UnifiedMemoryForExport>

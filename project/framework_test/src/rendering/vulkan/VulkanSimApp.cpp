@@ -191,6 +191,8 @@ SimSnapshot VulkanSimApp::test_cuda_sim(const FluidParams &params, const SimSnap
             context, snapshot.simSize.padded_pixel_size, frameCount
     );
 
+    int frameToWriteIdx = 0;
+
     auto sim = CudaBackendV1<false>(allocator.frames, params, snapshot);
     const float timeToRun = 10;
     float currentTime = 0;
@@ -199,8 +201,9 @@ SimSnapshot VulkanSimApp::test_cuda_sim(const FluidParams &params, const SimSnap
         if (currentTime + maxTimestep > timeToRun)
             maxTimestep = timeToRun - currentTime;
         fprintf(stdout, "t: %f\tts: %f\r", currentTime, maxTimestep);
-        sim.tick(maxTimestep);
+        sim.tick(maxTimestep, frameToWriteIdx);
         currentTime += maxTimestep;
+        frameToWriteIdx = (frameToWriteIdx + 1) % frameCount;
     }
     fprintf(stdout, "\n");
     return sim.get_snapshot();

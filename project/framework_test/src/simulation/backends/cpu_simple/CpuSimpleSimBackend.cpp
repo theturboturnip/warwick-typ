@@ -79,7 +79,9 @@ float CpuSimpleSimBackend::findMaxTimestep() {
 //}
 }
 
-int CpuSimpleSimBackend::tick(float del_t) {
+void CpuSimpleSimBackend::tick(float del_t, int frameToWriteIdx) {
+    DASSERT(frameToWriteIdx == 0);
+
     const int ifluid = (imax * jmax) - ibound;
 
     computeTentativeVelocity(del_t);
@@ -92,8 +94,6 @@ int CpuSimpleSimBackend::tick(float del_t) {
 
     updateVelocity(del_t);
     applyBoundaryConditions();
-
-    return 0;
 }
 
 // Computation of tentative velocity field (f, g)
