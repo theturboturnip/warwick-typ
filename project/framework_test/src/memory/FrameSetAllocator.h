@@ -15,6 +15,13 @@
 
 #include "util/Size.h"
 
+/**
+ * This file defines a set of FrameSetAllocator template specializations.
+ * These allocate memory for a set of frames by creating separate FrameAllocator instances for each one.
+ * The FrameAllocator instances are owned by the FrameSetAllocator, so all memory is also owned by the FrameSetAllocator.
+ * This means FrameSetAllocator cannot be copied, only moved.
+ */
+
 template<MType MemType, class TFrame>
 class FrameSetAllocator {
 public:
@@ -27,6 +34,8 @@ public:
             frames.emplace_back(TFrame(frameAllocs[i], s.simSize.padded_pixel_size));
         }
     }
+    FrameSetAllocator(FrameSetAllocator&&) noexcept = default;
+    FrameSetAllocator(const FrameSetAllocator&) = delete;
 
     std::vector<TFrame> frames;
 protected:
@@ -46,12 +55,21 @@ public:
             frames.emplace_back(TFrame(frameAllocs[i], frameAllocs[i], s.simSize.padded_pixel_size));
         }
     }
+    FrameSetAllocator(FrameSetAllocator&&) noexcept = default;
+    FrameSetAllocator(const FrameSetAllocator&) = delete;
 
     std::vector<TFrame> frames;
 protected:
     std::vector<FrameAllocator<MType::Cuda>> frameAllocs;
 };
 
+/**
+ * This allocates a set of Vulkan/Cuda frames.
+ * These frames have extra restrictions:
+ * They must take both a Vulkan and Cuda FrameAllocator in their constructor, so they can allocate CUDA managed memory separately.
+ * They must have u,v,p, and fluidmask fields that all use VulkanCuda memory.
+ *  This is so that the data can be extracted and shared with a potential Vulkan renderer.
+ */
 template<class TFrame>
 class FrameSetAllocator<MType::VulkanCuda, TFrame> : public VulkanFrameSetAllocator {
     // Check TFrame is a correct Vulkan-enabled Frame
@@ -62,7 +80,6 @@ class FrameSetAllocator<MType::VulkanCuda, TFrame> : public VulkanFrameSetAlloca
 
 public:
 
-    // If frameAllocs() isn't included
     FrameSetAllocator(VulkanContext& context, Size<uint32_t> paddedSize, size_t frameCount) {
         frameAllocs.clear();
         frames.clear();
@@ -86,6 +103,8 @@ public:
             });
         }
     }
+    FrameSetAllocator(FrameSetAllocator&&) noexcept = default;
+    FrameSetAllocator(const FrameSetAllocator&) = delete;
 
     ~FrameSetAllocator() override = default;
 

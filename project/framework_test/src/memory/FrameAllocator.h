@@ -19,57 +19,22 @@
 #include "util/check_cuda_error.cuh"
 #endif
 
-/*
- // TODO - this has a lot of boilerplate right now.
- //    could be removed
-
- class FrameAllocator {
- private:
-    unique_ptr<InternalAllocCpu> cpu;
-    unique_ptr<InternalAllocCuda> cuda;
-    unique_ptr<InternalAllocVulkan> vulkan;
- public:
-    FrameAllocator(unique_ptr<Cpu> unique_ptr<Cuda> unique_ptr<Vulkan>)
-
-    template<T, MemType>
-    Sim2DArray<T, MemType> get(Size) {
-        switch(MemType)
-            case Cpu:
-                return cpu->get<T>(size);
-            etc.
-    }
-
-    template<T, MemType, joined?>
-    SimRedBlackArray<T, MemType> get(Size) {
-        Size halfSize = ...;
-        red = get<T, MemType>(halfSize);
-        black = --- as above ---;
-
-        if (joined?) {
-            joined = get<T, MemType>(fullSize);
-            reutrn RedBlackArray(...);
-        } else {
-            return RedBlackArray;
-        }
-    }
-
-
-class BasicFrameSetAllocator<TFrame> {
-    BasicFrameSetAllocator() {
-        foreach frame {
-            frameAlloc = FrameAllocator(make_unique<Cpu>, make_unique<Cuda>);
-            alloc frame...
-        }
-    }
-}
-
-class VulkanFrameSetAllocator<TFrame> {
-
- }
-
- PROBLEM: Vulkan not an easy compile-time switch
+/**
+ * This file defines a set of FrameAllocators.
+ * These allocate memory per-frame for simulations, from various sources.
+ * Currently, CPU memory (malloc/free), CUDA managed memory, and Vulkan/Cuda shared memory are available.
+ *
+ * Each FrameAllocator has a common interface:
+ * Sim2DArray<T, MType> allocate2D(Size<uint32_t>) allocates a Sim2DArray of the specified size.
+ * SimRedBlackArray<T, MType, Storage> allocateRedBlack(Size<uint32_t>) allocates a SimRedBlackArray of the specified size.
+ * FrameAllocators own the memory they allocate so they cannot be copied, only moved.
  */
 
+
+/**
+ * Template specialization of FrameAllocator for CPU memory. Simply uses malloc() and free().
+ * Frees data on destruct.
+ */
 template<>
 class FrameAllocator<MType::Cpu> {
 public:
@@ -131,6 +96,10 @@ private:
 };
 
 #if CUDA_ENABLED
+/**
+ * Template specialization of FrameAllocator for CUDA Unified memory. Simply uses malloc() and free().
+ * Frees data on destruct.
+ */
 template<>
 class FrameAllocator<MType::Cuda> {
 public:
@@ -195,9 +164,10 @@ private:
 
 
 /**
- * Allocator for Vulkan/Cuda shared memory.
+ * Template specialization of FrameAllocator for Vulkan/Cuda shared memory.
  * Overall data for each frame is allocated all at once, then sub-allocated by allocate2D<T>().
- * This means the restrictions are tighter for TFrame - it must ONLY use VulkanCuda data for u,v,p,fluidmask.
+ * See FrameSetAllocator for details on how the allocation bytes are calculated.
+ * This means the restrictions are tighter for the frame - it must ONLY use VulkanCuda data for u,v,p,fluidmask.
  */
 template<>
 class FrameAllocator<MType::VulkanCuda> {
@@ -263,12 +233,10 @@ private:
         // Check if this allocation is actually valid
         bytesUsed += sizeof(T) * stats.raw_length;
         FATAL_ERROR_IF(bytesUsed > memory.sizeBytes, "FrameAllocator<Vulkan> out of memory");
-
-        //TODO
-//        FATAL_ERROR_IF(
-//                (static_cast<std::uintptr_t>(data) % alignof(T)) == 0,
-//                "FrameAllocator<Vulkan> allocated misaligned data pointer for %s", typeid(T).name()
-//        );
+        FATAL_ERROR_IF(
+                (static_cast<std::uintptr_t>(data) % alignof(T)) == 0,
+                "FrameAllocator<Vulkan> allocated misaligned data pointer for %s", typeid(T).name()
+        );
 
         // Done - return the memory
         return Sim2DArray<T, MType::VulkanCuda>(stats, data, vulkanBufferInfo);
