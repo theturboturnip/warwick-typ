@@ -6,6 +6,7 @@
 
 #include "Sim2DArray.h"
 #include "util/Size.h"
+#include "FrameAllocator_fwd.h"
 
 enum class RedBlack {
     Red,
@@ -20,10 +21,13 @@ enum class RedBlackStorage {
 template<class T, MType MemType, RedBlackStorage Storage=RedBlackStorage::WithJoined>
 class SimRedBlackArray;
 
-template<class T, MType MemType>
-class SimRedBlackArray<T, MemType, RedBlackStorage::RedBlackOnly> {
+template<class T, MType MemType_Template>
+class SimRedBlackArray<T, MemType_Template, RedBlackStorage::RedBlackOnly> {
 public:
-    using ArrayType = Sim2DArray<T, MemType>;
+    using ArrayType = Sim2DArray<T, MemType_Template>;
+    constexpr static MType MemType = MemType_Template;
+
+    SimRedBlackArray(FrameAllocator<MemType_Template>& alloc, Size<uint32_t> paddedFullSize);
 
     static size_t sizeBytesOf(Size<uint32_t> paddedFullSize) {
         // Half are red, half are black => total amount of elements is paddedFullSize.area()
@@ -35,17 +39,15 @@ public:
     ArrayType red;
     ArrayType black;
 
-    template<RedBlack ToGet>
-    ArrayType& get() {
-        if (ToGet == RedBlack::Red)
+    ArrayType& get(RedBlack toGet) {
+        if (toGet == RedBlack::Red)
             return red;
         else
             return black;
     }
 
-    template<RedBlack ToGet>
-    ArrayType& get_other() {
-        if (ToGet == RedBlack::Black)
+    ArrayType& get_other(RedBlack toGet) {
+        if (toGet == RedBlack::Black)
             return red;
         else
             return black;
@@ -70,19 +72,19 @@ protected:
         : splitStats(red.stats),
         red(std::move(red)),
         black(std::move(black)) {}
-    SimRedBlackArray(SimRedBlackArray&&) = default;
-    SimRedBlackArray(const SimRedBlackArray&) = delete;
 
-    friend class FrameAllocator<MemType>;
+    friend class FrameAllocator<MemType_Template>;
 };
 
-template<class T, MType MemType>
-class SimRedBlackArray<T, MemType, RedBlackStorage::WithJoined> : private SimRedBlackArray<T, MemType, RedBlackStorage::RedBlackOnly> {
-    using Base = SimRedBlackArray<T, MemType, RedBlackStorage::RedBlackOnly>;
+template<class T, MType MemType_Template>
+class SimRedBlackArray<T, MemType_Template, RedBlackStorage::WithJoined> : private SimRedBlackArray<T, MemType_Template, RedBlackStorage::RedBlackOnly> {
+    using Base = SimRedBlackArray<T, MemType_Template, RedBlackStorage::RedBlackOnly>;
     using BaseArrayType = typename Base::ArrayType;
 
 public:
     BaseArrayType joined;
+
+    SimRedBlackArray(FrameAllocator<MemType_Template>& alloc, Size<uint32_t> paddedFullSize);
 
     static size_t sizeBytesOf(Size<uint32_t> paddedFullSize) {
         // Half-size red + Half-size black + full-size joined => every pixel is repeated twice
@@ -90,6 +92,7 @@ public:
         return paddedFullSize.area() * 2 * sizeof(T);
     }
 
+    using Base::MemType;
     using Base::red;
     using Base::black;
     using Base::get;
@@ -115,8 +118,18 @@ private:
     SimRedBlackArray(BaseArrayType&& joined, BaseArrayType&& red, BaseArrayType&& black)
             : Base(std::move(red), std::move(black)),
               joined(std::move(joined)) {}
-    SimRedBlackArray(SimRedBlackArray&&) = default;
-    SimRedBlackArray(const SimRedBlackArray&) = delete;
 
     friend class FrameAllocator<MemType>;
 };
+
+#include "FrameAllocator.h"
+
+template<class T, MType MemType_Template>
+SimRedBlackArray<T, MemType_Template, RedBlackStorage::RedBlackOnly>::SimRedBlackArray(FrameAllocator<MemType_Template> &alloc,
+                                                                              Size<uint32_t> paddedFullSize)
+  : SimRedBlackArray(alloc.template allocateRedBlack<T, RedBlackStorage::RedBlackOnly>(paddedFullSize)) {}
+
+template<class T, MType MemType_Template>
+SimRedBlackArray<T, MemType_Template, RedBlackStorage::WithJoined>::SimRedBlackArray(FrameAllocator<MemType_Template> &alloc,
+                                                                              Size<uint32_t> paddedFullSize)
+        : SimRedBlackArray(alloc.template allocateRedBlack<T, RedBlackStorage::WithJoined>(paddedFullSize)) {}

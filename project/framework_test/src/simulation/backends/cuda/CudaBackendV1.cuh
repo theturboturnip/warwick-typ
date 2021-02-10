@@ -31,23 +31,26 @@ public:
     SimSnapshot get_snapshot();
 
     class Frame {
-        constexpr static MType MemType = UnifiedMemoryForExport ? MType::Cuda : MType::VulkanCuda;
-        using AllocType = FrameAllocator<MemType>;
-        explicit Frame(AllocType& alloc);
+    public:
+        constexpr static MType ExportMemType = UnifiedMemoryForExport ? MType::Cuda : MType::VulkanCuda;
+        explicit Frame(FrameAllocator<ExportMemType>& exportAlloc,
+                       FrameAllocator<MType::Cuda>& cudaAlloc,
+                       Size<uint32_t> paddedSize);
 
-        void resetToSnapshot(const SimSnapshot& s, cudaStream_t stream);
+        FrameAllocator<MType::Cuda>& cudaAllocator;
 
-        CudaUnified2DArray<float, UnifiedMemoryForExport> u, v;
-        CudaUnifiedRedBlackArray<float, UnifiedMemoryForExport, RedBlackStorage::WithJoined> p;
         CudaUnified2DArray<uint, UnifiedMemoryForExport> fluidmask;
 
         CudaUnified2DArray<float, true> f, g;
-        CudaUnifiedRedBlackArray<float, true, RedBlackStorage::RedBlackOnly> p_buffered;
+        CudaUnifiedRedBlackArray<float, true, RedBlackStorage::RedBlackOnly> p_redblack_buffered;
         CudaUnified2DArray<float, true> p_sum_squares;
         CudaUnifiedRedBlackArray<float, true, RedBlackStorage::WithJoined> p_beta;
         CudaUnifiedRedBlackArray<float, true, RedBlackStorage::WithJoined> rhs;
         CudaUnified2DArray<char, true> flag;
         CudaUnifiedRedBlackArray<uint, true, RedBlackStorage::RedBlackOnly> surroundmask;
+
+        CudaUnified2DArray<float, UnifiedMemoryForExport> u, v;
+        CudaUnifiedRedBlackArray<float, UnifiedMemoryForExport, RedBlackStorage::WithJoined> p;
 
         CudaReducer<128> reducer_fullsize;
     };
@@ -56,7 +59,11 @@ public:
 
 private:
     std::vector<Frame> frames;
-    int currentFrame;
+    int lastWrittenFrame;
+
+    void tickBetweenFrames(const Frame& previousFrame, Frame& frame, float timestep);
+
+    void resetFrame(Frame& frame, const SimSnapshot& s);
 
     const FluidParams fluidParams;
     const SimSize simSize;
@@ -68,15 +75,18 @@ private:
     const float del_x, del_y;
     const int ibound, ifluid;
 
-    template<bool SplitUnifiedMemory>
-    void dispatch_splitRedBlackCUDA(CudaUnifiedRedBlackArray<float, SplitUnifiedMemory, RedBlackStorage::WithJoined>& to_split,
-                                    dim3 gridsize_2d, dim3 blocksize_2d,
+    const dim3 blocksize_2d, gridsize_2d;
+    const dim3 blocksize_redblack, gridsize_redblack;
+    const dim3 blocksize_vertical, gridsize_vertical;
+    const dim3 blocksize_horizontal, gridsize_horizontal;
+
+    template<MType SplitMType>
+    void dispatch_splitRedBlackCUDA(SimRedBlackArray<float, SplitMType, RedBlackStorage::WithJoined>& to_split,
                                     CommonParams gpu_params);
-    template<bool JoinUnifiedMemory>
-    void dispatch_joinRedBlackCUDA(CudaUnifiedRedBlackArray<float, JoinUnifiedMemory, RedBlackStorage::WithJoined>& to_join,
-                                   dim3 gridsize_2d, dim3 blocksize_2d,
+    template<MType JoinMemType>
+    void dispatch_joinRedBlackCUDA(SimRedBlackArray<float, JoinMemType, RedBlackStorage::WithJoined>& to_join,
                                    CommonParams gpu_params);
 
     template<RedBlack Kind>
-    void dispatch_poissonRedBlackCUDA(dim3 gridsize_redblack, dim3 blocksize_redblack, int iter, CommonParams gpu_params);
+    void dispatch_poissonRedBlackCUDA(int iter, Frame& frame, CommonParams gpu_params);
 };

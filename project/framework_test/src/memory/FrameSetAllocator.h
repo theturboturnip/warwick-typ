@@ -10,19 +10,20 @@
 
 #include <cstdint>
 #include <vector>
+#include <simulation/file_format/SimSnapshot.h>
 
 #include "util/Size.h"
 
 template<MType MemType, class TFrame>
 class FrameSetAllocator {
 public:
-    FrameSetAllocator(Size<uint32_t> paddedSize, size_t frameCount) {
+    FrameSetAllocator(const SimSnapshot& s, size_t frameCount) {
         frameAllocs.clear();
         frames.clear();
 
         for (size_t i = 0; i < frameCount; i++) {
-            frameAllocs.emplace_back(FrameAllocator<MemType>(paddedSize));
-            frames.emplace_back(TFrame(paddedSize, frameAllocs[i]));
+            frameAllocs.emplace_back(FrameAllocator<MemType>(s.simSize.padded_pixel_size));
+            frames.emplace_back(TFrame(frameAllocs[i]));
         }
     }
 
@@ -43,10 +44,10 @@ struct VulkanSimFrameData {
 template<class TFrame>
 class FrameSetAllocator<MType::VulkanCuda, TFrame> {
     // Check TFrame is a correct Vulkan-enabled Frame
-    static_assert(std::is_same_v<decltype(TFrame::u), Sim2DArray<float, MType::VulkanCuda>>);
-    static_assert(std::is_same_v<decltype(TFrame::v), Sim2DArray<float, MType::VulkanCuda>>);
-    static_assert(std::is_same_v<decltype(TFrame::p), Sim2DArray<float, MType::VulkanCuda>>);
-    static_assert(std::is_same_v<decltype(TFrame::fluidmask), Sim2DArray<int, MType::VulkanCuda>>);
+    static_assert(decltype(TFrame::u)::MemType == MType::VulkanCuda);
+    static_assert(decltype(TFrame::v)::MemType == MType::VulkanCuda);
+    static_assert(decltype(TFrame::p)::MemType == MType::VulkanCuda);
+    static_assert(decltype(TFrame::fluidmask)::MemType == MType::VulkanCuda);
 
 public:
 
@@ -55,21 +56,21 @@ public:
         frames.clear();
         vulkanFrames.clear();
 
-        const size_t totalFrameSize = decltype(TFrame::u)::sizeBytesOf(paddedSize) +
+        const size_t totalFrameSizeBytes = decltype(TFrame::u)::sizeBytesOf(paddedSize) +
                 decltype(TFrame::v)::sizeBytesOf(paddedSize) +
                 decltype(TFrame::p)::sizeBytesOf(paddedSize) +
                 decltype(TFrame::fluidmask)::sizeBytesOf(paddedSize);
 
         for (size_t i = 0; i < frameCount; i++) {
-            frameAllocs.emplace_back(FrameAllocator<MType::VulkanCuda>(context, paddedSize, totalFrameSize));
-            frames.emplace_back(TFrame(paddedSize, frameAllocs[i]));
+            frameAllocs.emplace_back(FrameAllocator<MType::VulkanCuda>(context, paddedSize, totalFrameSizeBytes));
+            frames.emplace_back(TFrame(frameAllocs[i], cudaAlloc, paddedSize));
             const auto& frameRef = frames[i];
             vulkanFrames.emplace_back(VulkanSimFrameData{
                 .matrixSize = paddedSize,
-                .u = frameRef.u,
-                .v = frameRef.v,
-                .p = frameRef.p,
-                .fluidmask = frameRef.fluidmask
+                .u = frameRef.u.as_vulkan(),
+                .v = frameRef.v.as_vulkan(),
+                .p = frameRef.p.joined.as_vulkan(),
+                .fluidmask = frameRef.fluidmask.as_vulkan()
             });
         }
     }
@@ -78,4 +79,5 @@ public:
     std::vector<VulkanSimFrameData> vulkanFrames;
 protected:
     std::vector<FrameAllocator<MType::VulkanCuda>> frameAllocs;
+    FrameAllocator<MType::Cuda> cudaAlloc;
 };

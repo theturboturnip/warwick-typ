@@ -16,6 +16,8 @@
 #include "rendering/vulkan/helpers/VulkanRenderPass.h"
 #include <simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.h>
 
+#include "memory/FrameSetAllocator.h"
+
 template<typename DeviceSelectorType>
 vk::PhysicalDevice selectDevice(const vk::UniqueInstance& instance, DeviceSelectorType selector) {
     auto devices = instance->enumeratePhysicalDevices();
@@ -184,10 +186,12 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 #include "simulation/memory/vulkan/VulkanSimulationAllocator.h"
 
 SimSnapshot VulkanSimApp::test_cuda_sim(const FluidParams &params, const SimSnapshot &snapshot) {
-    VulkanSimulationAllocator<CudaVulkan2DAllocator> allocator(device, context.physicalDevice);
-    auto vulkanAllocs = allocator.makeAllocs(snapshot);
+    const size_t frameCount = 1;
+    auto allocator = FrameSetAllocator<MType::VulkanCuda, CudaBackendV1<false>::Frame>(
+            context, snapshot.simSize.padded_pixel_size, frameCount
+    );
 
-    auto sim = CudaBackendV1<false>(vulkanAllocs.simAllocs, params, snapshot);
+    auto sim = CudaBackendV1<false>(allocator.frames, params, snapshot);
     const float timeToRun = 10;
     float currentTime = 0;
     while(currentTime < timeToRun) {

@@ -27,7 +27,6 @@ struct Sim2DArrayStats {
 /**
  * Template for non-owning 2D column-major memory view, represented by at least one MType memory type.
  * Memory is owned by the Allocator<memType> that creates it.
- * Although they are non-owning, they are not copyable. This makes pointer aliasing impossible (unless the Allocator returns two aliasing buffers.)
  *
  * @tparam T Type of data to store e.g. float
  * @tparam memType Kind of memory this views e.g. MType::VulkanCuda
@@ -43,8 +42,9 @@ public:
     static size_t sizeBytesOf(Size<uint32_t> size) {
         return size.area() * sizeof(T);
     }
+    constexpr static MType MemType = MType::Cpu;
 
-    Sim2DArray(Sim2DArray&&) noexcept = default;
+    explicit Sim2DArray(FrameAllocator<MType::Cpu>& alloc, Size<uint32_t> size);
 
     const T** as_cpu() const {
         return cpu_pointers.data();
@@ -71,7 +71,7 @@ public:
         DASSERT(new_data.size() == stats.raw_length);
         memcpy(raw_data, new_data.data(), stats.raw_length * sizeof(T));
     }
-    std::vector<T> extract_data() {
+    std::vector<T> extract_data() const {
         return std::vector<T>(raw_data, raw_data + stats.raw_length);
     }
 private:
@@ -87,7 +87,6 @@ private:
             cpu_pointers[i] = data + i * stats.col_pitch;
         }
     }
-    Sim2DArray(const Sim2DArray&) = delete;
 
     friend class FrameAllocator<MType::Cpu>;
 };
@@ -100,8 +99,9 @@ public:
     static size_t sizeBytesOf(Size<uint32_t> size) {
         return size.area() * sizeof(T);
     }
+    constexpr static MType MemType = MType::Cuda;
 
-    Sim2DArray(Sim2DArray&&) noexcept = default;
+    explicit Sim2DArray(FrameAllocator<MType::Cuda>& alloc, Size<uint32_t> size);
 
     const T** as_cpu() const {
         return cpu_pointers.data();
@@ -145,7 +145,7 @@ public:
     void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) {
         CHECKED_CUDA(cudaMemPrefetchAsync(raw_data, stats.raw_length*sizeof(T), dstDevice, stream));
     }
-    std::vector<T> extract_data() {
+    std::vector<T> extract_data() const {
         return std::vector<T>(raw_data, raw_data + stats.raw_length);
     }
 
@@ -162,9 +162,10 @@ private:
             cpu_pointers[i] = data + i * stats.col_pitch;
         }
     }
-    Sim2DArray(const Sim2DArray&) = delete;
 
     friend class FrameAllocator<MType::Cuda>;
+    // Let VulkanCuda Sim2DArray access our raw_data pointer
+    friend class Sim2DArray<T, MType::VulkanCuda>;
 };
 
 template<class T>
@@ -174,8 +175,9 @@ public:
     static size_t sizeBytesOf(Size<uint32_t> size) {
         return size.area() * sizeof(T);
     }
+    constexpr static MType MemType = MType::VulkanCuda;
 
-    Sim2DArray(Sim2DArray&&) noexcept = default;
+    explicit Sim2DArray(FrameAllocator<MType::VulkanCuda>& alloc, Size<uint32_t> size);
 
     const T** as_cpu() const {
         FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::VulkanCuda> does not support as_cpu() - it is not unified memory.");
@@ -219,7 +221,7 @@ public:
     void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) {
         FATAL_ERROR("B");//static_assert(false, "cudaMemPrefetchAsync only works on Unified Memory");
     }
-    std::vector<T> extract_data() {
+    std::vector<T> extract_data() const {
         auto vec = std::vector<T>(stats.raw_length);
         CHECKED_CUDA(cudaMemcpy(vec.data(), raw_data, stats.raw_length * sizeof(T), cudaMemcpyDeviceToHost));
         return vec;
@@ -234,10 +236,25 @@ private:
               raw_data(data),
               vulkanBufferInfo(vulkanBufferInfo)
     {}
-    Sim2DArray(const Sim2DArray&) = delete;
 
     friend class FrameAllocator<MType::VulkanCuda>;
+    // Let Cuda Sim2DArray access our raw_data pointer
+    friend class Sim2DArray<T, MType::Cuda>;
 };
 #endif
 
 #include "FrameAllocator.h"
+
+template<class T>
+Sim2DArray<T, MType::Cpu>::Sim2DArray(FrameAllocator<MType::Cpu>& alloc, Size<uint32_t> size)
+    : Sim2DArray(alloc.allocate2D<T>(size)) {}
+
+#if CUDA_ENABLED
+template<class T>
+Sim2DArray<T, MType::Cuda>::Sim2DArray(FrameAllocator<MType::Cuda>& alloc, Size<uint32_t> size)
+    : Sim2DArray(alloc.allocate2D<T>(size)) {}
+
+template<class T>
+Sim2DArray<T, MType::VulkanCuda>::Sim2DArray(FrameAllocator<MType::VulkanCuda>& alloc, Size<uint32_t> size)
+    : Sim2DArray(alloc.allocate2D<T>(size)) {}
+#endif

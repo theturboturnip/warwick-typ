@@ -102,3 +102,11 @@ std::vector<CellType> SimSnapshot::cell_type_from_legacy(const std::vector<char>
     }
     return cell_type;
 }
+
+std::vector<uint32_t> SimSnapshot::get_fluidmask() const {
+    auto fluidmask_backing = std::vector<uint32_t>(simSize.pixel_count());
+    for (size_t i = 0; i < fluidmask_backing.size(); i++) {
+        fluidmask_backing[i] = (cell_type[i] == CellType::Fluid) ? 0xFFFFFFFF : 0;
+    }
+    return fluidmask_backing;
+}

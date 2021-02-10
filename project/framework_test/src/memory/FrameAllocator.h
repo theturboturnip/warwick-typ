@@ -19,61 +19,68 @@
 #include "util/check_cuda_error.cuh"
 #endif
 
-/*class BaseFrameAllocator {
-public:
-    Size<uint32_t> paddedSize;
+/*
+ // TODO - this has a lot of boilerplate right now.
+ //    could be removed
 
-protected:
-    explicit BaseFrameAllocator(Size<uint32_t> paddedSize) : paddedSize(paddedSize){}
+ class FrameAllocator {
+ private:
+    unique_ptr<InternalAllocCpu> cpu;
+    unique_ptr<InternalAllocCuda> cuda;
+    unique_ptr<InternalAllocVulkan> vulkan;
+ public:
+    FrameAllocator(unique_ptr<Cpu> unique_ptr<Cuda> unique_ptr<Vulkan>)
 
-    template <class T, MType MemType, RedBlackStorage Storage>
-    SimRedBlackArray<T, MemType, Storage> allocateRedBlack() {
-        auto splitSize = Size<uint32_t>(paddedSize.x, paddedSize.y/2);
-        auto red = allocate2D<T>(splitSize);
-        auto black = allocate2D<T>(splitSize);
+    template<T, MemType>
+    Sim2DArray<T, MemType> get(Size) {
+        switch(MemType)
+            case Cpu:
+                return cpu->get<T>(size);
+            etc.
+    }
 
-        if constexpr (Storage == RedBlackStorage::WithJoined) {
-            auto joined = allocate2D<T>(paddedSize);
+    template<T, MemType, joined?>
+    SimRedBlackArray<T, MemType> get(Size) {
+        Size halfSize = ...;
+        red = get<T, MemType>(halfSize);
+        black = --- as above ---;
 
-            return SimRedBlackArray<T, MType::Cpu, RedBlackStorage::WithJoined>(
-                    std::move(joined),
-                    std::move(red),
-                    std::move(black)
-            );
+        if (joined?) {
+            joined = get<T, MemType>(fullSize);
+            reutrn RedBlackArray(...);
         } else {
-            return SimRedBlackArray<T, MType::Cpu, RedBlackStorage::RedBlackOnly>(
-                    std::move(red),
-                    std::move(black)
-            );
+            return RedBlackArray;
         }
     }
-};*/
 
-/**
- * FrameAllocator<MType> exposes an interface for allocating memory of certain types.
- * allocate2D_mtype<T>() returns a Sim2DArray<T> for the specific memory type, of the correct frame size.
- * allocateRedBlack_mtype<T, RedBlackStorage> returns a SimRedBlackArray<T, Storage> for the specific memory type of the correct size.
+
+class BasicFrameSetAllocator<TFrame> {
+    BasicFrameSetAllocator() {
+        foreach frame {
+            frameAlloc = FrameAllocator(make_unique<Cpu>, make_unique<Cuda>);
+            alloc frame...
+        }
+    }
+}
+
+class VulkanFrameSetAllocator<TFrame> {
+
+ }
+
+ PROBLEM: Vulkan not an easy compile-time switch
  */
+// TODO remove unsized targets
 
 template<>
 class FrameAllocator<MType::Cpu> {
 public:
-    explicit FrameAllocator(Size<uint32_t> paddedSize)
-        : paddedSize(paddedSize) {}
-
-    Size<uint32_t> paddedSize;
-
     template<class T>
-    Sim2DArray<T, MType::Cpu> allocate2D(Sim2DArray<T, MType::Cpu>& target) {
-        return allocate2D_internal<T>(paddedSize);
-    }
-    template<class T>
-    Sim2DArray<T, MType::Cpu> allocate2D(Sim2DArray<T, MType::Cpu>& target, Size<uint32_t> otherSize) {
+    Sim2DArray<T, MType::Cpu> allocate2D(Size<uint32_t> otherSize) {
         return allocate2D_internal<T>(otherSize);
     }
 
     template<class T, RedBlackStorage Storage>
-    SimRedBlackArray<T, MType::Cpu, Storage> allocateRedBlack(SimRedBlackArray<T, MType::Cpu, Storage>& target) {
+    SimRedBlackArray<T, MType::Cpu, Storage> allocateRedBlack(Size<uint32_t> paddedSize) {
         auto splitSize = Size<uint32_t>(paddedSize.x, paddedSize.y/2);
         auto red = allocate2D_internal<T>(splitSize);
         auto black = allocate2D_internal<T>(splitSize);
@@ -124,26 +131,13 @@ private:
 template<>
 class FrameAllocator<MType::Cuda> {
 public:
-    explicit FrameAllocator(Size<uint32_t> paddedSize)
-            : paddedSize(paddedSize) {}
-
-    Size<uint32_t> paddedSize;
-
     template<class T>
-    Sim2DArray<T, MType::Cuda> allocate2D(Sim2DArray<T, MType::Cuda>& target) {
-        return allocate2D_internal<T>(paddedSize);
-    }
-    template<class T>
-    Sim2DArray<T, MType::Cuda> allocate2D(Sim2DArray<T, MType::Cuda>& target, Size<uint32_t> otherSize) {
-        return allocate2D_internal<T>(otherSize);
-    }
-    template<class T>
-    Sim2DArray<T, MType::Cuda> allocate2D_renderable(Sim2DArray<T, MType::Cuda>& target) {
-        return allocate2D_internal<T>(paddedSize);
+    Sim2DArray<T, MType::Cuda> allocate2D(Size<uint32_t> size) {
+        return allocate2D_internal<T>(size);
     }
 
     template<class T, RedBlackStorage Storage>
-    SimRedBlackArray<T, MType::Cuda, Storage> allocateRedBlack(SimRedBlackArray<T, MType::Cuda, Storage>& target) {
+    SimRedBlackArray<T, MType::Cuda, Storage> allocateRedBlack(Size<uint32_t> paddedSize) {
         auto splitSize = Size<uint32_t>(paddedSize.x, paddedSize.y/2);
         auto red = allocate2D_internal<T>(splitSize);
         auto black = allocate2D_internal<T>(splitSize);
@@ -163,11 +157,6 @@ public:
             );
         }
         FATAL_ERROR("Can't get here");
-    }
-
-    template<class T, RedBlackStorage Storage>
-    SimRedBlackArray<T, MType::Cuda, Storage> allocateRedBlack_renderable(SimRedBlackArray<T, MType::Cuda, Storage>& target) {
-        return allocateRedBlack<T, Storage>(target);
     }
 
     ~FrameAllocator() {
@@ -197,8 +186,6 @@ private:
     std::vector<void*> allocatedPtrs;
 };
 
-// Allocator<VulkanCuda> inherits from Allocator<Cuda> so that it can still allocate unified memory if requested
-
 
 /**
  * Allocator for Vulkan/Cuda shared memory.
@@ -206,20 +193,24 @@ private:
  * This means the restrictions are tighter for TFrame - it must ONLY use VulkanCuda data for u,v,p,fluidmask.
  */
 template<>
-class FrameAllocator<MType::VulkanCuda> : public FrameAllocator<MType::Cuda> {
+class FrameAllocator<MType::VulkanCuda> {
 public:
     explicit FrameAllocator(VulkanContext& context, Size<uint32_t> paddedSize, size_t totalAllocationBytes)
-            : FrameAllocator<MType::Cuda>(paddedSize),
+            : paddedSize(paddedSize),
                     memory(context, totalAllocationBytes),
                     bytesUsed(0) {}
 
+    Size<uint32_t> paddedSize;
+
     template<class T>
-    Sim2DArray<T, MType::VulkanCuda> allocate2D_renderable(Sim2DArray<T, MType::VulkanCuda>& target) {
+    Sim2DArray<T, MType::VulkanCuda> allocate2D(Size<uint32_t> size) {
+        FATAL_ERROR_UNLESS(size != paddedSize, "FrameAllocator<VulkanCuda> expects all 2D allocations to be of size %d %d\n", paddedSize.x, paddedSize.y);
         return allocate2D_internal<T>(paddedSize);
     }
 
     template<class T, RedBlackStorage Storage>
-    SimRedBlackArray<T, MType::VulkanCuda, Storage> allocateRedBlack_renderable(SimRedBlackArray<T, MType::VulkanCuda, Storage>& target) {
+    SimRedBlackArray<T, MType::VulkanCuda, Storage> allocateRedBlack(Size<uint32_t> size) {
+        FATAL_ERROR_UNLESS(size != paddedSize, "FrameAllocator<VulkanCuda> expects all 2D allocations to be of size %d %d\n", paddedSize.x, paddedSize.y);
         auto splitSize = Size<uint32_t>(paddedSize.x, paddedSize.y/2);
         auto red = allocate2D_internal<T>(splitSize);
         auto black = allocate2D_internal<T>(splitSize);

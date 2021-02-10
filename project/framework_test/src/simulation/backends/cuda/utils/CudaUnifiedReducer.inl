@@ -5,15 +5,15 @@
 #include "simulation/backends/cuda/kernels/reduction.cuh"
 
 template<size_t BlockSize>
-template<bool UnifiedMemory, typename Preproc, typename Func>
-float CudaReducer<BlockSize>::map_reduce(CudaUnified2DArray<float, UnifiedMemory>& input, Preproc pre, Func func, cudaStream_t stream) {
-    FATAL_ERROR_UNLESS(input.raw_length == input_size, "Got input of length %zu, expected %u", input.raw_length, input_size);
+template<MType MemType, typename Preproc, typename Func>
+float CudaReducer<BlockSize>::map_reduce(Sim2DArray<float, MemType>& input, Preproc pre, Func func, cudaStream_t stream) {
+    FATAL_ERROR_UNLESS(input.stats.raw_length == input_size, "Got input of length %zu, expected %u", input.stats.raw_length, input_size);
 
     dim3 blocksize(BlockSize);
 
-    float* reduction_in = input.as_gpu();
-    float* reduction_out = first.as_gpu();
-    size_t curr_input_size = input.raw_length;
+    float* reduction_in = input.as_cuda();
+    float* reduction_out = first.as_cuda();
+    size_t curr_input_size = input.stats.raw_length;
     bool next_direction = true; // true for (first -> second), false for (second -> first)
 
     while (curr_input_size > 1) {
@@ -30,11 +30,11 @@ float CudaReducer<BlockSize>::map_reduce(CudaUnified2DArray<float, UnifiedMemory
         //cudaStreamSynchronize(stream);
 
         if (next_direction) {
-            reduction_in = first.as_gpu();
-            reduction_out = second.as_gpu();
+            reduction_in = first.as_cuda();
+            reduction_out = second.as_cuda();
         } else {
-            reduction_in = second.as_gpu();
-            reduction_out = first.as_gpu();
+            reduction_in = second.as_cuda();
+            reduction_out = first.as_cuda();
         }
         next_direction = !next_direction;
 
@@ -48,8 +48,8 @@ float CudaReducer<BlockSize>::map_reduce(CudaUnified2DArray<float, UnifiedMemory
     return result;
 }
 template<size_t BlockSize>
-template<bool UnifiedMemory, typename Func>
-float CudaReducer<BlockSize>::reduce(CudaUnified2DArray<float, UnifiedMemory>& input, Func func, cudaStream_t stream) {
+template<MType MemType, typename Func>
+float CudaReducer<BlockSize>::reduce(Sim2DArray<float, MemType>& input, Func func, cudaStream_t stream) {
     // Run a reduction with an identity preprocess
     return get_reduction(input, [](float x) { return x; }, func, stream);
 }

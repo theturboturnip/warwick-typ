@@ -27,6 +27,7 @@ struct SimSnapshot {
     std::vector<float> velocity_x;
     std::vector<float> velocity_y;
     std::vector<float> pressure;
+    [[nodiscard]] std::vector<uint32_t> get_fluidmask() const;
 
     std::vector<CellType> cell_type;
 
