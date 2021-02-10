@@ -69,7 +69,6 @@ class VulkanFrameSetAllocator<TFrame> {
 
  PROBLEM: Vulkan not an easy compile-time switch
  */
-// TODO remove unsized targets
 
 template<>
 class FrameAllocator<MType::Cpu> {
@@ -78,6 +77,10 @@ public:
     Sim2DArray<T, MType::Cpu> allocate2D(Size<uint32_t> otherSize) {
         return allocate2D_internal<T>(otherSize);
     }
+
+    FrameAllocator() = default;
+    FrameAllocator(FrameAllocator&&) = default;
+    FrameAllocator(const FrameAllocator&) = delete;
 
     template<class T, RedBlackStorage Storage>
     SimRedBlackArray<T, MType::Cpu, Storage> allocateRedBlack(Size<uint32_t> paddedSize) {
@@ -135,6 +138,10 @@ public:
     Sim2DArray<T, MType::Cuda> allocate2D(Size<uint32_t> size) {
         return allocate2D_internal<T>(size);
     }
+
+    FrameAllocator() = default;
+    FrameAllocator(FrameAllocator&&) = default;
+    FrameAllocator(const FrameAllocator&) = delete;
 
     template<class T, RedBlackStorage Storage>
     SimRedBlackArray<T, MType::Cuda, Storage> allocateRedBlack(Size<uint32_t> paddedSize) {
@@ -200,17 +207,20 @@ public:
                     memory(context, totalAllocationBytes),
                     bytesUsed(0) {}
 
+    FrameAllocator(FrameAllocator&&) = default;
+    FrameAllocator(const FrameAllocator&) = delete;
+
     Size<uint32_t> paddedSize;
 
     template<class T>
     Sim2DArray<T, MType::VulkanCuda> allocate2D(Size<uint32_t> size) {
-        FATAL_ERROR_UNLESS(size != paddedSize, "FrameAllocator<VulkanCuda> expects all 2D allocations to be of size %d %d\n", paddedSize.x, paddedSize.y);
+        FATAL_ERROR_UNLESS(size == paddedSize, "FrameAllocator<VulkanCuda> expects all 2D allocations to be of size %d %d\n", paddedSize.x, paddedSize.y);
         return allocate2D_internal<T>(paddedSize);
     }
 
     template<class T, RedBlackStorage Storage>
     SimRedBlackArray<T, MType::VulkanCuda, Storage> allocateRedBlack(Size<uint32_t> size) {
-        FATAL_ERROR_UNLESS(size != paddedSize, "FrameAllocator<VulkanCuda> expects all 2D allocations to be of size %d %d\n", paddedSize.x, paddedSize.y);
+        FATAL_ERROR_UNLESS(size == paddedSize, "FrameAllocator<VulkanCuda> expects all 2D allocations to be of size %d %d\n", paddedSize.x, paddedSize.y);
         auto splitSize = Size<uint32_t>(paddedSize.x, paddedSize.y/2);
         auto red = allocate2D_internal<T>(splitSize);
         auto black = allocate2D_internal<T>(splitSize);
@@ -249,10 +259,12 @@ private:
         vulkanBufferInfo.buffer = memory.as_buffer();
         vulkanBufferInfo.offset = bytesUsed;
         vulkanBufferInfo.range = stats.raw_length;
+        fprintf(stderr, "Allocating range %zu+%zu to buffer %p\n", bytesUsed, stats.raw_length, memory.as_buffer());
 
         // Check if this allocation is actually valid
         bytesUsed += stats.raw_length;
         FATAL_ERROR_IF(bytesUsed > memory.sizeBytes, "FrameAllocator<Vulkan> out of memory");
+
         //TODO
 //        FATAL_ERROR_IF(
 //                (static_cast<std::uintptr_t>(data) % alignof(T)) == 0,

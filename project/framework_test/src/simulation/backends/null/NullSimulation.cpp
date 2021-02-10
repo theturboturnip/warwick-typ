@@ -4,7 +4,7 @@
 
 #include "NullSimulation.h"
 
-NullSimulation::NullSimulation(SimulationAllocs allocs, const FluidParams & params, const SimSnapshot& dump)
+NullSimulation::NullSimulation(std::vector<Frame> frames, const FluidParams & params, const SimSnapshot& dump)
     : m_state(dump)
 {}
 
@@ -15,7 +15,7 @@ LegacySimDump NullSimulation::dumpStateAsLegacy() {
 float NullSimulation::findMaxTimestep() {
     return -1;
 }
-void NullSimulation::tick(float timestep) {}
+void NullSimulation::tick(float timestep, int frameToWriteIdx) {}
 SimSnapshot NullSimulation::get_snapshot() {
     return m_state;
 }

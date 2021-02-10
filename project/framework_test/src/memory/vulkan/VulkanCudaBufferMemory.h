@@ -11,10 +11,10 @@
 
 class VulkanCudaBufferMemory {
     vk::UniqueBuffer buffer;
-    VulkanDeviceMemory deviceMemory;
+    vk::UniqueDeviceMemory deviceMemory;
     int cudaVulkanFd;
     cudaExternalMemory_t cudaExternalMemory;
-    void* cudaPointer;
+    void* cudaPointer = nullptr;
 
 public:
     size_t sizeBytes;

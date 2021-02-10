@@ -17,22 +17,21 @@
  */
 class NullSimulation {
 public:
-    // TODO - allocs and dump have repeated info. Could merge in future.
-    explicit NullSimulation(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& dump);
-
     // findMaxTimestep() is called first, to determine the upper bound of the timestep.
     // return <0 if the runner can do anything
     float findMaxTimestep();
     // tick() will only ever be called with a timestep < findMaxTimestep()
-    void tick(float timestep);
+    void tick(float timestep, int frameToWriteIdx);
 
     LegacySimDump dumpStateAsLegacy();
     SimSnapshot get_snapshot();
 
     class Frame {
-        Frame(FrameAllocator<MType::Cpu> alloc, Size<uint32_t> paddedSize){}
+    public:
+        Frame(FrameAllocator<MType::Cpu>& alloc, Size<uint32_t> paddedSize){}
     };
 
+    explicit NullSimulation(std::vector<Frame> frames, const FluidParams& params, const SimSnapshot& dump);
 private:
     SimSnapshot m_state;
 };

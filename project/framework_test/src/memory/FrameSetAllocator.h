@@ -22,14 +22,32 @@ public:
         frames.clear();
 
         for (size_t i = 0; i < frameCount; i++) {
-            frameAllocs.emplace_back(FrameAllocator<MemType>());
-            frames.emplace_back(TFrame(frameAllocs[i]));
+            frameAllocs.emplace_back();
+            frames.emplace_back(TFrame(frameAllocs[i], s.simSize.padded_pixel_size));
         }
     }
 
     std::vector<TFrame> frames;
 protected:
     std::vector<FrameAllocator<MemType>> frameAllocs;
+};
+
+template<class TFrame>
+class FrameSetAllocator<MType::Cuda, TFrame> {
+public:
+    FrameSetAllocator(const SimSnapshot& s, size_t frameCount) {
+        frameAllocs.clear();
+        frames.clear();
+
+        for (size_t i = 0; i < frameCount; i++) {
+            frameAllocs.emplace_back();
+            frames.emplace_back(TFrame(frameAllocs[i], frameAllocs[i], s.simSize.padded_pixel_size));
+        }
+    }
+
+    std::vector<TFrame> frames;
+protected:
+    std::vector<FrameAllocator<MType::Cuda>> frameAllocs;
 };
 
 struct VulkanSimFrameData {
@@ -41,8 +59,15 @@ struct VulkanSimFrameData {
     vk::DescriptorBufferInfo fluidmask;
 };
 
+class VulkanFrameSetAllocator {
+public:
+    virtual ~VulkanFrameSetAllocator() = default;
+
+    std::vector<VulkanSimFrameData> vulkanFrames;
+};
+
 template<class TFrame>
-class FrameSetAllocator<MType::VulkanCuda, TFrame> {
+class FrameSetAllocator<MType::VulkanCuda, TFrame> : public VulkanFrameSetAllocator {
     // Check TFrame is a correct Vulkan-enabled Frame
     static_assert(decltype(TFrame::u)::MemType == MType::VulkanCuda);
     static_assert(decltype(TFrame::v)::MemType == MType::VulkanCuda);
@@ -51,6 +76,7 @@ class FrameSetAllocator<MType::VulkanCuda, TFrame> {
 
 public:
 
+    // If frameAllocs() isn't included
     FrameSetAllocator(VulkanContext& context, Size<uint32_t> paddedSize, size_t frameCount) {
         frameAllocs.clear();
         frames.clear();
@@ -62,8 +88,8 @@ public:
                 decltype(TFrame::fluidmask)::sizeBytesOf(paddedSize);
 
         for (size_t i = 0; i < frameCount; i++) {
-            frameAllocs.emplace_back(FrameAllocator<MType::VulkanCuda>(context, paddedSize, totalFrameSizeBytes));
-            frames.emplace_back(TFrame(frameAllocs[i], cudaAlloc, paddedSize));
+            frameAllocs.emplace_back(context, paddedSize, totalFrameSizeBytes);
+            frames.emplace_back(frameAllocs[i], cudaAlloc, paddedSize);
             const auto& frameRef = frames[i];
             vulkanFrames.emplace_back(VulkanSimFrameData{
                 .matrixSize = paddedSize,
@@ -75,8 +101,9 @@ public:
         }
     }
 
+    ~FrameSetAllocator() override = default;
+
     std::vector<TFrame> frames;
-    std::vector<VulkanSimFrameData> vulkanFrames;
 protected:
     std::vector<FrameAllocator<MType::VulkanCuda>> frameAllocs;
     FrameAllocator<MType::Cuda> cudaAlloc;

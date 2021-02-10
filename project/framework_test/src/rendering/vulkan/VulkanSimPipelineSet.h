@@ -6,6 +6,7 @@
 
 #include <simulation/memory/vulkan/VulkanSimulationAllocator.h>
 #include <vulkan/vulkan.hpp>
+#include <memory/FrameSetAllocator.h>
 
 #include "rendering/vulkan/helpers/VulkanDescriptorSetLayout.h"
 #include "rendering/vulkan/helpers/VulkanPipeline.h"
@@ -35,7 +36,7 @@ public:
     VulkanSimPipelineSet(VulkanSimPipelineSet &&) noexcept = default;
 
     vk::UniqueDescriptorSet simulationFragDescriptors;
-    void buildSimulationFragDescriptors(vk::Device device, vk::DescriptorPool pool, VulkanSimulationBuffers buffers);
+    void buildSimulationFragDescriptors(vk::Device device, vk::DescriptorPool pool, VulkanSimFrameData frameData);
 
     VulkanPipeline redTriangle;
     VulkanPipeline redQuad;

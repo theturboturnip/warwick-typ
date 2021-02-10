@@ -91,10 +91,11 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this, snapshot.simSize));
     auto simulationRunner = ISimVulkanTickedRunner::getForBackend(
             backendType,
-            device, context.physicalDevice, *semaphores->renderFinishedShouldSim, *semaphores->simFinished
+            context, *semaphores->renderFinishedShouldSim, *semaphores->simFinished
     );
-    auto vulkanBuffers = simulationRunner->prepareBackend(params, snapshot);
-    pipelines->buildSimulationFragDescriptors(device, *descriptorPool, vulkanBuffers);
+    const size_t frameCount = 1; // TODO - expand to multiple frames for multi-frames-in-flight
+    auto vulkanAllocator = simulationRunner->prepareBackend(params, snapshot, frameCount);
+    pipelines->buildSimulationFragDescriptors(device, *descriptorPool, vulkanAllocator->vulkanFrames[0]);
 
     std::array<float, 32> frameTimes{};
     uint32_t currentFrame = 0;
@@ -126,7 +127,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
         // This dispatches the simulation, and signals the simFinished semaphore once it's done.
         // The simulation doesn't start until renderFinishedShouldSim is signalled, unless this is the first frame, at which point it doesn't bother waiting.
-        simulationRunner->tick(1/60.0f, (currentFrame > 0), wantsRunSim);
+        simulationRunner->tick(1/60.0f, (currentFrame > 0), wantsRunSim, 0);
 
         //fprintf(stderr, "Waiting on SystemWorker work\n");
         SystemWorkerOut systemOutput = systemWorker.getOutput();
