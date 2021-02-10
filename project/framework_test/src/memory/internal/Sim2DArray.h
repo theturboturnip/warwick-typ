@@ -56,16 +56,11 @@ public:
         return cpu_pointers.data();
     }
 
-    const T* as_cuda() const {
-        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::Cpu> does not support as_cuda()");
-    }
-    T* as_cuda() {
-        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::Cpu> does not support as_cuda()");
-    }
+    // CPU memory is not accessible on CUDA GPUs.
+    const T* as_cuda() const = delete;
+    T* as_cuda() = delete;
 
-    const vk::DescriptorBufferInfo as_vulkan() const {
-        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::Cpu> does not support as_vulkan()");
-    }
+    vk::DescriptorBufferInfo as_vulkan() = delete;
 
     void zero_out() {
         memset(raw_data, 0, stats.raw_length * sizeof(T));
@@ -122,9 +117,8 @@ public:
         return raw_data;
     }
 
-    const vk::DescriptorBufferInfo as_vulkan() const {
-        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::Cuda> does not support as_vulkan()");
-    }
+    // Cuda Unified memory is not available to Vulkan
+    vk::DescriptorBufferInfo as_vulkan() = delete;
 
     void zero_out() {
         CHECKED_CUDA(cudaMemset(raw_data, 0, stats.raw_length*sizeof(T)));
@@ -184,12 +178,9 @@ public:
 
     explicit Sim2DArray(FrameAllocator<MType::VulkanCuda>& alloc, Size<uint32_t> size);
 
-    const T** as_cpu() const {
-        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::VulkanCuda> does not support as_cpu() - it is not unified memory.");
-    }
-    T** as_cpu() {
-        FATAL_ERROR("B");//static_assert(false, "Sim2DArray<T, MType::VulkanCuda> does not support as_cpu() - it is not unified memory.");
-    }
+    // VulkanCuda memory is not CPU-accessible without mapping etc.
+    const T** as_cpu() const = delete;
+    T** as_cpu() = delete;
 
     const T* as_cuda() const {
         return raw_data;
@@ -223,9 +214,8 @@ public:
         DASSERT(other.stats.raw_length == stats.raw_length);
         CHECKED_CUDA(cudaMemcpyAsync(raw_data, other.raw_data, stats.raw_length*sizeof(T), cudaMemcpyDefault, stream));
     }
-    void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) {
-        FATAL_ERROR("B");//static_assert(false, "cudaMemPrefetchAsync only works on Unified Memory");
-    }
+    void dispatch_gpu_prefetch(int dstDevice, cudaStream_t stream) = delete; // Only works on Unified Memory
+
     std::vector<T> extract_data() const {
         auto vec = std::vector<T>(stats.raw_length);
         CHECKED_CUDA(cudaMemcpy(vec.data(), raw_data, stats.raw_length * sizeof(T), cudaMemcpyDeviceToHost));
