@@ -235,13 +235,6 @@ void CudaBackendV1<UnifiedMemoryForExport>::resetFrame(CudaBackendV1::Frame &fra
     frame.v.memcpy_in(s.velocity_y);
     frame.fluidmask.memcpy_in(s.get_fluidmask());
 
-    frame.flag.memcpy_in(s.get_legacy_cell_flags());
-
-    frame.rhs.zero_out();
-
-    frame.f.zero_out();
-    frame.g.zero_out();
-
     // Setup frame.p, frame.p_redblack_buffered
     {
         // Copy data into p.joined, then split it into
@@ -249,20 +242,30 @@ void CudaBackendV1<UnifiedMemoryForExport>::resetFrame(CudaBackendV1::Frame &fra
 
         // split p.joined into p.red, p.black
         dispatch_splitRedBlackCUDA(frame.p, gpu_params);
+        cudaStreamSynchronize(stream);
 
         // copy p.red, p.black into p_redblack_buffered
         frame.p_redblack_buffered.red.memcpy_in(frame.p.red);
         frame.p_redblack_buffered.black.memcpy_in(frame.p.black);
     }
 
+    frame.flag.memcpy_in(s.get_legacy_cell_flags());
+
+    frame.rhs.zero_out();
+
+    frame.f.zero_out();
+    frame.g.zero_out();
+
 
     // TODO - remove poisson_error_threshold from args
     OriginalOptimized::calculatePBeta(frame.p_beta.joined.as_cpu(), frame.flag.as_cpu(),
                                       imax, jmax, del_x, del_y,
                                       fluidParams.poisson_error_threshold, fluidParams.poisson_omega);
-    OriginalOptimized::splitToRedBlack(frame.p_beta.joined.as_cpu(),
-                                       frame.p_beta.red.as_cpu(), frame.p_beta.black.as_cpu(),
-                                       imax, jmax);
+//    OriginalOptimized::splitToRedBlack(frame.p_beta.joined.as_cpu(),
+//                                       frame.p_beta.red.as_cpu(), frame.p_beta.black.as_cpu(),
+//                                       imax, jmax);
+    dispatch_splitRedBlackCUDA(frame.p_beta, gpu_params);
+    cudaStreamSynchronize(stream);
 
     // Calculate the fluidmask and surroundedmask items
     // This currently doesn't have a CUDA kernel.
@@ -303,7 +306,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
         computeTentativeVelocity_postproc_vertical<<<gridsize_vertical, blocksize_vertical, 0, stream>>>(
                 previousFrame.u.as_cuda(), frame.f.as_cuda(), gpu_params);
         computeTentativeVelocity_postproc_horizontal<<<gridsize_horizontal, blocksize_horizontal, 0, stream>>>(
-                previousFrame.f.as_cuda(), frame.g.as_cuda(), gpu_params);
+                previousFrame.v.as_cuda(), frame.g.as_cuda(), gpu_params);
 
         CHECK_KERNEL_ERROR();
     }
@@ -320,6 +323,10 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
     // Compute poisson from previousFrame.p, frame.p_beta,rhs,fluidmask,surroundmask,flag
     {
         // TODO - split previousFrame.p => frame.p.red, frame.p.black
+        //  this could be done directly? but is likely more trouble than it's worth.
+        // TODO - if frame == previousFrame this isn't needed at all.
+        frame.p.joined.dispatch_memcpy_in(previousFrame.p.joined, stream);
+        dispatch_splitRedBlackCUDA(frame.p, gpu_params);
 
         if (ifluid > 0) {
             constexpr bool UseCPUPoisson = false;
