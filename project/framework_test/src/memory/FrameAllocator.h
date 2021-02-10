@@ -234,7 +234,7 @@ private:
         bytesUsed += sizeof(T) * stats.raw_length;
         FATAL_ERROR_IF(bytesUsed > memory.sizeBytes, "FrameAllocator<Vulkan> out of memory");
         FATAL_ERROR_IF(
-                (static_cast<std::uintptr_t>(data) % alignof(T)) == 0,
+                (reinterpret_cast<std::uintptr_t>(data) % alignof(T)) == 0,
                 "FrameAllocator<Vulkan> allocated misaligned data pointer for %s", typeid(T).name()
         );
 
