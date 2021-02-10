@@ -22,7 +22,7 @@
 
 CpuSimpleSimBackend::CpuSimpleSimBackend(std::vector<BaseFrame> frames, const FluidParams& params, const SimSnapshot& s) :
     CpuSimBackendBase(params, s),
-    frames(std::move(frames)),
+    frames(frames),
 
     u(frames[0].u.as_cpu()),
     v(frames[0].v.as_cpu()),
