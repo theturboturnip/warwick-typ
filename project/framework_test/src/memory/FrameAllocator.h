@@ -184,7 +184,7 @@ private:
         };
 
         T* data = nullptr;
-        CHECKED_CUDA(cudaMalloc(&data, sizeof(T) * stats.raw_length));
+        CHECKED_CUDA(cudaMallocManaged(&data, sizeof(T) * stats.raw_length));
         allocatedPtrs.push_back(data);
 
         return Sim2DArray<T, MType::Cuda>(stats, data);
