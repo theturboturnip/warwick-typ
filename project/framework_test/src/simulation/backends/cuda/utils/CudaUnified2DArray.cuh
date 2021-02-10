@@ -8,7 +8,7 @@
 
 #include <vector>
 
-#include "memory/Sim2DArray.h"
+#include "memory/FrameAllocator.h"
 
 #include "util/fatal_error.h"
 #include "util/check_cuda_error.cuh"

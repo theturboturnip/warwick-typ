@@ -19,10 +19,10 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/InteractiveSubApp.h
         memory/FrameSetAllocator.h
         memory/FrameAllocator.h
-        memory/FrameAllocator_fwd.h
-        memory/MType.h
-        memory/Sim2DArray.h
-        memory/SimRedBlackArray.h
+        memory/internal/FrameAllocator_fwd.h
+        memory/internal/MType.h
+        memory/internal/Sim2DArray.h
+        memory/internal/SimRedBlackArray.h
         memory/vulkan/VulkanCudaBufferMemory.cpp
         memory/vulkan/VulkanCudaBufferMemory.h
         rendering/threads/IWorkerThread.h

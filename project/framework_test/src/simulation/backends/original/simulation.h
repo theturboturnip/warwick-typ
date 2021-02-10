@@ -3,7 +3,7 @@
 namespace OriginalOptimized {
 
 template<typename Float>
-void computeTentativeVelocity(float **u, float **v, float **f, float **g,
+void computeTentativeVelocity(const float **u, const float **v, float **f, float **g,
                               char **flag, int imax, int jmax, float del_t, float delx, float dely,
                               float gamma, float Re);
 

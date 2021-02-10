@@ -5,27 +5,15 @@
 #pragma once
 
 #include <memory>
+#include <simulation/backends/cpu_simple/CpuOptimizedSimBackend.h>
 #include "simulation/file_format/LegacySimDump.h"
 #include "util/LegacyCompat2DBackingArray.h"
 #include "../CpuSimBackendBase.h"
 
-class CpuOptimizedAdaptedSimBackend : public CpuSimBackendBase {
+class CpuOptimizedAdaptedSimBackend : public CpuOptimizedSimBackend {
 public:
-    explicit CpuOptimizedAdaptedSimBackend(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s);
+    explicit CpuOptimizedAdaptedSimBackend(std::vector<Frame> frames, const FluidParams& params, const SimSnapshot& s);
 
     float findMaxTimestep();
-    void tick(float timestep);
-
-private:
-
-    LegacyCompat2DBackingArray<float> p_beta, p_beta_red, p_beta_black;
-    LegacyCompat2DBackingArray<float> p_red;
-    LegacyCompat2DBackingArray<float> p_black;
-
-    LegacyCompat2DBackingArray<float> rhs_red;
-    LegacyCompat2DBackingArray<float> rhs_black;
-
-    LegacyCompat2DBackingArray<int> fluidmask;
-    LegacyCompat2DBackingArray<int> surroundmask_red;
-    LegacyCompat2DBackingArray<int> surroundmask_black;
+    int tick(float timestep);
 };

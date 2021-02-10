@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "MType.h"
-#include "Sim2DArray.h"
+#include "memory/internal/MType.h"
+#include "memory/internal/Sim2DArray.h"
 #include "FrameAllocator.h"
 
 #include <cstdint>
@@ -22,7 +22,7 @@ public:
         frames.clear();
 
         for (size_t i = 0; i < frameCount; i++) {
-            frameAllocs.emplace_back(FrameAllocator<MemType>(s.simSize.padded_pixel_size));
+            frameAllocs.emplace_back(FrameAllocator<MemType>());
             frames.emplace_back(TFrame(frameAllocs[i]));
         }
     }

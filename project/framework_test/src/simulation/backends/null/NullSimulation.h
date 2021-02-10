@@ -10,6 +10,7 @@
 #include "simulation/file_format/SimSnapshot.h"
 #include "simulation/file_format/FluidParams.h"
 #include "simulation/memory/SimulationAllocs.h"
+#include "memory/FrameAllocator.h"
 
 /**
  * Simulation that does not actually do any simulation. Used for testing legacy state stuff etc.
@@ -27,6 +28,10 @@ public:
 
     LegacySimDump dumpStateAsLegacy();
     SimSnapshot get_snapshot();
+
+    class Frame {
+        Frame(FrameAllocator<MType::Cpu> alloc, Size<uint32_t> paddedSize){}
+    };
 
 private:
     SimSnapshot m_state;

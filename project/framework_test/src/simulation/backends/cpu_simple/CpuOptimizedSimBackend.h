@@ -11,21 +11,35 @@
 
 class CpuOptimizedSimBackend : public CpuSimBackendBase {
 public:
-    explicit CpuOptimizedSimBackend(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s);
-
     float findMaxTimestep();
-    void tick(float timestep);
+    int tick(float timestep);
+    LegacySimDump dumpStateAsLegacy();
+    SimSnapshot get_snapshot();
 
-private:
+    class Frame : public CpuSimBackendBase::BaseFrame {
+    public:
+        Frame(FrameAllocator<MType::Cpu>& alloc,
+              Size<uint32_t> paddedSize);
 
-    LegacyCompat2DBackingArray<float> p_beta, p_beta_red, p_beta_black;
-    LegacyCompat2DBackingArray<float> p_red;
-    LegacyCompat2DBackingArray<float> p_black;
+        Size<uint32_t> redBlackSize;
 
-    LegacyCompat2DBackingArray<float> rhs_red;
-    LegacyCompat2DBackingArray<float> rhs_black;
+        Sim2DArray<float, MType::Cpu> p_beta, p_beta_red, p_beta_black;
+        Sim2DArray<float, MType::Cpu> p_red;
+        Sim2DArray<float, MType::Cpu> p_black;
 
-    LegacyCompat2DBackingArray<int> fluidmask;
-    LegacyCompat2DBackingArray<int> surroundmask_red;
-    LegacyCompat2DBackingArray<int> surroundmask_black;
+        Sim2DArray<float, MType::Cpu> rhs_red;
+        Sim2DArray<float, MType::Cpu> rhs_black;
+
+        Sim2DArray<int, MType::Cpu> fluidmask;
+        Sim2DArray<int, MType::Cpu> surroundmask_red;
+        Sim2DArray<int, MType::Cpu> surroundmask_black;
+    };
+
+    explicit CpuOptimizedSimBackend(std::vector<Frame> frames, const FluidParams& params, const SimSnapshot& s);
+
+protected:
+    void resetFrame(Frame& frame, const SimSnapshot& s);
+
+    std::vector<Frame> frames;
+    int lastWrittenFrame;
 };

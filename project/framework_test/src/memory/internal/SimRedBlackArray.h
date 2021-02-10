@@ -121,15 +121,3 @@ private:
 
     friend class FrameAllocator<MemType>;
 };
-
-#include "FrameAllocator.h"
-
-template<class T, MType MemType_Template>
-SimRedBlackArray<T, MemType_Template, RedBlackStorage::RedBlackOnly>::SimRedBlackArray(FrameAllocator<MemType_Template> &alloc,
-                                                                              Size<uint32_t> paddedFullSize)
-  : SimRedBlackArray(alloc.template allocateRedBlack<T, RedBlackStorage::RedBlackOnly>(paddedFullSize)) {}
-
-template<class T, MType MemType_Template>
-SimRedBlackArray<T, MemType_Template, RedBlackStorage::WithJoined>::SimRedBlackArray(FrameAllocator<MemType_Template> &alloc,
-                                                                              Size<uint32_t> paddedFullSize)
-        : SimRedBlackArray(alloc.template allocateRedBlack<T, RedBlackStorage::WithJoined>(paddedFullSize)) {}

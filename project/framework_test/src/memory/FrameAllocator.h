@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "MType.h"
-#include "FrameAllocator_fwd.h" // To ensure we match the fwd decl.
-#include "Sim2DArray.h"
-#include "SimRedBlackArray.h"
+#include "memory/internal/MType.h"
+#include "memory/internal/FrameAllocator_fwd.h" // To ensure we match the fwd decl.
+#include "memory/internal/Sim2DArray.h"
+#include "memory/internal/SimRedBlackArray.h"
 
 #include "util/Size.h"
 
@@ -118,7 +118,7 @@ private:
                 .raw_length = sizeof(T) * size.x * size.y
         };
 
-        T* data = malloc(stats.raw_length);
+        T* data = static_cast<T*>(malloc(stats.raw_length));
         allocatedPtrs.push_back(data);
 
         return Sim2DArray<T, MType::Cpu>(stats, data);
@@ -267,3 +267,5 @@ private:
     size_t bytesUsed;
 };
 #endif
+
+#include "internal/SimArray_Constructors.inl"

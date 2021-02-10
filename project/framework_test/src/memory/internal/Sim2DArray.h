@@ -47,7 +47,9 @@ public:
     explicit Sim2DArray(FrameAllocator<MType::Cpu>& alloc, Size<uint32_t> size);
 
     const T** as_cpu() const {
-        return cpu_pointers.data();
+        // cpu_pointers.data() returns const T* const* - that's inconvenient, so cast it.
+        // This is terrible. Blame C++.
+        return const_cast<const T**>(cpu_pointers.data());
     }
     T** as_cpu() {
         return cpu_pointers.data();
@@ -104,7 +106,9 @@ public:
     explicit Sim2DArray(FrameAllocator<MType::Cuda>& alloc, Size<uint32_t> size);
 
     const T** as_cpu() const {
-        return cpu_pointers.data();
+        // cpu_pointers.data() returns const T* const* - that's inconvenient, so cast it.
+        // This is terrible. Blame C++.
+        return const_cast<const T**>(cpu_pointers.data());
     }
     T** as_cpu() {
         return cpu_pointers.data();
@@ -241,20 +245,4 @@ private:
     // Let Cuda Sim2DArray access our raw_data pointer
     friend class Sim2DArray<T, MType::Cuda>;
 };
-#endif
-
-#include "FrameAllocator.h"
-
-template<class T>
-Sim2DArray<T, MType::Cpu>::Sim2DArray(FrameAllocator<MType::Cpu>& alloc, Size<uint32_t> size)
-    : Sim2DArray(alloc.allocate2D<T>(size)) {}
-
-#if CUDA_ENABLED
-template<class T>
-Sim2DArray<T, MType::Cuda>::Sim2DArray(FrameAllocator<MType::Cuda>& alloc, Size<uint32_t> size)
-    : Sim2DArray(alloc.allocate2D<T>(size)) {}
-
-template<class T>
-Sim2DArray<T, MType::VulkanCuda>::Sim2DArray(FrameAllocator<MType::VulkanCuda>& alloc, Size<uint32_t> size)
-    : Sim2DArray(alloc.allocate2D<T>(size)) {}
 #endif

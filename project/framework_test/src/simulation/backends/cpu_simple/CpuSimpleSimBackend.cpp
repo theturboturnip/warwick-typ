@@ -20,7 +20,30 @@
 #define eps_N ((flag[i][j+1] & C_F)?1:0)
 #define eps_S ((flag[i][j-1] & C_F)?1:0)
 
-CpuSimpleSimBackend::CpuSimpleSimBackend(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s) : CpuSimBackendBase(allocs, params, s) {}
+CpuSimpleSimBackend::CpuSimpleSimBackend(std::vector<BaseFrame> frames, const FluidParams& params, const SimSnapshot& s) :
+    CpuSimBackendBase(params, s),
+    frames(std::move(frames)),
+
+    u(frames[0].u.as_cpu()),
+    v(frames[0].v.as_cpu()),
+    f(frames[0].f.as_cpu()),
+    g(frames[0].g.as_cpu()),
+    p(frames[0].p.as_cpu()),
+    rhs(frames[0].rhs.as_cpu()),
+    flag(frames[0].flag.as_cpu())
+{
+    DASSERT(frames.size() == 1);
+
+    BaseFrame& frame = frames[0];
+
+    frame.u.memcpy_in(s.velocity_x);
+    frame.v.memcpy_in(s.velocity_y);
+    frame.f.zero_out();
+    frame.g.zero_out();
+    frame.p.memcpy_in(s.pressure);
+    frame.rhs.zero_out();
+    frame.flag.memcpy_in(s.get_legacy_cell_flags());
+}
 
 float CpuSimpleSimBackend::findMaxTimestep() {
     int i, j;
@@ -56,7 +79,7 @@ float CpuSimpleSimBackend::findMaxTimestep() {
 //}
 }
 
-void CpuSimpleSimBackend::tick(float del_t) {
+int CpuSimpleSimBackend::tick(float del_t) {
     const int ifluid = (imax * jmax) - ibound;
 
     computeTentativeVelocity(del_t);
@@ -69,6 +92,8 @@ void CpuSimpleSimBackend::tick(float del_t) {
 
     updateVelocity(del_t);
     applyBoundaryConditions();
+
+    return 0;
 }
 
 // Computation of tentative velocity field (f, g)
@@ -385,5 +410,19 @@ void CpuSimpleSimBackend::applyBoundaryConditions()
         u[0][j] = ui;
         v[0][j] = 2*vi-v[1][j];
     }
+}
+
+SimSnapshot CpuSimpleSimBackend::get_snapshot() {
+    BaseFrame &frame = frames[0];
+
+    auto snap = SimSnapshot(simSize);
+    snap.velocity_x = frame.u.extract_data();
+    snap.velocity_y = frame.v.extract_data();
+    snap.pressure = frame.p.extract_data();
+    snap.cell_type = SimSnapshot::cell_type_from_legacy(frame.flag.extract_data());
+    return snap;
+}
+LegacySimDump CpuSimpleSimBackend::dumpStateAsLegacy() {
+    return get_snapshot().to_legacy();
 }
 
