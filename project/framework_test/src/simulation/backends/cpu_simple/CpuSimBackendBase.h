@@ -9,16 +9,22 @@
 #include "simulation/file_format/SimSnapshot.h"
 #include "util/LegacyCompat2DBackingArray.h"
 #include <simulation/file_format/FluidParams.h>
-#include "simulation/memory/SimulationAllocs.h"
+#include "memory/FrameAllocator.h"
 
 class CpuSimBackendBase {
 public:
-    LegacySimDump dumpStateAsLegacy();
-    SimSnapshot get_snapshot();
+    class BaseFrame {
+    public:
+        BaseFrame(FrameAllocator<MType::Cpu>& alloc,
+                  Size<uint32_t> paddedSize);
+
+        Sim2DArray<float, MType::Cpu> u, v, f, g, p, rhs;
+        Sim2DArray<char, MType::Cpu> flag;
+    };
 
 protected:
     //CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep);
-    explicit CpuSimBackendBase(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s);
+    explicit CpuSimBackendBase(const FluidParams& params, const SimSnapshot& s);
 
     const FluidParams params;
     const SimSize simSize;
@@ -33,9 +39,6 @@ protected:
     const int itermax;
     const float eps, omega, gamma;
     const float baseTimestep;
-
-    LegacyCompat2DBackingArray<float> u, v, f, g, p, rhs;
-    LegacyCompat2DBackingArray<char> flag;
 
     uint32_t getRequiredTimestepSubdivision(float umax, float vmax) const;
 };

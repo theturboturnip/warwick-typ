@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan.hpp>
 #include <optional>
+#include <set>
 
 struct VulkanQueueFamilies {
     uint32_t graphicsFamily;

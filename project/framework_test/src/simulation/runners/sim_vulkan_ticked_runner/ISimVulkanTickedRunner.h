@@ -10,8 +10,9 @@
 #include "simulation/SimulationBackendEnum.h"
 #include "simulation/file_format/SimSnapshot.h"
 #include "simulation/file_format/FluidParams.h"
-#include "simulation/memory/vulkan/VulkanSimulationAllocator.h"
 #include <vulkan/vulkan.hpp>
+#include <rendering/vulkan/VulkanContext.h>
+#include <memory/FrameSetAllocator.h>
 
 class ISimVulkanTickedRunner {
 protected:
@@ -19,10 +20,10 @@ protected:
 public:
     virtual ~ISimVulkanTickedRunner() = default;
 
-    virtual VulkanSimulationBuffers prepareBackend(const FluidParams& p, const SimSnapshot& snapshot) = 0;
+    virtual VulkanFrameSetAllocator* prepareBackend(const FluidParams& p, const SimSnapshot& snapshot, size_t frameCount) = 0;
     // Set doSim to false if you just want to signal the semaphores
-    virtual void tick(float timeToRun, bool waitOnRender, bool doSim) = 0;
+    virtual void tick(float timeToRun, bool waitOnRender, bool doSim, size_t frameToWriteIdx) = 0;
 
     static std::unique_ptr<ISimVulkanTickedRunner> getForBackend(SimulationBackendEnum backendType,
-                                                                 vk::Device device, vk::PhysicalDevice physicalDevice, vk::Semaphore renderFinished, vk::Semaphore simFinished);
+                                                                 VulkanContext& context, vk::Semaphore renderFinished, vk::Semaphore simFinished);
 };

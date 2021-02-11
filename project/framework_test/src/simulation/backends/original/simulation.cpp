@@ -16,12 +16,12 @@ namespace OriginalOptimized {
 
 // Computation of tentative velocity field (f, g)
 template<typename Float>
-void computeTentativeVelocity(float ** const u, float ** const v, float ** const f, float ** const g,
+void computeTentativeVelocity(const float ** const u, const float ** const v, float ** const f, float ** const g,
                               char ** const flag, const int imax, const int jmax, const float del_t, const float delx, const float dely,
                               const float gamma, const float Re);
 
 template<>
-void computeTentativeVelocity<double>(float ** const u, float ** const v, float ** const f, float ** const g,
+void computeTentativeVelocity<double>(const float ** const u, const float ** const v, float ** const f, float ** const g,
                                       char ** const flag, const int imax, const int jmax, const float del_t, const float delx, const float dely,
                                       const float gamma, const float Re)
 {
@@ -105,7 +105,7 @@ void computeTentativeVelocity<double>(float ** const u, float ** const v, float 
 }
 
 template<>
-void computeTentativeVelocity<float>(float ** const u, float ** const v, float ** const f, float ** const g,
+void computeTentativeVelocity<float>(const float ** const u, const float ** const v, float ** const f, float ** const g,
                                      char ** const flag, const int imax, const int jmax, const float del_t, const float delx, const float dely,
                                      const float gamma, const float Re)
 {

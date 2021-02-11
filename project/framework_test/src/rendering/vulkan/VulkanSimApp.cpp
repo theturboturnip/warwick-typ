@@ -7,7 +7,6 @@
 
 #if CUDA_ENABLED
 #include <simulation/backends/cuda/CudaBackendV1.cuh>
-#include <simulation/memory/vulkan/CudaVulkan2DAllocator.cuh>
 #endif
 
 #include "rendering/threads/WorkerThreadController.h"
@@ -15,6 +14,8 @@
 #include "rendering/vulkan/helpers/VulkanQueueFamilies.h"
 #include "rendering/vulkan/helpers/VulkanRenderPass.h"
 #include <simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.h>
+
+#include "memory/FrameSetAllocator.h"
 
 template<typename DeviceSelectorType>
 vk::PhysicalDevice selectDevice(const vk::UniqueInstance& instance, DeviceSelectorType selector) {
@@ -89,10 +90,11 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(*this, snapshot.simSize));
     auto simulationRunner = ISimVulkanTickedRunner::getForBackend(
             backendType,
-            device, context.physicalDevice, *semaphores->renderFinishedShouldSim, *semaphores->simFinished
+            context, *semaphores->renderFinishedShouldSim, *semaphores->simFinished
     );
-    auto vulkanBuffers = simulationRunner->prepareBackend(params, snapshot);
-    pipelines->buildSimulationFragDescriptors(device, *descriptorPool, vulkanBuffers);
+    const size_t frameCount = 1; // TODO - expand to multiple frames for multi-frames-in-flight
+    auto vulkanAllocator = simulationRunner->prepareBackend(params, snapshot, frameCount);
+    pipelines->buildSimulationFragDescriptors(device, *descriptorPool, vulkanAllocator->vulkanFrames[0]);
 
     std::array<float, 32> frameTimes{};
     uint32_t currentFrame = 0;
@@ -124,7 +126,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
         // This dispatches the simulation, and signals the simFinished semaphore once it's done.
         // The simulation doesn't start until renderFinishedShouldSim is signalled, unless this is the first frame, at which point it doesn't bother waiting.
-        simulationRunner->tick(1/60.0f, (currentFrame > 0), wantsRunSim);
+        simulationRunner->tick(1/60.0f, (currentFrame > 0), wantsRunSim, 0);
 
         //fprintf(stderr, "Waiting on SystemWorker work\n");
         SystemWorkerOut systemOutput = systemWorker.getOutput();
@@ -181,13 +183,15 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 }
 
 #if CUDA_ENABLED
-#include "simulation/memory/vulkan/VulkanSimulationAllocator.h"
-
 SimSnapshot VulkanSimApp::test_cuda_sim(const FluidParams &params, const SimSnapshot &snapshot) {
-    VulkanSimulationAllocator<CudaVulkan2DAllocator> allocator(device, context.physicalDevice);
-    auto vulkanAllocs = allocator.makeAllocs(snapshot);
+    const size_t frameCount = 1;
+    auto allocator = FrameSetAllocator<MType::VulkanCuda, CudaBackendV1<false>::Frame>(
+            context, snapshot.simSize.padded_pixel_size, frameCount
+    );
 
-    auto sim = CudaBackendV1<false>(vulkanAllocs.simAllocs, params, snapshot);
+    int frameToWriteIdx = 0;
+
+    auto sim = CudaBackendV1<false>(allocator.frames, params, snapshot);
     const float timeToRun = 10;
     float currentTime = 0;
     while(currentTime < timeToRun) {
@@ -195,8 +199,9 @@ SimSnapshot VulkanSimApp::test_cuda_sim(const FluidParams &params, const SimSnap
         if (currentTime + maxTimestep > timeToRun)
             maxTimestep = timeToRun - currentTime;
         fprintf(stdout, "t: %f\tts: %f\r", currentTime, maxTimestep);
-        sim.tick(maxTimestep);
+        sim.tick(maxTimestep, frameToWriteIdx);
         currentTime += maxTimestep;
+        frameToWriteIdx = (frameToWriteIdx + 1) % frameCount;
     }
     fprintf(stdout, "\n");
     return sim.get_snapshot();

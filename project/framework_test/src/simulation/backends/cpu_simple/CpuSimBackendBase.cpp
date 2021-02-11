@@ -5,20 +5,6 @@
 #include "CpuSimBackendBase.h"
 #include <algorithm>
 
-LegacySimDump CpuSimBackendBase::dumpStateAsLegacy() {
-    return get_snapshot().to_legacy();
-}
-
-SimSnapshot CpuSimBackendBase::get_snapshot() {
-    //return SimSnapshot::from_legacy(dumpStateAsLegacy());
-    auto snap = SimSnapshot(simSize);
-    snap.velocity_x = u.getBacking();
-    snap.velocity_y = v.getBacking();
-    snap.pressure = p.getBacking();
-    snap.cell_type = SimSnapshot::cell_type_from_legacy(flag.getBacking());
-    return snap;
-}
-
 /*CpuSimBackendBase::CpuSimBackendBase(const LegacySimDump& dump, float baseTimestep) :
     params(dump.params),
     imax(dump.params.imax),
@@ -46,7 +32,7 @@ SimSnapshot CpuSimBackendBase::get_snapshot() {
     flag(dump.flag, imax+2, jmax+2)
 {}*/
 
-CpuSimBackendBase::CpuSimBackendBase(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s)
+CpuSimBackendBase::CpuSimBackendBase(const FluidParams& params, const SimSnapshot& s)
     : params(params),
       simSize(s.simSize),
       imax(simSize.internal_pixel_size.x),
@@ -66,15 +52,7 @@ CpuSimBackendBase::CpuSimBackendBase(SimulationAllocs allocs, const FluidParams&
       eps(params.poisson_error_threshold),
       omega(params.poisson_omega),
       gamma(params.gamma),
-      baseTimestep(1.0f/params.timestep_divisor),
-// TODO - use alloc here
-      u(s.velocity_x, imax+2, jmax+2),
-      v(s.velocity_y, imax+2, jmax+2),
-      f(imax+2, jmax+2, 0.0f),
-      g(imax+2, jmax+2, 0.0f),
-      p(s.pressure, imax+2, jmax+2),
-      rhs(imax+2, jmax+2, 0.0f),
-      flag(s.get_legacy_cell_flags(), imax+2, jmax+2)
+      baseTimestep(1.0f/params.timestep_divisor)
 {
 }
 
@@ -108,4 +86,16 @@ uint32_t CpuSimBackendBase::getRequiredTimestepSubdivision(float umax, float vma
         }
         del_t = tau * (del_t_temp); // multiply by safety factor
     }*/
+}
+
+CpuSimBackendBase::BaseFrame::BaseFrame(FrameAllocator<MType::Cpu> &alloc, Size<uint32_t> paddedSize)
+    : u(alloc, paddedSize),
+      v(alloc, paddedSize),
+      f(alloc, paddedSize),
+      g(alloc, paddedSize),
+      p(alloc, paddedSize),
+      rhs(alloc, paddedSize),
+      flag(alloc, paddedSize)
+    {
+
 }

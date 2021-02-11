@@ -17,4 +17,11 @@ struct Size {
     T area() const {
         return x * y;
     }
+
+    bool operator==(const Size<T>& other) {
+        return x == other.x && y == other.y;
+    }
+    bool operator!=(const Size<T>& other) {
+        return !(*this == other);
+    }
 };

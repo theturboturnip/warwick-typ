@@ -17,6 +17,12 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/LegacyRenderPPMSubApp.h
         cmd_line/subapps/InteractiveSubApp.cpp
         cmd_line/subapps/InteractiveSubApp.h
+        memory/FrameSetAllocator.h
+        memory/FrameAllocator.h
+        memory/internal/FrameAllocator_fwd.h
+        memory/internal/MType.h
+        memory/internal/Sim2DArray.h
+        memory/internal/SimRedBlackArray.h
         rendering/threads/IWorkerThread.h
         rendering/threads/IWorkerThread_Impl.inl
         rendering/threads/ThreadWorkData.h
@@ -70,15 +76,6 @@ target_sources(generic_sources INTERFACE
         simulation/file_format/SimSize.h
         simulation/file_format/SimSnapshot.h
         simulation/file_format/SimSnapshot.cpp
-        simulation/memory/BasicSimulationAllocator.h
-        simulation/memory/SimulationAllocs.h
-        simulation/memory/I2DAllocator.h
-        simulation/memory/I2DAllocator.cpp
-        simulation/memory/Host2DAllocator.cpp
-        simulation/memory/Host2DAllocator.h
-        simulation/memory/vulkan/BaseVulkan2DAllocator.cpp
-        simulation/memory/vulkan/BaseVulkan2DAllocator.h
-        simulation/memory/vulkan/VulkanSimulationAllocator.h
         simulation/runners
         simulation/runners/sim_fixedtime_runner
         simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.cpp
@@ -105,6 +102,8 @@ target_sources(generic_sources INTERFACE
 
 add_library(cuda_sources INTERFACE)
 target_sources(cuda_sources INTERFACE
+        memory/vulkan/VulkanCudaBufferMemory.cpp
+        memory/vulkan/VulkanCudaBufferMemory.h
         simulation/backends/cuda/CudaBackendV1.cu
         simulation/backends/cuda/CudaBackendV1.cuh
         simulation/backends/cuda/BaseCudaBackend.cuh
@@ -120,10 +119,6 @@ target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/utils/CudaUnifiedReducer.inl
         simulation/backends/cuda/utils/CudaVulkanSemaphore.cu
         simulation/backends/cuda/utils/CudaVulkanSemaphore.cuh
-        simulation/memory/CudaUnified2DAllocator.cuh
-        simulation/memory/CudaUnified2DAllocator.cu
-        simulation/memory/vulkan/CudaVulkan2DAllocator.cu
-        simulation/memory/vulkan/CudaVulkan2DAllocator.cuh
         util/check_cuda_error.cuh
         simulation/runners/sim_vulkan_ticked_runner/SimVulkanTickedCudaRunner.inl
         )

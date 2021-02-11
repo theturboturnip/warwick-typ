@@ -11,19 +11,27 @@
 
 class CpuSimpleSimBackend : public CpuSimBackendBase {
 public:
-    explicit CpuSimpleSimBackend(SimulationAllocs allocs, const FluidParams& params, const SimSnapshot& s);
+    explicit CpuSimpleSimBackend(std::vector<BaseFrame> frames, const FluidParams& params, const SimSnapshot& s);
 
     float findMaxTimestep();
-    void tick(float timestep);
+    void tick(float timestep, int frameToWriteIdx);
+
+    LegacySimDump dumpStateAsLegacy();
+    SimSnapshot get_snapshot();
+
+    using Frame = BaseFrame;
 
 private:
-    /*template<typename T>
-    std::vector<T*> make2DArrayFromBacking(const std::vector<T>& backing) {
-        auto ptrArray = std::vector<T*>(m_state.totalElements(), nullptr);
-        for (int i = 0; i < m_state.imax+2; i++) {
+    std::vector<BaseFrame> frames;
 
-        }
-    }*/
+    // This assumes only one frame exists, so we can copy the pointers
+    float** u;
+    float** v;
+    float** f;
+    float** g;
+    float** p;
+    float** rhs;
+    char** flag;
 
     void computeTentativeVelocity(float del_t);
 

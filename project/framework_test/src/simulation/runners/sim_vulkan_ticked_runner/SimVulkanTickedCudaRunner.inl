@@ -9,34 +9,39 @@
 #include <simulation/backends/cuda/BaseCudaBackend.cuh>
 #include <simulation/backends/cuda/utils/CudaVulkanSemaphore.cuh>
 #include <simulation/file_format/FluidParams.h>
-#include <simulation/memory/vulkan/CudaVulkan2DAllocator.cuh>
-#include <simulation/memory/vulkan/VulkanSimulationAllocator.h>
+#include <memory/FrameSetAllocator.h>
 
 
 template<typename CudaBackend>
 class SimVulkanTickedCudaRunner : public ISimVulkanTickedRunner {
     static_assert(std::is_base_of_v<BaseCudaBackend, CudaBackend>, "SimVulkanTickedCudaRunner must be instantiated with a base class of BaseCudaBackend");
 
-    std::unique_ptr<VulkanSimulationAllocator<CudaVulkan2DAllocator>> allocator;
     std::unique_ptr<CudaBackend> backend;
+    // TODO - make this allocated in constructor not prepareBackend
+    std::unique_ptr<VulkanFrameSetAllocator> allocator;
 
+    VulkanContext& context;
     CudaVulkanSemaphore renderFinishedShouldSim, simFinished;
 
 public:
-    SimVulkanTickedCudaRunner(vk::Device device, vk::PhysicalDevice physicalDevice, vk::Semaphore renderFinishedShouldSim, vk::Semaphore simFinished)
-        : allocator(std::make_unique<VulkanSimulationAllocator<CudaVulkan2DAllocator>>(device, physicalDevice)),
-          renderFinishedShouldSim(device, renderFinishedShouldSim),
-          simFinished(device, simFinished)
+    using AllocatorType = FrameSetAllocator<MType::VulkanCuda, typename CudaBackend::Frame>;
+
+    SimVulkanTickedCudaRunner(VulkanContext& context, vk::Semaphore renderFinishedShouldSim, vk::Semaphore simFinished)
+        : context(context),
+          renderFinishedShouldSim(*context.device, renderFinishedShouldSim),
+          simFinished(*context.device, simFinished)
     {}
 
-    VulkanSimulationBuffers prepareBackend(const FluidParams& p, const SimSnapshot& snapshot) override {
-        auto vulkanAllocs = allocator->makeAllocs(snapshot);
-        backend = std::make_unique<CudaBackend>(vulkanAllocs.simAllocs, p, snapshot);
+     VulkanFrameSetAllocator* prepareBackend(const FluidParams& p, const SimSnapshot& snapshot, size_t frameCount) override {
+        auto specificAllocator = std::make_unique<AllocatorType>(context, snapshot.simSize.padded_pixel_size, frameCount);
+        backend = std::make_unique<CudaBackend>(specificAllocator->frames, p, snapshot);
 
-        return vulkanAllocs;
+        allocator = std::move(specificAllocator);
+
+        return allocator.get();
     }
 
-    void tick(float timeToRun, bool waitOnRender, bool doSim) override {
+    void tick(float timeToRun, bool waitOnRender, bool doSim, size_t frameToWriteIdx) override {
         if (waitOnRender) {
             //fprintf(stderr, "Waiting on renderFinishedShouldSim\n");
             renderFinishedShouldSim.waitForAsync(backend->stream);
@@ -50,7 +55,7 @@ public:
             if (currentTime + maxTimestep > timeToRun)
                 maxTimestep = timeToRun - currentTime;
             //fprintf(stderr, "Starting backend->tick()\n");
-            backend->tick(maxTimestep);
+            backend->tick(maxTimestep, frameToWriteIdx);
             //fprintf(stderr, "Finishing findMaxTimestep\n");
             currentTime += maxTimestep;
         }
