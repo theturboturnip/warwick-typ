@@ -20,6 +20,7 @@
 #include "rendering/vulkan/helpers/VulkanSemaphore.h"
 #include "rendering/vulkan/helpers/VulkanShader.h"
 #include "util/Size.h"
+#include "imgui.h"
 
 class VulkanSimApp {
     VulkanContext context;
@@ -32,6 +33,8 @@ class VulkanSimApp {
 
     vk::UniqueCommandPool cmdPool;
     vk::UniqueDescriptorPool descriptorPool;
+
+    ImGuiContext* imContext;
 
     std::vector<vk::UniqueCommandBuffer> perFrameCommandBuffers;
 
@@ -49,6 +52,7 @@ public:
     VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> windowSize);
     VulkanSimApp(const VulkanSimApp &) = delete;
     VulkanSimApp(VulkanSimApp &&) = delete;
+    ~VulkanSimApp();
 
     // TODO - this will change in the future
     void main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot);

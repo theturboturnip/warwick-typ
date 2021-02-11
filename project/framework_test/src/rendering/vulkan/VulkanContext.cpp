@@ -210,7 +210,7 @@ VulkanContext::VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowS
             physicalDevice.getSurfacePresentModesKHR(*surface),
             {
                     vk::PresentModeKHR::eMailbox,
-                    vk::PresentModeKHR::eFifo
+                    vk::PresentModeKHR::eFifo // Will always be present
             }
     );
 

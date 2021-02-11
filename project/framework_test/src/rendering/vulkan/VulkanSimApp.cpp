@@ -71,7 +71,7 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> wi
                         { vk::DescriptorType::eInputAttachment, 1000 }
                 };
         vk::DescriptorPoolCreateInfo pool_info = {};
-        pool_info.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;// VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
         pool_info.maxSets = 1000 * pool_sizes.size();
         pool_info.poolSizeCount = pool_sizes.size();
         pool_info.pPoolSizes = pool_sizes.data();
@@ -82,6 +82,66 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> wi
         semaphores = std::make_unique<VulkanSimSemaphoreSet>(device);
         graphicsFence = std::make_unique<VulkanFence>(device);
     }
+
+    {
+        // Init ImGUI
+        IMGUI_CHECKVERSION();
+        imContext = ImGui::CreateContext();
+
+        ImGuiIO& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+        //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+        // Setup Dear ImGui style
+        ImGui::StyleColorsDark();
+        //ImGui::StyleColorsClassic();
+
+        // Setup Platform/Renderer bindings
+        ImGui_ImplSDL2_InitForVulkan(context.window);
+        ImGui_ImplVulkan_InitInfo init_info = {};
+        init_info.Instance = *context.instance;
+        init_info.PhysicalDevice = context.physicalDevice;
+        init_info.Device = *context.device;
+        init_info.QueueFamily = context.queueFamilies.graphicsFamily;
+        init_info.Queue = context.graphicsQueue;
+        init_info.PipelineCache = nullptr;
+        init_info.DescriptorPool = *descriptorPool;
+        init_info.Allocator = nullptr;
+        init_info.MinImageCount = swapchain.imageCount; // TODO - this isn't right
+        init_info.ImageCount = swapchain.imageCount;
+        init_info.CheckVkResultFn = nullptr; // TODO
+        ImGui_ImplVulkan_Init(&init_info, *imguiRenderPass);
+
+        // Allocate a command buffer to create the font texture for ImGui
+        {
+            auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
+            cmdBufferAlloc.commandPool = *cmdPool;
+            cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
+            cmdBufferAlloc.commandBufferCount = 1;
+            const auto fontCmdBuffer = std::move(device.allocateCommandBuffersUnique(cmdBufferAlloc)[0]);
+
+            vk::CommandBufferBeginInfo begin_info = {};
+            begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+            {
+                fontCmdBuffer->begin(begin_info);
+                ImGui_ImplVulkan_CreateFontsTexture(*fontCmdBuffer);
+                fontCmdBuffer->end();
+            }
+
+            vk::SubmitInfo submitInfo = {};
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &(*fontCmdBuffer);
+            context.graphicsQueue.submit({submitInfo}, nullptr);
+            context.graphicsQueue.waitIdle();
+            ImGui_ImplVulkan_DestroyFontUploadObjects();
+        }
+    }
+}
+
+VulkanSimApp::~VulkanSimApp() {
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext(imContext);
 }
 
 void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot) {

@@ -33,7 +33,7 @@ VulkanPipeline::VulkanPipeline(vk::Device device, vk::RenderPass renderPass, Siz
     rasterizer.depthClampEnable = VK_FALSE; // Discard fragments that are outside [0,1] depth
     rasterizer.rasterizerDiscardEnable = VK_FALSE; // Don't just stop rasterizing
     rasterizer.polygonMode = vk::PolygonMode::eFill;
-    rasterizer.lineWidth = 1.0f; // Not sure what this is?
+    rasterizer.lineWidth = 1.0f; // Pixel width of lines, if line rendering used.
     rasterizer.cullMode = vk::CullModeFlagBits::eBack;
     rasterizer.frontFace = vk::FrontFace::eClockwise;
     rasterizer.depthBiasEnable = VK_FALSE;

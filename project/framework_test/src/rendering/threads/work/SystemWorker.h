@@ -68,57 +68,17 @@ public:
                   .pixelHeight=simSize.padded_pixel_size.y,
                   .columnStride=simSize.padded_pixel_size.y, // TODO
                   .totalPixels=(uint32_t)simSize.pixel_count()
-          })
+          }),
+          context(vulkanWindow.imContext)
     {
-        IMGUI_CHECKVERSION();
-        context = ImGui::CreateContext();
-        ImGuiIO& io = ImGui::GetIO(); (void)io;
-        //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-        //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-        // Setup Dear ImGui style
-        ImGui::StyleColorsDark();
-        //ImGui::StyleColorsClassic();
-
-        // Setup Platform/Renderer bindings
-        ImGui_ImplSDL2_InitForVulkan(window);
-        ImGui_ImplVulkan_InitInfo init_info = {};
-        init_info.Instance = *vulkanWindow.context.instance;
-        init_info.PhysicalDevice = vulkanWindow.context.physicalDevice;
-        init_info.Device = *vulkanWindow.context.device;
-        init_info.QueueFamily = vulkanWindow.context.queueFamilies.graphicsFamily;
-        init_info.Queue = vulkanWindow.context.graphicsQueue;
-        init_info.PipelineCache = nullptr;
-        init_info.DescriptorPool = *vulkanWindow.descriptorPool;
-        init_info.Allocator = nullptr;
-        init_info.MinImageCount = vulkanWindow.swapchain.imageCount; // TODO - this isn't right
-        init_info.ImageCount = vulkanWindow.swapchain.imageCount;
-        init_info.CheckVkResultFn = nullptr; // TODO
-        ImGui_ImplVulkan_Init(&init_info, imguiRenderPass);
-
+        // Allocate command buffers
+        // TODO don't do this here
         {
             auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
             cmdBufferAlloc.commandPool = *vulkanWindow.cmdPool;
             cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
-            cmdBufferAlloc.commandBufferCount = 1 + vulkanWindow.swapchain.imageCount;
+            cmdBufferAlloc.commandBufferCount = vulkanWindow.swapchain.imageCount;
             frameCmdBuffers = vulkanWindow.device.allocateCommandBuffersUnique(cmdBufferAlloc);
-            const auto fontCmdBuffer = std::move(frameCmdBuffers.back());
-            frameCmdBuffers.pop_back();
-
-            vk::CommandBufferBeginInfo begin_info = {};
-            begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-            {
-                fontCmdBuffer->begin(begin_info);
-                ImGui_ImplVulkan_CreateFontsTexture(*fontCmdBuffer);
-                fontCmdBuffer->end();
-            }
-
-            vk::SubmitInfo submitInfo = {};
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &(*fontCmdBuffer);
-            vulkanWindow.context.graphicsQueue.submit({submitInfo}, nullptr);
-            vulkanWindow.context.graphicsQueue.waitIdle();
-            ImGui_ImplVulkan_DestroyFontUploadObjects();
         }
 
         // TODO - make simFramebuffer elements
@@ -184,11 +144,6 @@ public:
             vk::DescriptorSet descriptorSet = ImGui_ImplVulkan_MakeDescriptorSet(*simFramebufferImageView);
             simImageDescriptorSet = vk::UniqueDescriptorSet(descriptorSet, vk::PoolFree(vulkanWindow.device, *vulkanWindow.descriptorPool, VULKAN_HPP_DEFAULT_DISPATCHER));
         }
-    }
-    ~SystemWorker() {
-        ImGui_ImplVulkan_Shutdown();
-        ImGui_ImplSDL2_Shutdown();
-        ImGui::DestroyContext(context);
     }
 
     SystemWorkerOut work(SystemWorkerIn input) {
