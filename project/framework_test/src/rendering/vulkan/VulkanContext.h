@@ -37,4 +37,6 @@ public:
     VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize);
     VulkanContext(VulkanContext&&) = delete;
     ~VulkanContext();
+
+    uint32_t selectMemoryTypeIndex(vk::MemoryRequirements requirements, vk::MemoryPropertyFlags properties) const;
 };

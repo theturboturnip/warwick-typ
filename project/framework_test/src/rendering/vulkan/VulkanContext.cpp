@@ -220,3 +220,18 @@ VulkanContext::~VulkanContext() {
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
+
+uint32_t VulkanContext::selectMemoryTypeIndex(vk::MemoryRequirements requirements, vk::MemoryPropertyFlags properties) const {
+    auto memProperties = physicalDevice.getMemoryProperties();
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        // If index i is one of the types specified in the requirement...
+        // ...and the properties of index i exactly match the ones we expect
+        // then it's correct!
+        // (the properties need to exactly match in case we don't want certain kinds i.e. we might want DEVICE_LOCAL but not HOST_COHERENT)
+        if ((requirements.memoryTypeBits & (1u << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+    FATAL_ERROR("Couldn't find suitable memory type!");
+}

@@ -6,6 +6,7 @@
 
 #include "VulkanRenderPass.h"
 #include "rendering/vulkan/VulkanContext.h"
+#include "VulkanFramebuffer.h"
 
 #include <vector>
 #include <functional>
@@ -17,8 +18,7 @@ public:
     vk::Extent2D extents;
     uint32_t imageCount;
     std::vector<vk::Image> images;
-    std::vector<vk::UniqueImageView> imageViews;
-    std::vector<vk::UniqueFramebuffer> framebuffers;
+    std::vector<VulkanFramebuffer> framebuffers;
 
     VulkanSwapchain(VulkanContext& setup, VulkanRenderPass& swapchainRenderPass);
     VulkanSwapchain(VulkanSwapchain&&) noexcept = default;

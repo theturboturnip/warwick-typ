@@ -28,6 +28,10 @@ target_sources(generic_sources INTERFACE
         rendering/threads/ThreadWorkData.h
         rendering/threads/WorkerThreadController.h
         rendering/threads/work/SystemWorker.h
+        rendering/vulkan/helpers/VulkanBackedGPUImage.cpp
+        rendering/vulkan/helpers/VulkanBackedGPUImage.h
+        rendering/vulkan/helpers/VulkanBackedFramebuffer.cpp
+        rendering/vulkan/helpers/VulkanBackedFramebuffer.h
         rendering/vulkan/helpers/VulkanDebug.h
         rendering/vulkan/helpers/VulkanDeviceMemory.cpp
         rendering/vulkan/helpers/VulkanDeviceMemory.h
@@ -35,6 +39,8 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanDescriptorSetLayout.h
         rendering/vulkan/helpers/VulkanFence.cpp
         rendering/vulkan/helpers/VulkanFence.h
+        rendering/vulkan/helpers/VulkanFramebuffer.cpp
+        rendering/vulkan/helpers/VulkanFramebuffer.h
         rendering/vulkan/helpers/VulkanShader.cpp
         rendering/vulkan/helpers/VulkanShader.h
         rendering/vulkan/helpers/VulkanSemaphore.cpp

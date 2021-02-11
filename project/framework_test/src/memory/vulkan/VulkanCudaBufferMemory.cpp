@@ -9,17 +9,6 @@
 #include <util/check_cuda_error.cuh>
 
 
-uint32_t selectMemoryType(vk::PhysicalDevice physicalDevice, uint32_t memoryTypeBits, vk::MemoryPropertyFlags properties) {
-    auto memProperties = physicalDevice.getMemoryProperties();
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((memoryTypeBits & (1u << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
-        }
-    }
-    FATAL_ERROR("Couldn't find suitable memory type!");
-}
-
-
 VulkanCudaBufferMemory::VulkanCudaBufferMemory(VulkanContext& context, size_t sizeBytes) : sizeBytes(sizeBytes) {
     {
         vk::BufferCreateInfo bufferCreate{};
@@ -38,7 +27,7 @@ VulkanCudaBufferMemory::VulkanCudaBufferMemory(VulkanContext& context, size_t si
         exportAllocInfo.handleTypes = vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd; // TODO - This won't work on windows. See https://github.com/NVIDIA/cuda-samples/blob/master/Samples/simpleVulkan/VulkanBaseApp.cpp#L1364
         vk::MemoryAllocateInfo allocInfo{};
         allocInfo.allocationSize = memoryRequirements.size;
-        allocInfo.memoryTypeIndex = selectMemoryType(context.physicalDevice, memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+        allocInfo.memoryTypeIndex = context.selectMemoryTypeIndex(memoryRequirements, vk::MemoryPropertyFlagBits::eDeviceLocal);
         allocInfo.pNext = &exportAllocInfo;
 
         deviceMemory = context.device->allocateMemoryUnique(allocInfo);

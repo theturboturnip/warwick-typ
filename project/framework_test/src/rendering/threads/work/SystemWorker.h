@@ -9,6 +9,7 @@
 #include <imgui_impl_sdl.h>
 #include <imgui_impl_vulkan.h>
 #include <rendering/vulkan/helpers/VulkanDeviceMemory.h>
+#include <rendering/vulkan/helpers/VulkanBackedFramebuffer.h>
 
 
 struct SystemWorkerIn {
@@ -45,17 +46,14 @@ class SystemWorker {
 
     VulkanSimPipelineSet::SimFragPushConstants simFragPushConstants;
 
-    vk::UniqueImage simFramebufferImage;
-    VulkanDeviceMemory simFramebufferMemory;
-    vk::UniqueImageView simFramebufferImageView;
-    vk::UniqueFramebuffer simFramebuffer;
+    VulkanBackedFramebuffer simFramebuffer;
     vk::UniqueDescriptorSet simImageDescriptorSet;
 
     ImGuiContext* context;
 
     // TODO - make this allocate the command pool itself?
 public:
-    explicit SystemWorker(const VulkanSimApp & vulkanWindow, SimSize simSize)
+    explicit SystemWorker(VulkanSimApp& vulkanWindow, SimSize simSize)
         : window(vulkanWindow.context.window),
           imguiRenderPass(*vulkanWindow.imguiRenderPass),
           simRenderPass(*vulkanWindow.simRenderPass),
@@ -69,7 +67,12 @@ public:
                   .columnStride=simSize.padded_pixel_size.y, // TODO
                   .totalPixels=(uint32_t)simSize.pixel_count()
           }),
-          context(vulkanWindow.imContext)
+          simFramebuffer(vulkanWindow.context,
+                         vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled,
+                         simSize.padded_pixel_size,
+                         *vulkanWindow.simRenderPass
+                         ),
+           context(vulkanWindow.imContext)
     {
         // Allocate command buffers
         // TODO don't do this here
@@ -81,69 +84,8 @@ public:
             frameCmdBuffers = vulkanWindow.device.allocateCommandBuffersUnique(cmdBufferAlloc);
         }
 
-        // TODO - make simFramebuffer elements
-        {
-            auto imageCreateInfo = vk::ImageCreateInfo{};
-            imageCreateInfo.imageType = vk::ImageType::e2D;
-            imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
-            imageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled;
-            imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
-            imageCreateInfo.extent.width = simSize.padded_pixel_size.x;
-            imageCreateInfo.extent.height = simSize.padded_pixel_size.y;
-            imageCreateInfo.extent.depth = 1;
-            imageCreateInfo.mipLevels = 1;
-            imageCreateInfo.arrayLayers = 1;
-            imageCreateInfo.format = vk::Format::eR8G8B8A8Srgb;
-            imageCreateInfo.tiling = vk::ImageTiling::eOptimal;
-            imageCreateInfo.samples = vk::SampleCountFlagBits::e1;
-            simFramebufferImage = vulkanWindow.device.createImageUnique(imageCreateInfo);
-
-            vk::MemoryRequirements memRequirements = vulkanWindow.device.getImageMemoryRequirements(*simFramebufferImage);
-
-            simFramebufferMemory = VulkanDeviceMemory(
-                    vulkanWindow.device,
-                    vulkanWindow.context.physicalDevice,
-                    memRequirements,
-                    vk::MemoryPropertyFlagBits::eDeviceLocal
-                    );
-
-            vulkanWindow.device.bindImageMemory(*simFramebufferImage, *simFramebufferMemory, 0);
-
-            // TODO - refactor into common function with VulkanSwapchain
-            auto makeIdentityView = [&](vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags = vk::ImageAspectFlagBits::eColor){
-                auto createInfo = vk::ImageViewCreateInfo();
-                createInfo.image = image;
-                createInfo.viewType = vk::ImageViewType::e2D;
-                createInfo.format = format;
-
-                createInfo.components.r = vk::ComponentSwizzle::eIdentity;
-                createInfo.components.g = vk::ComponentSwizzle::eIdentity;
-                createInfo.components.b = vk::ComponentSwizzle::eIdentity;
-                createInfo.components.a = vk::ComponentSwizzle::eIdentity;
-
-                createInfo.subresourceRange.aspectMask = aspectFlags;
-                // We don't do any mipmapping/texture arrays ever - only use the first mip level, and the first array layer
-                createInfo.subresourceRange.baseMipLevel = 0;
-                createInfo.subresourceRange.levelCount = 1;
-                createInfo.subresourceRange.baseArrayLayer = 0;
-                createInfo.subresourceRange.layerCount = 1;
-
-                return vulkanWindow.device.createImageViewUnique(createInfo);
-            };
-            simFramebufferImageView = makeIdentityView(*simFramebufferImage, imageCreateInfo.format);
-
-            auto framebufferCreateInfo = vk::FramebufferCreateInfo();
-            framebufferCreateInfo.renderPass = *vulkanWindow.simRenderPass;
-            framebufferCreateInfo.attachmentCount = 1;
-            framebufferCreateInfo.pAttachments = &(*simFramebufferImageView);
-            framebufferCreateInfo.width = imageCreateInfo.extent.width;
-            framebufferCreateInfo.height = imageCreateInfo.extent.height;
-            framebufferCreateInfo.layers = 1;
-            simFramebuffer = vulkanWindow.device.createFramebufferUnique(framebufferCreateInfo);
-
-            vk::DescriptorSet descriptorSet = ImGui_ImplVulkan_MakeDescriptorSet(*simFramebufferImageView);
-            simImageDescriptorSet = vk::UniqueDescriptorSet(descriptorSet, vk::PoolFree(vulkanWindow.device, *vulkanWindow.descriptorPool, VULKAN_HPP_DEFAULT_DISPATCHER));
-        }
+        vk::DescriptorSet descriptorSet = ImGui_ImplVulkan_MakeDescriptorSet(simFramebuffer.getImageView());
+        simImageDescriptorSet = vk::UniqueDescriptorSet(descriptorSet, vk::PoolFree(vulkanWindow.device, *vulkanWindow.descriptorPool, VULKAN_HPP_DEFAULT_DISPATCHER));
     }
 
     SystemWorkerOut work(SystemWorkerIn input) {
