@@ -57,6 +57,7 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(std::vector<Frame> frames, 
 
     // Use this->frames because `frames` on it's own is the newly-removed argument
     for (auto& frame : this->frames) {
+        fprintf(stderr, "Resetting frame %p\n", &frame);
         resetFrame(frame, s);
     }
 }
@@ -280,6 +281,9 @@ void CudaBackendV1<UnifiedMemoryForExport>::resetFrame(CudaBackendV1::Frame &fra
                                                           (int **) frame.surroundmask.red.as_cpu(), (int **) frame.surroundmask.black.as_cpu(),
                                                           imax, jmax);
     }
+
+    cudaStreamSynchronize(stream);
+    CHECK_KERNEL_ERROR();
 }
 
 template<bool UnifiedMemoryForExport>

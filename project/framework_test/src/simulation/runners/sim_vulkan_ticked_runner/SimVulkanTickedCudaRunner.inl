@@ -24,6 +24,10 @@ class SimVulkanTickedCudaRunner : public ISimVulkanTickedRunner {
     struct Sync {
         CudaVulkanSemaphore renderFinished;
         CudaVulkanSemaphore simFinished;
+
+        Sync(vk::Device device, const VulkanSimAppData::PerFrameData& data)
+            : renderFinished(device, *data.renderFinishedShouldSim),
+                simFinished(device, *data.renderFinishedShouldSim) {}
     };
     std::vector<Sync> frameSemaphores;
 
@@ -48,35 +52,33 @@ public:
         frameSemaphores.clear();
         frameSemaphores.reserve(data.frameData.size());
         for (const auto& frame : data.frameData) {
-            frameSemaphores.push_back(Sync{
-                .renderFinished = CudaVulkanSemaphore(*context.device, *frame.renderFinishedShouldSim),
-                .simFinished = CudaVulkanSemaphore(*context.device, *frame.simFinished),
-            });
+            frameSemaphores.emplace_back(*context.device, frame);
         }
     }
 
     void tick(float timeToRun, bool waitForRender, bool doSim, size_t frameIdx) override {
         auto& semaphores = frameSemaphores[frameIdx];
         if (waitForRender) {
-            //fprintf(stderr, "Waiting on renderFinishedShouldSim\n");
+            fprintf(stderr, "Waiting on renderFinishedShouldSim\n");
             semaphores.renderFinished.waitForAsync(backend->stream);
         }
 
         float currentTime = 0;
         while(doSim && currentTime < timeToRun) {
-            //fprintf(stderr, "Starting findMaxTimestep\n");
+            fprintf(stderr, "Starting findMaxTimestep\n");
             float maxTimestep = backend->findMaxTimestep();
-            //fprintf(stderr, "Ended findMaxTimestep\n");
+            fprintf(stderr, "Ended findMaxTimestep\n");
             if (currentTime + maxTimestep > timeToRun)
                 maxTimestep = timeToRun - currentTime;
-            //fprintf(stderr, "Starting backend->tick()\n");
+            fprintf(stderr, "Starting backend->tick()\n");
             backend->tick(maxTimestep, frameIdx);
-            //fprintf(stderr, "Finishing findMaxTimestep\n");
+            fprintf(stderr, "Finishing findMaxTimestep\n");
             currentTime += maxTimestep;
         }
-        //fprintf(stderr, "Signalling simFinished\n");
+        fprintf(stderr, "Signalling simFinished\n");
+        CHECK_KERNEL_ERROR()
         semaphores.simFinished.signalAsync(backend->stream);
-        CHECKED_CUDA(cudaStreamSynchronize(backend->stream));
+//        CHECKED_CUDA(cudaStreamSynchronize(backend->stream));
     }
 };
 #endif

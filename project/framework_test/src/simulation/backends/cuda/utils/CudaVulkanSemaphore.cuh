@@ -10,7 +10,7 @@
 
 class CudaVulkanSemaphore {
     vk::Semaphore vulkanSemaphore;
-    cudaExternalSemaphore_t cudaSemaphore = nullptr;
+    cudaExternalSemaphore_t cudaSemaphore = 0;
 
 public:
     CudaVulkanSemaphore(vk::Device device, vk::Semaphore vulkanSemaphore);

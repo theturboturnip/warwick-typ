@@ -12,12 +12,5 @@ VulkanSemaphore::VulkanSemaphore(vk::Device device) {
     semaphoreInfo.pNext = &externalSemaphoreInfo;
 
     semaphore = device.createSemaphoreUnique(semaphoreInfo);
-
-//    if (startSignalled) {
-//        vk::SemaphoreSignalInfo signalInfo{};
-//        signalInfo.semaphore =
-//
-//        device.signalSemaphore();
-//    }
 }
 
