@@ -117,9 +117,9 @@ public:
 
         {
             auto simRenderPassInfo = vk::RenderPassBeginInfo();
-            simRenderPassInfo.renderPass = global.simRenderPass;
+            simRenderPassInfo.renderPass = global.vizRenderPass;
             simRenderPassInfo.framebuffer = *simFrameData.vizFramebuffer;
-            simRenderPassInfo.renderArea = global.simRenderArea;
+            simRenderPassInfo.renderArea = global.vizRect;
             simRenderPassInfo.clearValueCount = 1;
             simRenderPassInfo.pClearValues = &clearColor;
             cmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
@@ -141,9 +141,9 @@ public:
 
         {
             auto imguiRenderPassInfo = vk::RenderPassBeginInfo();
-            imguiRenderPassInfo.renderPass = global.imguiRenderPass;
+            imguiRenderPassInfo.renderPass = global.finalCompositeRenderPass;
             imguiRenderPassInfo.framebuffer = **swImageData.framebuffer;
-            imguiRenderPassInfo.renderArea = global.imguiRenderArea;
+            imguiRenderPassInfo.renderArea = global.finalCompositeRect;
             imguiRenderPassInfo.clearValueCount = 1;
             imguiRenderPassInfo.pClearValues = &clearColor;
             cmdBuffer.beginRenderPass(imguiRenderPassInfo, vk::SubpassContents::eInline);
@@ -151,7 +151,7 @@ public:
 
             {
                 ImDrawData *draw_data = ImGui::GetDrawData();
-                ImGui_ImplVulkan_RenderDrawData(draw_data, global.imguiContext, cmdBuffer, global.imguiRenderPass, VK_SAMPLE_COUNT_1_BIT);
+                ImGui_ImplVulkan_RenderDrawData(draw_data, global.imguiContext, cmdBuffer, global.finalCompositeRenderPass, VK_SAMPLE_COUNT_1_BIT);
             }
 
             cmdBuffer.endRenderPass();

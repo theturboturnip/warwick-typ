@@ -25,8 +25,8 @@ class VulkanSimApp {
     VulkanContext context;
     vk::Device device;
 
-    VulkanRenderPass imguiRenderPass;
-    VulkanRenderPass simRenderPass;
+    VulkanRenderPass finalCompositeRenderPass;
+    VulkanRenderPass vizRenderPass;
 
     VulkanSwapchain swapchain;
 

@@ -22,13 +22,11 @@ public:
 
         SimSize simSize;
 
-        // TODO - rename to final composite render pass
-        vk::RenderPass imguiRenderPass;
-        vk::Rect2D imguiRenderArea;
+        vk::RenderPass finalCompositeRenderPass;
+        vk::Rect2D finalCompositeRect;
 
-        // TODO - rename to viz render pass
-        vk::RenderPass simRenderPass;
-        vk::Rect2D simRenderArea;
+        vk::RenderPass vizRenderPass;
+        vk::Rect2D vizRect;
 
         VulkanSimPipelineSet& pipelines;
     };

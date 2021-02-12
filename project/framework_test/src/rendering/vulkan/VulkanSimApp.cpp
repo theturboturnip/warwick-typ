@@ -21,9 +21,9 @@
 VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> windowSize)
     : context(appInfo, windowSize),
       device(*context.device),
-      imguiRenderPass(device, context.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::ePresentSrcKHR),
-      simRenderPass(device, vk::Format::eR8G8B8A8Srgb, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal),
-      swapchain(context, imguiRenderPass)
+      finalCompositeRenderPass(device, context.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::ePresentSrcKHR),
+      vizRenderPass(device, vk::Format::eR8G8B8A8Srgb, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal),
+      swapchain(context, finalCompositeRenderPass)
 {
     {
         // Init ImGUI
@@ -52,7 +52,7 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> wi
         init_info.MinImageCount = swapchain.imageCount; // TODO - this isn't right
         init_info.ImageCount = swapchain.imageCount;
         init_info.CheckVkResultFn = nullptr; // TODO
-        ImGui_ImplVulkan_Init(&init_info, *imguiRenderPass);
+        ImGui_ImplVulkan_Init(&init_info, *finalCompositeRenderPass);
 
         // Allocate a command buffer to create the font texture for ImGui
         {
@@ -92,7 +92,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
     const size_t maxFramesInFlight = 2;
 
     auto pipelines = VulkanSimPipelineSet(
-        device, *simRenderPass, snapshot.simSize.padded_pixel_size
+            device, *vizRenderPass, snapshot.simSize.padded_pixel_size
     );
 
 //    fprintf(stderr, "Created pipelines\n");
@@ -110,10 +110,10 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
         .simSize = snapshot.simSize,
 
-        .imguiRenderPass = *imguiRenderPass,
-        .imguiRenderArea = vk::Rect2D({0,0}, {context.windowSize.x, context.windowSize.y}),
-        .simRenderPass = *simRenderPass,
-        .simRenderArea = vk::Rect2D({0,0}, {snapshot.simSize.padded_pixel_size.x, snapshot.simSize.padded_pixel_size.y}),
+        .finalCompositeRenderPass = *finalCompositeRenderPass,
+        .finalCompositeRect = vk::Rect2D({0, 0}, {context.windowSize.x, context.windowSize.y}),
+        .vizRenderPass = *vizRenderPass,
+        .vizRect = vk::Rect2D({0, 0}, {snapshot.simSize.padded_pixel_size.x, snapshot.simSize.padded_pixel_size.y}),
 
         .pipelines=pipelines
     }, vulkanAllocator->vulkanFrames, swapchain);
