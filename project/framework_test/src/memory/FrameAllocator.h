@@ -44,7 +44,7 @@ public:
     }
 
     FrameAllocator() = default;
-    FrameAllocator(FrameAllocator&&) = default;
+    FrameAllocator(FrameAllocator&&) noexcept = default;
     FrameAllocator(const FrameAllocator&) = delete;
 
     template<class T, RedBlackStorage Storage>
@@ -109,7 +109,7 @@ public:
     }
 
     FrameAllocator() = default;
-    FrameAllocator(FrameAllocator&&) = default;
+    FrameAllocator(FrameAllocator&&) noexcept = default;
     FrameAllocator(const FrameAllocator&) = delete;
 
     template<class T, RedBlackStorage Storage>
@@ -177,7 +177,7 @@ public:
                     memory(context, totalAllocationBytes),
                     bytesUsed(0) {}
 
-    FrameAllocator(FrameAllocator&&) = default;
+    FrameAllocator(FrameAllocator&&) noexcept = default;
     FrameAllocator(const FrameAllocator&) = delete;
 
     Size<uint32_t> paddedSize;
@@ -233,7 +233,7 @@ private:
         // Check if this allocation is actually valid
         bytesUsed += sizeof(T) * stats.raw_length;
         FATAL_ERROR_IF(bytesUsed > memory.sizeBytes, "FrameAllocator<Vulkan> out of memory");
-        FATAL_ERROR_IF(
+        FATAL_ERROR_UNLESS(
                 (reinterpret_cast<std::uintptr_t>(data) % alignof(T)) == 0,
                 "FrameAllocator<Vulkan> allocated misaligned data pointer for %s", typeid(T).name()
         );

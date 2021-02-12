@@ -6,13 +6,14 @@
 
 #include <util/fatal_error.h>
 #include <vulkan/vulkan.hpp>
+#include <rendering/vulkan/VulkanContext.h>
 
 class VulkanFence {
     vk::UniqueFence fence;
 
 public:
-    explicit VulkanFence(vk::Device device);
-    VulkanFence(VulkanFence&&) = default;
+    explicit VulkanFence(VulkanContext& context, bool startSignalled=false);
+    VulkanFence(VulkanFence&&) noexcept = default;
 
     const vk::Fence& operator *() const {
         return *fence;

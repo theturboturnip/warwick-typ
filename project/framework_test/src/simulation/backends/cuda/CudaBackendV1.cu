@@ -280,6 +280,9 @@ void CudaBackendV1<UnifiedMemoryForExport>::resetFrame(CudaBackendV1::Frame &fra
                                                           (int **) frame.surroundmask.red.as_cpu(), (int **) frame.surroundmask.black.as_cpu(),
                                                           imax, jmax);
     }
+
+    cudaStreamSynchronize(stream);
+    CHECK_KERNEL_ERROR();
 }
 
 template<bool UnifiedMemoryForExport>

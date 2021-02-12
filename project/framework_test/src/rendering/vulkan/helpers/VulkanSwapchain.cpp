@@ -5,25 +5,25 @@
 #include "VulkanSwapchain.h"
 #include <util/selectors.h>
 
-VulkanSwapchain::VulkanSwapchain(VulkanContext& setup, VulkanRenderPass& swapchainRenderPass) {
-    auto physicalDevice = setup.physicalDevice;
-    auto logicalDevice = *setup.device;
+VulkanSwapchain::VulkanSwapchain(VulkanContext& context, VulkanRenderPass& swapchainRenderPass) {
+    auto physicalDevice = context.physicalDevice;
+    auto logicalDevice = *context.device;
 
-    auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(*setup.surface);
+    auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(*context.surface);
     if (surfaceCapabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         // If the surface currently has an extent, just use that for the swapchain
         extents = surfaceCapabilities.currentExtent;
     } else {
         // The surface doesn't specify an extent to use, so select the one we want.
         // The tutorial just clamps the x/y inside the minimum/maximum ranges. If this ever happens everything is going to look weird, so we just stop.
-        if (setup.windowSize.x < surfaceCapabilities.minImageExtent.width || surfaceCapabilities.maxImageExtent.width < setup.windowSize.x) {
-            FATAL_ERROR("Window width %u out of range [%u, %u]\n", setup.windowSize.x, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
+        if (context.windowSize.x < surfaceCapabilities.minImageExtent.width || surfaceCapabilities.maxImageExtent.width < context.windowSize.x) {
+            FATAL_ERROR("Window width %u out of range [%u, %u]\n", context.windowSize.x, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
         }
-        if (setup.windowSize.y < surfaceCapabilities.minImageExtent.height || surfaceCapabilities.maxImageExtent.height < setup.windowSize.y) {
-            FATAL_ERROR("Window height %u out of range [%u, %u]\n", setup.windowSize.y, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
+        if (context.windowSize.y < surfaceCapabilities.minImageExtent.height || surfaceCapabilities.maxImageExtent.height < context.windowSize.y) {
+            FATAL_ERROR("Window height %u out of range [%u, %u]\n", context.windowSize.y, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
         }
 
-        extents = vk::Extent2D(setup.windowSize.x, setup.windowSize.y);
+        extents = vk::Extent2D(context.windowSize.x, context.windowSize.y);
     }
 
     // If we just took the minimum, we could end up having to wait on the driver before getting another image.
@@ -36,18 +36,18 @@ VulkanSwapchain::VulkanSwapchain(VulkanContext& setup, VulkanRenderPass& swapcha
     }
 
     auto swapchainCreateInfo = vk::SwapchainCreateInfoKHR();
-    swapchainCreateInfo.surface = *setup.surface;
+    swapchainCreateInfo.surface = *context.surface;
 
-    swapchainCreateInfo.presentMode = setup.presentMode;
+    swapchainCreateInfo.presentMode = context.presentMode;
     swapchainCreateInfo.minImageCount = imageCount;
     swapchainCreateInfo.imageExtent = extents;
-    swapchainCreateInfo.imageFormat = setup.surfaceFormat.format;
-    swapchainCreateInfo.imageColorSpace = setup.surfaceFormat.colorSpace;
+    swapchainCreateInfo.imageFormat = context.surfaceFormat.format;
+    swapchainCreateInfo.imageColorSpace = context.surfaceFormat.colorSpace;
     swapchainCreateInfo.imageArrayLayers = 1; // We're not rendering in stereoscopic 3D => set this to 1
     swapchainCreateInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment; // Use eColorAttachment so we can directly render to the swapchain images.
 
-    auto queueFamilyVector = std::vector<uint32_t>({setup.queueFamilies.graphicsFamily, setup.queueFamilies.presentFamily});
-    if (setup.queueFamilies.graphicsFamily != setup.queueFamilies.presentFamily) {
+    auto queueFamilyVector = std::vector<uint32_t>({context.queueFamilies.graphicsFamily, context.queueFamilies.presentFamily});
+    if (context.queueFamilies.graphicsFamily != context.queueFamilies.presentFamily) {
         // The swapchain images need to be able to be used by both families.
         // Use Concurrent mode to make that possible.
         swapchainCreateInfo.imageSharingMode = vk::SharingMode::eConcurrent;
@@ -73,47 +73,13 @@ VulkanSwapchain::VulkanSwapchain(VulkanContext& setup, VulkanRenderPass& swapcha
     swapchain = logicalDevice.createSwapchainKHRUnique(swapchainCreateInfo);
     images = logicalDevice.getSwapchainImagesKHR(*swapchain);
 
-    // Make image views
-    auto makeIdentityView = [&setup](vk::Image image, vk::Format format, vk::ImageAspectFlagBits aspectFlags = vk::ImageAspectFlagBits::eColor){
-        auto createInfo = vk::ImageViewCreateInfo();
-        createInfo.image = image;
-        createInfo.viewType = vk::ImageViewType::e2D;
-        createInfo.format = format;
-
-        createInfo.components.r = vk::ComponentSwizzle::eIdentity;
-        createInfo.components.g = vk::ComponentSwizzle::eIdentity;
-        createInfo.components.b = vk::ComponentSwizzle::eIdentity;
-        createInfo.components.a = vk::ComponentSwizzle::eIdentity;
-
-        createInfo.subresourceRange.aspectMask = aspectFlags;
-        // We don't do any mipmapping/texture arrays ever - only use the first mip level, and the first array layer
-        createInfo.subresourceRange.baseMipLevel = 0;
-        createInfo.subresourceRange.levelCount = 1;
-        createInfo.subresourceRange.baseArrayLayer = 0;
-        createInfo.subresourceRange.layerCount = 1;
-
-        return setup.device->createImageViewUnique(createInfo);
-    };
-    imageViews.clear();
-    for (vk::Image image : images) {
-        imageViews.push_back(makeIdentityView(image, setup.surfaceFormat.format));
-    }
-
-    FATAL_ERROR_UNLESS(swapchainRenderPass.colorAttachmentFormat == setup.surfaceFormat.format, "Render pass using for render to swapchain doesn't render to correct format.")
+    FATAL_ERROR_UNLESS(swapchainRenderPass.colorAttachmentFormat == context.surfaceFormat.format, "Render pass using for render to swapchain doesn't render to correct format.")
 
     // Make framebuffers
     {
         framebuffers.clear();
-        for (const auto& imageView : imageViews) {
-            auto framebufferCreateInfo = vk::FramebufferCreateInfo();
-            framebufferCreateInfo.renderPass = *swapchainRenderPass;
-            framebufferCreateInfo.attachmentCount = 1;
-            framebufferCreateInfo.pAttachments = &(*imageView);
-            framebufferCreateInfo.width = setup.windowSize.x;
-            framebufferCreateInfo.height = setup.windowSize.y;
-            framebufferCreateInfo.layers = 1;
-
-            framebuffers.push_back(logicalDevice.createFramebufferUnique(framebufferCreateInfo));
+        for (const auto& image : images) {
+            framebuffers.emplace_back(context, image, context.surfaceFormat.format, context.windowSize, *swapchainRenderPass);
         }
     }
 }

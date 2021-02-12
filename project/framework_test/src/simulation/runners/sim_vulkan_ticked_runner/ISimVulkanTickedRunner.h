@@ -13,6 +13,7 @@
 #include <vulkan/vulkan.hpp>
 #include <rendering/vulkan/VulkanContext.h>
 #include <memory/FrameSetAllocator.h>
+#include <rendering/vulkan/VulkanSimAppData.h>
 
 class ISimVulkanTickedRunner {
 protected:
@@ -21,9 +22,10 @@ public:
     virtual ~ISimVulkanTickedRunner() = default;
 
     virtual VulkanFrameSetAllocator* prepareBackend(const FluidParams& p, const SimSnapshot& snapshot, size_t frameCount) = 0;
+    virtual void prepareSemaphores(VulkanSimAppData& data) = 0;
     // Set doSim to false if you just want to signal the semaphores
     virtual void tick(float timeToRun, bool waitOnRender, bool doSim, size_t frameToWriteIdx) = 0;
 
     static std::unique_ptr<ISimVulkanTickedRunner> getForBackend(SimulationBackendEnum backendType,
-                                                                 VulkanContext& context, vk::Semaphore renderFinished, vk::Semaphore simFinished);
+                                                                 VulkanContext& context);
 };

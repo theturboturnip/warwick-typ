@@ -4,7 +4,10 @@
 
 #include "VulkanFence.h"
 
-VulkanFence::VulkanFence(vk::Device device) {
+VulkanFence::VulkanFence(VulkanContext& context, bool startSignalled) {
     vk::FenceCreateInfo info{};
-    fence = device.createFenceUnique(info);
+    if (startSignalled) {
+        info.flags = vk::FenceCreateFlagBits::eSignaled;
+    }
+    fence = context.device->createFenceUnique(info);
 }

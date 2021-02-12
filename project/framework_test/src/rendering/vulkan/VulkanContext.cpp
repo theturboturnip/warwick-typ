@@ -193,30 +193,85 @@ VulkanContext::VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowS
     }
 
     // Get possible surface formats
+    {
+        // Try to select a specific format first,
+        // as in the tutorial https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
+        surfaceFormat = selectOrFallback<vk::SurfaceFormatKHR>(
+                physicalDevice.getSurfaceFormatsKHR(*surface),
+                {
+                        vk::SurfaceFormatKHR(
+                                vk::Format::eB8G8R8A8Srgb,
+                                vk::ColorSpaceKHR::eSrgbNonlinear
+                        )
+                }
+        );
 
-    // Try to select a specific format first,
-    // as in the tutorial https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
-    surfaceFormat = selectOrFallback<vk::SurfaceFormatKHR>(
-            physicalDevice.getSurfaceFormatsKHR(*surface),
-            {
-                    vk::SurfaceFormatKHR(
-                            vk::Format::eB8G8R8A8Srgb,
-                            vk::ColorSpaceKHR::eSrgbNonlinear
-                    )
-            }
-    );
+        presentMode = selectIfPossible<vk::PresentModeKHR>(
+                physicalDevice.getSurfacePresentModesKHR(*surface),
+                {
+                        vk::PresentModeKHR::eImmediate,
+                        vk::PresentModeKHR::eMailbox,
+                        vk::PresentModeKHR::eFifoRelaxed,
+                        vk::PresentModeKHR::eFifo // Will always be present
+                }
+        );
+        printf("Using present mode %s\n", vk::to_string(presentMode).c_str());
+    }
 
-    presentMode = selectIfPossible<vk::PresentModeKHR>(
-            physicalDevice.getSurfacePresentModesKHR(*surface),
-            {
-                    vk::PresentModeKHR::eMailbox,
-                    vk::PresentModeKHR::eFifo
-            }
-    );
+    // Create the command buffer pool
+    {
+        auto poolInfo = vk::CommandPoolCreateInfo();
+        poolInfo.queueFamilyIndex = queueFamilies.graphicsFamily;
+        poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer; // Allow command buffers to be reset outside of the pool?
 
+        cmdPool = device->createCommandPoolUnique(poolInfo);
+    }
+
+    // Create the descriptor pool
+    {
+        std::vector<vk::DescriptorPoolSize> pool_sizes =
+                {
+                        { vk::DescriptorType::eSampler, 1000 },
+                        { vk::DescriptorType::eCombinedImageSampler, 1000 },
+                        { vk::DescriptorType::eSampledImage, 1000 },
+                        { vk::DescriptorType::eStorageImage, 1000 },
+                        { vk::DescriptorType::eUniformBuffer, 1000 },
+                        { vk::DescriptorType::eStorageBuffer, 1000 },
+                        { vk::DescriptorType::eInputAttachment, 1000 }
+                };
+        vk::DescriptorPoolCreateInfo pool_info = {};
+        pool_info.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+        pool_info.maxSets = 1000 * pool_sizes.size();
+        pool_info.poolSizeCount = pool_sizes.size();
+        pool_info.pPoolSizes = pool_sizes.data();
+        descriptorPool = device->createDescriptorPoolUnique(pool_info);
+    }
 }
 
 VulkanContext::~VulkanContext() {
     SDL_DestroyWindow(window);
     SDL_Quit();
+}
+
+uint32_t VulkanContext::selectMemoryTypeIndex(vk::MemoryRequirements requirements, vk::MemoryPropertyFlags properties) const {
+    auto memProperties = physicalDevice.getMemoryProperties();
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        // If index i is one of the types specified in the requirement...
+        // ...and the properties of index i exactly match the ones we expect
+        // then it's correct!
+        // (the properties need to exactly match in case we don't want certain kinds i.e. we might want DEVICE_LOCAL but not HOST_COHERENT)
+        if ((requirements.memoryTypeBits & (1u << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+    FATAL_ERROR("Couldn't find suitable memory type!");
+}
+
+std::vector<vk::UniqueCommandBuffer> VulkanContext::allocateCommandBuffers(vk::CommandBufferLevel level, size_t count) {
+    auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
+    cmdBufferAlloc.commandPool = *cmdPool;
+    cmdBufferAlloc.level = level;
+    cmdBufferAlloc.commandBufferCount = count;
+    return device->allocateCommandBuffersUnique(cmdBufferAlloc);
 }

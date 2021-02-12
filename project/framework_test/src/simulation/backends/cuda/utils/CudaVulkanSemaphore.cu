@@ -29,24 +29,24 @@ CudaVulkanSemaphore::CudaVulkanSemaphore(vk::Device device, vk::Semaphore vulkan
     semaphoreHandleDesc.type = cudaExternalSemaphoreHandleTypeOpaqueFd;
     semaphoreHandleDesc.handle.fd = fd;
     semaphoreHandleDesc.flags = 0;
-    CHECKED_CUDA(cudaImportExternalSemaphore(&cudaSemaphore, &semaphoreHandleDesc));
+    CHECKED_CUDA(cudaImportExternalSemaphore(&cudaSemaphore.get(), &semaphoreHandleDesc));
 }
 void CudaVulkanSemaphore::signalAsync(cudaStream_t stream) {
     cudaExternalSemaphoreSignalParams signalParams = {};
     signalParams.flags = 0;
     signalParams.params.fence.value = 0;
 
-    CHECKED_CUDA(cudaSignalExternalSemaphoresAsync(&cudaSemaphore, &signalParams, 1, stream));
+    CHECKED_CUDA(cudaSignalExternalSemaphoresAsync(&cudaSemaphore.get(), &signalParams, 1, stream));
 }
 void CudaVulkanSemaphore::waitForAsync(cudaStream_t stream) {
     cudaExternalSemaphoreWaitParams waitParams = {};
     waitParams.flags = 0;
     waitParams.params.fence.value = 0;
 
-    CHECKED_CUDA(cudaWaitExternalSemaphoresAsync(&cudaSemaphore, &waitParams, 1, stream));
+    CHECKED_CUDA(cudaWaitExternalSemaphoresAsync(&cudaSemaphore.get(), &waitParams, 1, stream));
 }
 CudaVulkanSemaphore::~CudaVulkanSemaphore() {
-    if (cudaSemaphore) {
-        CHECKED_CUDA(cudaDestroyExternalSemaphore(cudaSemaphore));
+    if (cudaSemaphore.has_value()) {
+        CHECKED_CUDA(cudaDestroyExternalSemaphore(cudaSemaphore.get()));
     }
 }

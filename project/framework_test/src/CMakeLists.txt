@@ -28,6 +28,10 @@ target_sources(generic_sources INTERFACE
         rendering/threads/ThreadWorkData.h
         rendering/threads/WorkerThreadController.h
         rendering/threads/work/SystemWorker.h
+        rendering/vulkan/helpers/VulkanBackedGPUImage.cpp
+        rendering/vulkan/helpers/VulkanBackedGPUImage.h
+        rendering/vulkan/helpers/VulkanBackedFramebuffer.cpp
+        rendering/vulkan/helpers/VulkanBackedFramebuffer.h
         rendering/vulkan/helpers/VulkanDebug.h
         rendering/vulkan/helpers/VulkanDeviceMemory.cpp
         rendering/vulkan/helpers/VulkanDeviceMemory.h
@@ -35,16 +39,14 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanDescriptorSetLayout.h
         rendering/vulkan/helpers/VulkanFence.cpp
         rendering/vulkan/helpers/VulkanFence.h
+        rendering/vulkan/helpers/VulkanFramebuffer.cpp
+        rendering/vulkan/helpers/VulkanFramebuffer.h
         rendering/vulkan/helpers/VulkanShader.cpp
         rendering/vulkan/helpers/VulkanShader.h
         rendering/vulkan/helpers/VulkanSemaphore.cpp
         rendering/vulkan/helpers/VulkanSemaphore.h
-        rendering/vulkan/VulkanSimSemaphoreSet.cpp
-        rendering/vulkan/VulkanSimSemaphoreSet.h
         rendering/vulkan/helpers/VulkanPipeline.cpp
         rendering/vulkan/helpers/VulkanPipeline.h
-        rendering/vulkan/VulkanSimPipelineSet.cpp
-        rendering/vulkan/VulkanSimPipelineSet.h
         rendering/vulkan/helpers/VulkanQueueFamilies.cpp
         rendering/vulkan/helpers/VulkanQueueFamilies.h
         rendering/vulkan/helpers/VulkanRenderPass.cpp
@@ -55,6 +57,10 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/VulkanSimApp.h
         rendering/vulkan/VulkanContext.cpp
         rendering/vulkan/VulkanContext.h
+        rendering/vulkan/VulkanSimPipelineSet.cpp
+        rendering/vulkan/VulkanSimPipelineSet.h
+        rendering/vulkan/VulkanSimAppData.cpp
+        rendering/vulkan/VulkanSimAppData.h
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp
