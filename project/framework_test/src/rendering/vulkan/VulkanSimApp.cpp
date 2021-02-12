@@ -115,7 +115,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         .simRenderArea = vk::Rect2D({0,0}, {snapshot.simSize.padded_pixel_size.x, snapshot.simSize.padded_pixel_size.y}),
 
         .pipelines=pipelines
-    }, vulkanAllocator->vulkanFrames);
+    }, vulkanAllocator->vulkanFrames, swapchain);
     fprintf(stderr, "created vulkansimappdata\n");
 
     simulationRunner->prepareSemaphores(data);
@@ -157,6 +157,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
             *simFrame.imageAcquired, nullptr,
             &swapchainImageIdx
         );
+        fprintf(stderr, "told to get swapchain image %d\n", swapchainImageIdx);
         auto& swapchainImage = data.swapchainImageData[swapchainImageIdx];
         // Wait for the last "sim frame" that was rendering this swapchain image to finish
         if (swapchainImage.inFlight) {

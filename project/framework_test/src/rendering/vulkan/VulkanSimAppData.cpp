@@ -6,11 +6,17 @@
 #include "VulkanSimAppData.h"
 
 VulkanSimAppData::VulkanSimAppData(VulkanSimAppData::Global&& globalData,
-                                   std::vector<VulkanSimFrameData>& bufferList) : globalData(globalData) {
+                                   std::vector<VulkanSimFrameData>& bufferList,
+                                   VulkanSwapchain& swapchain) : globalData(globalData) {
     FATAL_ERROR_IF(bufferList.empty(), "Empty list of buffers");
     frameData.reserve(bufferList.size());
     for (uint32_t i = 0; i < bufferList.size(); i++) {
         frameData.emplace_back(this->globalData, this->globalData.context, i, &bufferList[i]);
+    }
+
+    swapchainImageData.reserve(swapchain.imageCount);
+    for (uint32_t i = 0; i < swapchain.imageCount; i++) {
+        swapchainImageData.emplace_back(i, &swapchain.framebuffers[i]);
     }
 }
 
@@ -43,7 +49,7 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
       })
     {}
 
-VulkanSimAppData::PerSwapchainImageData::PerSwapchainImageData(VulkanContext& context, uint32_t index, VulkanFramebuffer* framebuffer)
+VulkanSimAppData::PerSwapchainImageData::PerSwapchainImageData(uint32_t index, VulkanFramebuffer* framebuffer)
     : index(index),
         framebuffer(framebuffer),
         inFlight(nullptr)

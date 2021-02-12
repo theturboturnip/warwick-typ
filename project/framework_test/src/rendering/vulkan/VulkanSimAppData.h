@@ -10,6 +10,7 @@
 #include <rendering/vulkan/helpers/VulkanBackedFramebuffer.h>
 #include <rendering/vulkan/helpers/VulkanSemaphore.h>
 #include <rendering/vulkan/helpers/VulkanFence.h>
+#include <rendering/vulkan/helpers/VulkanSwapchain.h>
 #include "VulkanContext.h"
 #include "VulkanSimPipelineSet.h"
 
@@ -67,7 +68,7 @@ public:
         // Reference to the VulkanFence of the Sim Frame that is currently rendering to this.
         vk::Fence inFlight;
 
-        PerSwapchainImageData(VulkanContext& context, uint32_t index, VulkanFramebuffer* framebuffer);
+        PerSwapchainImageData(uint32_t index, VulkanFramebuffer* framebuffer);
         PerSwapchainImageData(PerSwapchainImageData&&) noexcept = default;
     };
 
@@ -75,7 +76,7 @@ public:
     std::vector<PerFrameData> frameData;
     std::vector<PerSwapchainImageData> swapchainImageData;
 
-    VulkanSimAppData(Global&& globalData, std::vector<VulkanSimFrameData>& bufferList);
+    VulkanSimAppData(Global&& globalData, std::vector<VulkanSimFrameData>& bufferList, VulkanSwapchain& swapchain);
     VulkanSimAppData(VulkanSimAppData&&) noexcept = default;
     VulkanSimAppData(const VulkanSimAppData&) = delete;
 };
