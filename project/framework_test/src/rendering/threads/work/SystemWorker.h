@@ -10,21 +10,22 @@
 #include <imgui_impl_vulkan.h>
 #include <rendering/vulkan/helpers/VulkanDeviceMemory.h>
 #include <rendering/vulkan/helpers/VulkanBackedFramebuffer.h>
+#include <rendering/vulkan/VulkanSimAppData.h>
 
 
 struct SystemWorkerIn {
-    uint32_t swFrameIndex;
-    vk::Framebuffer swFramebuffer;
+    uint32_t swapchainImageIndex;
+    uint32_t simFrameIndex;
 
     struct PerfData {
         std::array<float, 32> frameTimes;
-        uint32_t currentFrame;
+        uint32_t currentFrameNum;
     } perf;
 };
 
 struct SystemWorkerOut {
     bool wantsQuit = false;
-    bool wantsRunSim;
+    bool wantsRunSim = false;
     vk::CommandBuffer cmdBuffer;
 };
 
@@ -32,61 +33,29 @@ struct SystemWorkerOut {
  * Processes SDL input, and builds the command buffer for the next frame
  */
 class SystemWorker {
-    SDL_Window* window;
-    vk::RenderPass imguiRenderPass;
-    vk::RenderPass simRenderPass;
-    vk::Rect2D imguiRenderArea;
-    vk::Rect2D simRenderArea;
-    VulkanSimPipelineSet * pipelines;
-    std::vector<vk::UniqueCommandBuffer> frameCmdBuffers;
+    VulkanSimAppData& data;
+    // Shortcut for data.global
+    VulkanSimAppData::Global global;
+
+
+    // internal
     bool showDemoWindow = true;
     bool wantsRunSim = false;
 
-    SimSize simSize;
+    // In case the constants change over time i.e. for color
+    VulkanSimPipelineSet::SimFragPushConstants simBuffersPushConstants;
 
-    VulkanSimPipelineSet::SimFragPushConstants simFragPushConstants;
-
-    VulkanBackedFramebuffer simFramebuffer;
-    vk::UniqueDescriptorSet simImageDescriptorSet;
-
-    ImGuiContext* context;
-
-    // TODO - make this allocate the command pool itself?
 public:
-    explicit SystemWorker(VulkanSimApp& vulkanWindow, SimSize simSize)
-        : window(vulkanWindow.context.window),
-          imguiRenderPass(*vulkanWindow.imguiRenderPass),
-          simRenderPass(*vulkanWindow.simRenderPass),
-          imguiRenderArea({0, 0}, {vulkanWindow.context.windowSize.x, vulkanWindow.context.windowSize.y}),
-          simRenderArea({0, 0}, {simSize.padded_pixel_size.x, simSize.padded_pixel_size.y}),
-          pipelines(vulkanWindow.pipelines.get()),
-          simSize(simSize),
-          simFragPushConstants({
-                  .pixelWidth=simSize.padded_pixel_size.x,
-                  .pixelHeight=simSize.padded_pixel_size.y,
-                  .columnStride=simSize.padded_pixel_size.y, // TODO
-                  .totalPixels=(uint32_t)simSize.pixel_count()
-          }),
-          simFramebuffer(vulkanWindow.context,
-                         vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled,
-                         simSize.padded_pixel_size,
-                         *vulkanWindow.simRenderPass
-                         ),
-           context(vulkanWindow.imContext)
-    {
-        // Allocate command buffers
-        // TODO don't do this here
-        {
-            auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
-            cmdBufferAlloc.commandPool = *vulkanWindow.cmdPool;
-            cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
-            cmdBufferAlloc.commandBufferCount = vulkanWindow.swapchain.imageCount;
-            frameCmdBuffers = vulkanWindow.device.allocateCommandBuffersUnique(cmdBufferAlloc);
-        }
-
-        vk::DescriptorSet descriptorSet = ImGui_ImplVulkan_MakeDescriptorSet(simFramebuffer.getImageView());
-        simImageDescriptorSet = vk::UniqueDescriptorSet(descriptorSet, vk::PoolFree(vulkanWindow.device, *vulkanWindow.descriptorPool, VULKAN_HPP_DEFAULT_DISPATCHER));
-    }
+    explicit SystemWorker(VulkanSimAppData& data)
+        : data(data),
+          global(data.globalData),
+          simBuffersPushConstants({
+              .pixelWidth=global.simSize.padded_pixel_size.x,
+              .pixelHeight=global.simSize.padded_pixel_size.y,
+              .columnStride=global.simSize.padded_pixel_size.y, // TODO
+              .totalPixels=(uint32_t)global.simSize.pixel_count()
+          })
+    {}
 
     SystemWorkerOut work(SystemWorkerIn input) {
         bool wantsQuit = false;
@@ -98,8 +67,11 @@ public:
                 ImGui_ImplSDL2_ProcessEvent(&event);
         }
 
+        auto& simFrameData = data.frameData[input.simFrameIndex];
+        auto& swImageData = data.swapchainImageData[input.swapchainImageIndex];
+
         ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplSDL2_NewFrame(window);
+        ImGui_ImplSDL2_NewFrame(global.context.window);
         ImGui::NewFrame();
 
 //        if (showDemoWindow)
@@ -110,8 +82,8 @@ public:
         // ImGuiWindowFlags_NoBackground
         ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize);
         {
-            ImGui::Text("Frame %u", input.perf.currentFrame);
-            if (input.perf.currentFrame >= input.perf.frameTimes.size()) {
+            ImGui::Text("Frame %u", input.perf.currentFrameNum);
+            if (input.perf.currentFrameNum >= input.perf.frameTimes.size()) {
                 float sumFrameTimes = std::accumulate(input.perf.frameTimes.begin(), input.perf.frameTimes.end(), 0.0f);
                 float avgFrameTime = sumFrameTimes / input.perf.frameTimes.size();
                 ImGui::Text("Avg FPS: %.1f", 1.0f / avgFrameTime);
@@ -125,11 +97,14 @@ public:
 
         //ImGui::SetNextWindowSize(ImVec2(simSize.pixel_size.x+2, simSize.pixel_size.y+2));
         ImGui::Begin("Simulation", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-        ImGui::Image((ImTextureID)*simImageDescriptorSet, ImVec2(simSize.padded_pixel_size.x, simSize.padded_pixel_size.y+2));
+        ImGui::Image(
+                (ImTextureID)*simFrameData.vizFramebufferDescriptorSet,
+                ImVec2(global.simSize.padded_pixel_size.x, global.simSize.padded_pixel_size.y)
+        );
         ImGui::End();
         ImGui::Render();
 
-        const auto& cmdBuffer = *frameCmdBuffers[input.swFrameIndex];
+        const auto& cmdBuffer = *simFrameData.threadOutputs.commandBuffer;
         cmdBuffer.reset({});
 
         auto clearColor = vk::ClearValue(vk::ClearColorValue());
@@ -142,23 +117,23 @@ public:
 
         {
             auto simRenderPassInfo = vk::RenderPassBeginInfo();
-            simRenderPassInfo.renderPass = simRenderPass;
-            simRenderPassInfo.framebuffer = *simFramebuffer;
-            simRenderPassInfo.renderArea = simRenderArea;
+            simRenderPassInfo.renderPass = global.simRenderPass;
+            simRenderPassInfo.framebuffer = *simFrameData.vizFramebuffer;
+            simRenderPassInfo.renderArea = global.simRenderArea;
             simRenderPassInfo.clearValueCount = 1;
             simRenderPassInfo.pClearValues = &clearColor;
             cmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
-            cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipelines->fullscreenPressure);
+            cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.fullscreenPressure);
             cmdBuffer.pushConstants(
-                    *pipelines->fullscreenPressure.layout,
+                    *global.pipelines.fullscreenPressure.layout,
                     vk::ShaderStageFlagBits::eFragment,
                     0,
-                    vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simFragPushConstants});
+                    vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simBuffersPushConstants});
             cmdBuffer.bindDescriptorSets(
                     vk::PipelineBindPoint::eGraphics,
-                    *pipelines->fullscreenPressure.layout,
+                    *global.pipelines.fullscreenPressure.layout,
                     0,
-                    {*pipelines->simulationFragDescriptors},
+                    {*simFrameData.simBuffersDescriptorSet},
                     {});
             cmdBuffer.draw(6, 1, 0, 0);
             cmdBuffer.endRenderPass();
@@ -166,9 +141,9 @@ public:
 
         {
             auto imguiRenderPassInfo = vk::RenderPassBeginInfo();
-            imguiRenderPassInfo.renderPass = imguiRenderPass;
-            imguiRenderPassInfo.framebuffer = input.swFramebuffer;
-            imguiRenderPassInfo.renderArea = imguiRenderArea;
+            imguiRenderPassInfo.renderPass = global.imguiRenderPass;
+            imguiRenderPassInfo.framebuffer = **swImageData.framebuffer;
+            imguiRenderPassInfo.renderArea = global.imguiRenderArea;
             imguiRenderPassInfo.clearValueCount = 1;
             imguiRenderPassInfo.pClearValues = &clearColor;
             cmdBuffer.beginRenderPass(imguiRenderPassInfo, vk::SubpassContents::eInline);
@@ -176,7 +151,7 @@ public:
 
             {
                 ImDrawData *draw_data = ImGui::GetDrawData();
-                ImGui_ImplVulkan_RenderDrawData(draw_data, context, cmdBuffer, imguiRenderPass, VK_SAMPLE_COUNT_1_BIT);
+                ImGui_ImplVulkan_RenderDrawData(draw_data, global.imguiContext, cmdBuffer, global.imguiRenderPass, VK_SAMPLE_COUNT_1_BIT);
             }
 
             cmdBuffer.endRenderPass();

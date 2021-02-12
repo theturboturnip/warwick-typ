@@ -20,7 +20,6 @@ public:
         uint32_t totalPixels;
     };
 
-private:
     VertexShader triVert;
     VertexShader fullscreenQuadVert;
     FragmentShader redFrag;
@@ -30,14 +29,12 @@ private:
     VulkanDescriptorSetLayout simulationFragDescriptorLayout;
     vk::PushConstantRange simulationFragPushConstantRange;
 
-public:
-    explicit VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize);
-    VulkanSimPipelineSet(VulkanSimPipelineSet &&) noexcept = default;
-
-    vk::UniqueDescriptorSet simulationFragDescriptors;
-    void buildSimulationFragDescriptors(vk::Device device, vk::DescriptorPool pool, VulkanSimFrameData frameData);
-
     VulkanPipeline redTriangle;
     VulkanPipeline redQuad;
     VulkanPipeline fullscreenPressure;
+
+    explicit VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize);
+    VulkanSimPipelineSet(VulkanSimPipelineSet &&) noexcept = default;
+
+    vk::UniqueDescriptorSet buildSimulationFragDescriptors(VulkanContext& context, VulkanSimFrameData& buffers);
 };

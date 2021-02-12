@@ -193,27 +193,56 @@ VulkanContext::VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowS
     }
 
     // Get possible surface formats
+    {
+        // Try to select a specific format first,
+        // as in the tutorial https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
+        surfaceFormat = selectOrFallback<vk::SurfaceFormatKHR>(
+                physicalDevice.getSurfaceFormatsKHR(*surface),
+                {
+                        vk::SurfaceFormatKHR(
+                                vk::Format::eB8G8R8A8Srgb,
+                                vk::ColorSpaceKHR::eSrgbNonlinear
+                        )
+                }
+        );
 
-    // Try to select a specific format first,
-    // as in the tutorial https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
-    surfaceFormat = selectOrFallback<vk::SurfaceFormatKHR>(
-            physicalDevice.getSurfaceFormatsKHR(*surface),
-            {
-                    vk::SurfaceFormatKHR(
-                            vk::Format::eB8G8R8A8Srgb,
-                            vk::ColorSpaceKHR::eSrgbNonlinear
-                    )
-            }
-    );
+        presentMode = selectIfPossible<vk::PresentModeKHR>(
+                physicalDevice.getSurfacePresentModesKHR(*surface),
+                {
+                        vk::PresentModeKHR::eMailbox,
+                        vk::PresentModeKHR::eFifo // Will always be present
+                }
+        );
+    }
 
-    presentMode = selectIfPossible<vk::PresentModeKHR>(
-            physicalDevice.getSurfacePresentModesKHR(*surface),
-            {
-                    vk::PresentModeKHR::eMailbox,
-                    vk::PresentModeKHR::eFifo // Will always be present
-            }
-    );
+    // Create the command buffer pool
+    {
+        auto poolInfo = vk::CommandPoolCreateInfo();
+        poolInfo.queueFamilyIndex = queueFamilies.graphicsFamily;
+        poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer; // Allow command buffers to be reset outside of the pool?
 
+        cmdPool = device->createCommandPoolUnique(poolInfo);
+    }
+
+    // Create the descriptor pool
+    {
+        std::vector<vk::DescriptorPoolSize> pool_sizes =
+                {
+                        { vk::DescriptorType::eSampler, 1000 },
+                        { vk::DescriptorType::eCombinedImageSampler, 1000 },
+                        { vk::DescriptorType::eSampledImage, 1000 },
+                        { vk::DescriptorType::eStorageImage, 1000 },
+                        { vk::DescriptorType::eUniformBuffer, 1000 },
+                        { vk::DescriptorType::eStorageBuffer, 1000 },
+                        { vk::DescriptorType::eInputAttachment, 1000 }
+                };
+        vk::DescriptorPoolCreateInfo pool_info = {};
+        pool_info.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+        pool_info.maxSets = 1000 * pool_sizes.size();
+        pool_info.poolSizeCount = pool_sizes.size();
+        pool_info.pPoolSizes = pool_sizes.data();
+        descriptorPool = device->createDescriptorPoolUnique(pool_info);
+    }
 }
 
 VulkanContext::~VulkanContext() {
@@ -234,4 +263,12 @@ uint32_t VulkanContext::selectMemoryTypeIndex(vk::MemoryRequirements requirement
         }
     }
     FATAL_ERROR("Couldn't find suitable memory type!");
+}
+
+std::vector<vk::UniqueCommandBuffer> VulkanContext::allocateCommandBuffers(vk::CommandBufferLevel level, size_t count) {
+    auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
+    cmdBufferAlloc.commandPool = *cmdPool;
+    cmdBufferAlloc.level = level;
+    cmdBufferAlloc.commandBufferCount = count;
+    return device->allocateCommandBuffersUnique(cmdBufferAlloc);
 }

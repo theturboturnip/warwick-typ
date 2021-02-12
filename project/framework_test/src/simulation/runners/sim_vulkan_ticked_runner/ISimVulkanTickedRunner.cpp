@@ -13,12 +13,12 @@
 
 std::unique_ptr<ISimVulkanTickedRunner> ISimVulkanTickedRunner::getForBackend(
         SimulationBackendEnum backendType,
-        VulkanContext& context, vk::Semaphore renderFinished, vk::Semaphore simFinished
+        VulkanContext& context
         ) {
     switch(backendType) {
 #if CUDA_ENABLED
         case CUDA:
-            return std::make_unique<SimVulkanTickedCudaRunner<CudaBackendV1<false>>>(context, renderFinished, simFinished);
+            return std::make_unique<SimVulkanTickedCudaRunner<CudaBackendV1<false>>>(context);
 #endif
         default:
             FATAL_ERROR("Enum val %d doesn't have an ISimVulkanTickedRunner!\n", backendType);

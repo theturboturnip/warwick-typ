@@ -34,9 +34,13 @@ public:
     vk::Queue graphicsQueue;
     vk::Queue presentQueue;
 
+    vk::UniqueCommandPool cmdPool;
+    vk::UniqueDescriptorPool descriptorPool;
+
     VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize);
     VulkanContext(VulkanContext&&) = delete;
     ~VulkanContext();
 
     uint32_t selectMemoryTypeIndex(vk::MemoryRequirements requirements, vk::MemoryPropertyFlags properties) const;
+    std::vector<vk::UniqueCommandBuffer> allocateCommandBuffers(vk::CommandBufferLevel level, size_t count);
 };

@@ -48,16 +48,16 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
       fullscreenPressure(device, renderPass, viewportSize, fullscreenQuadVert, simPressure, &*simulationFragDescriptorLayout, &simulationFragPushConstantRange)
 {}
 
-void VulkanSimPipelineSet::buildSimulationFragDescriptors(vk::Device device, vk::DescriptorPool pool, VulkanSimFrameData buffers) {
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimulationFragDescriptors(VulkanContext& context, VulkanSimFrameData& buffers) {
     auto allocInfo = vk::DescriptorSetAllocateInfo{};
-    allocInfo.descriptorPool = pool;
+    allocInfo.descriptorPool = *context.descriptorPool;
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts = &*simulationFragDescriptorLayout;
-    simulationFragDescriptors = std::move(device.allocateDescriptorSetsUnique(allocInfo)[0]);
+    auto simulationFragDescriptorSet = std::move(context.device->allocateDescriptorSetsUnique(allocInfo)[0]);
 
     auto writeDescriptorBuffer = [&](uint32_t i, vk::DescriptorBufferInfo bufferInfo) {
         auto descriptorWrite = vk::WriteDescriptorSet{};
-        descriptorWrite.dstSet = *simulationFragDescriptors;
+        descriptorWrite.dstSet = *simulationFragDescriptorSet;
         descriptorWrite.dstBinding = i;
         descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -67,10 +67,12 @@ void VulkanSimPipelineSet::buildSimulationFragDescriptors(vk::Device device, vk:
         descriptorWrite.pImageInfo = nullptr;
         descriptorWrite.pTexelBufferView = nullptr;
 
-        device.updateDescriptorSets({descriptorWrite}, {});
+        context.device->updateDescriptorSets({descriptorWrite}, {});
     };
     writeDescriptorBuffer(0, buffers.u);
     writeDescriptorBuffer(1, buffers.v);
     writeDescriptorBuffer(2, buffers.p);
     writeDescriptorBuffer(3, buffers.fluidmask);
+
+    return simulationFragDescriptorSet;
 }

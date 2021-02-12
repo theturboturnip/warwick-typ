@@ -45,12 +45,8 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanShader.h
         rendering/vulkan/helpers/VulkanSemaphore.cpp
         rendering/vulkan/helpers/VulkanSemaphore.h
-        rendering/vulkan/VulkanSimSemaphoreSet.cpp
-        rendering/vulkan/VulkanSimSemaphoreSet.h
         rendering/vulkan/helpers/VulkanPipeline.cpp
         rendering/vulkan/helpers/VulkanPipeline.h
-        rendering/vulkan/VulkanSimPipelineSet.cpp
-        rendering/vulkan/VulkanSimPipelineSet.h
         rendering/vulkan/helpers/VulkanQueueFamilies.cpp
         rendering/vulkan/helpers/VulkanQueueFamilies.h
         rendering/vulkan/helpers/VulkanRenderPass.cpp
@@ -61,6 +57,10 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/VulkanSimApp.h
         rendering/vulkan/VulkanContext.cpp
         rendering/vulkan/VulkanContext.h
+        rendering/vulkan/VulkanSimPipelineSet.cpp
+        rendering/vulkan/VulkanSimPipelineSet.h
+        rendering/vulkan/VulkanSimAppData.cpp
+        rendering/vulkan/VulkanSimAppData.h
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp
