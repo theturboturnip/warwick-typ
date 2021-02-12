@@ -143,6 +143,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         std::chrono::duration<double> frameTimeDiff = frameStartTime - lastFrameStartTime;
         frameTimes[renderedFrameNum % frameTimes.size()] = (frameTimeDiff).count();
         fprintf(stderr, "added frame time\n");
+        lastFrameStartTime = frameStartTime;
 
         // Get a new sim frame
         auto& simFrame = data.frameData[simFrameIdx];
@@ -163,7 +164,8 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         if (swapchainImage.inFlight) {
             device.waitForFences({swapchainImage.inFlight}, true, UINT64_MAX);
         }
-
+        // We are now trying to render this image, so make the swapchain fence point to the simframe fence.
+        swapchainImage.inFlight = *simFrame.inFlight;
         fprintf(stderr, "got sim frame and swapchain image\n");
 
         // Enqueue work for the SystemWorker
