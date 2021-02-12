@@ -10,11 +10,12 @@
 
 class CudaVulkanSemaphore {
     vk::Semaphore vulkanSemaphore;
-    cudaExternalSemaphore_t cudaSemaphore = 0;
+    cudaExternalSemaphore_t cudaSemaphore = nullptr;
 
 public:
     CudaVulkanSemaphore(vk::Device device, vk::Semaphore vulkanSemaphore);
     CudaVulkanSemaphore(CudaVulkanSemaphore&&) noexcept = default;
+    CudaVulkanSemaphore(const CudaVulkanSemaphore&) = delete;
     ~CudaVulkanSemaphore();
 
     void signalAsync(cudaStream_t);

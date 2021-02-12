@@ -45,6 +45,8 @@ public:
     }
 
     void prepareSemaphores(VulkanSimAppData& data) override {
+        frameSemaphores.clear();
+        frameSemaphores.reserve(data.frameData.size());
         for (const auto& frame : data.frameData) {
             frameSemaphores.push_back(Sync{
                 .renderFinished = CudaVulkanSemaphore(*context.device, *frame.renderFinishedShouldSim),

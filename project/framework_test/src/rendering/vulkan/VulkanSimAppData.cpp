@@ -25,7 +25,7 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
           context,
           vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled,
           globalData.simSize.padded_pixel_size,
-          globalData.imguiRenderPass
+          globalData.simRenderPass
       ),
       vizFramebufferDescriptorSet(
           ImGui_ImplVulkan_MakeDescriptorSet(vizFramebuffer.getImageView()),

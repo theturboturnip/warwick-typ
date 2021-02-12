@@ -21,9 +21,11 @@ public:
 
         SimSize simSize;
 
+        // TODO - rename to final composite render pass
         vk::RenderPass imguiRenderPass;
         vk::Rect2D imguiRenderArea;
 
+        // TODO - rename to viz render pass
         vk::RenderPass simRenderPass;
         vk::Rect2D simRenderArea;
 
