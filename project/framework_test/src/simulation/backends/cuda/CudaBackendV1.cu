@@ -57,7 +57,6 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(std::vector<Frame> frames, 
 
     // Use this->frames because `frames` on it's own is the newly-removed argument
     for (auto& frame : this->frames) {
-        fprintf(stderr, "Resetting frame %p\n", &frame);
         resetFrame(frame, s);
     }
 }

@@ -6,11 +6,12 @@
 
 #include <cuda_runtime_api.h>
 #include <util/fatal_error.h>
+#include <util/ForgetOnMove.h>
 #include <vulkan/vulkan.hpp>
 
 class CudaVulkanSemaphore {
     vk::Semaphore vulkanSemaphore;
-    cudaExternalSemaphore_t cudaSemaphore = 0;
+    ForgetOnMove<cudaExternalSemaphore_t> cudaSemaphore = 0;
 
 public:
     CudaVulkanSemaphore(vk::Device device, vk::Semaphore vulkanSemaphore);

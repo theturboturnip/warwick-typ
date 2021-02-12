@@ -28,7 +28,7 @@ public:
     FrameSetAllocator(const SimSnapshot& s, size_t frameCount) {
         frameAllocs.clear();
         frames.clear();
-        frameAllocs.reserve(frameCount);
+        //frameAllocs.reserve(frameCount);
 
         for (size_t i = 0; i < frameCount; i++) {
             frameAllocs.emplace_back();
@@ -50,7 +50,7 @@ public:
     FrameSetAllocator(const SimSnapshot& s, size_t frameCount) {
         frameAllocs.clear();
         frames.clear();
-        frameAllocs.reserve(frameCount);
+        //frameAllocs.reserve(frameCount);
 
         for (size_t i = 0; i < frameCount; i++) {
             frameAllocs.emplace_back();
@@ -85,9 +85,9 @@ public:
     FrameSetAllocator(VulkanContext& context, Size<uint32_t> paddedSize, size_t frameCount) {
         frameAllocs.clear();
         frames.clear();
-        frameAllocs.reserve(frameCount);
+        //frameAllocs.reserve(frameCount);
         vulkanFrames.clear();
-        vulkanFrames.reserve(frameCount);
+        //vulkanFrames.reserve(frameCount);
 
         const size_t totalFrameSizeBytes = decltype(TFrame::u)::sizeBytesOf(paddedSize) +
                 decltype(TFrame::v)::sizeBytesOf(paddedSize) +

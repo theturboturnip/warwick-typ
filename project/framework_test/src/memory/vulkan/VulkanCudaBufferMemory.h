@@ -9,13 +9,14 @@
 #include <rendering/vulkan/helpers/VulkanDeviceMemory.h>
 #include <rendering/vulkan/VulkanContext.h>
 #include <cuda_runtime_api.h>
+#include <util/ForgetOnMove.h>
 
 class VulkanCudaBufferMemory {
     vk::UniqueBuffer buffer;
     vk::UniqueDeviceMemory deviceMemory;
     int cudaVulkanFd;
-    cudaExternalMemory_t cudaExternalMemory = nullptr;
-    void* cudaPointer = nullptr;
+    ForgetOnMove<cudaExternalMemory_t> cudaExternalMemory = nullptr;
+    ForgetOnMove<void*> cudaPointer = nullptr;
 
 public:
     size_t sizeBytes;

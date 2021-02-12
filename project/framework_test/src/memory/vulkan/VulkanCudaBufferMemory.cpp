@@ -49,7 +49,7 @@ VulkanCudaBufferMemory::VulkanCudaBufferMemory(VulkanContext& context, size_t si
         memoryHandle.handle.fd = cudaVulkanFd;
 
         // Import external memory into cudaExternalMemory
-        CHECKED_CUDA(cudaImportExternalMemory(&cudaExternalMemory, &memoryHandle));
+        CHECKED_CUDA(cudaImportExternalMemory(&cudaExternalMemory.get(), &memoryHandle));
 
         cudaExternalMemoryBufferDesc cudaBufferDesc{};
         cudaBufferDesc.offset = 0;
@@ -57,12 +57,12 @@ VulkanCudaBufferMemory::VulkanCudaBufferMemory(VulkanContext& context, size_t si
         cudaBufferDesc.flags = 0;
 
         // Generate the pointer for cudaPointer
-        CHECKED_CUDA(cudaExternalMemoryGetMappedBuffer(&cudaPointer, cudaExternalMemory, &cudaBufferDesc));
+        CHECKED_CUDA(cudaExternalMemoryGetMappedBuffer(&cudaPointer.get(), cudaExternalMemory, &cudaBufferDesc));
     }
 }
 
 VulkanCudaBufferMemory::~VulkanCudaBufferMemory() {
-    if (cudaPointer) {
+    if (cudaPointer.has_value()) {
         CHECKED_CUDA(cudaFree(cudaPointer));
         CHECKED_CUDA(cudaDestroyExternalMemory(cudaExternalMemory));
     }
