@@ -209,10 +209,13 @@ VulkanContext::VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowS
         presentMode = selectIfPossible<vk::PresentModeKHR>(
                 physicalDevice.getSurfacePresentModesKHR(*surface),
                 {
+                        vk::PresentModeKHR::eImmediate,
                         vk::PresentModeKHR::eMailbox,
+                        vk::PresentModeKHR::eFifoRelaxed,
                         vk::PresentModeKHR::eFifo // Will always be present
                 }
         );
+        printf("Using present mode %s\n", vk::to_string(presentMode).c_str());
     }
 
     // Create the command buffer pool
