@@ -34,6 +34,8 @@ public:
                        FrameAllocator<MType::Cuda>& cudaAlloc,
                        Size<uint32_t> paddedSize);
 
+        // TODO - would really prefer we didn't hold a reference to this after the fact.
+        // The FrameAllocator isn't guaranteed to exist in the same place after this.
         FrameAllocator<MType::Cuda>& cudaAllocator;
 
         CudaUnified2DArray<uint, UnifiedMemoryForExport> fluidmask;

@@ -64,8 +64,6 @@ VulkanCudaBufferMemory::VulkanCudaBufferMemory(VulkanContext& context, size_t si
 VulkanCudaBufferMemory::~VulkanCudaBufferMemory() {
     if (cudaPointer) {
         CHECKED_CUDA(cudaFree(cudaPointer));
-    }
-    if (cudaExternalMemory) {
         CHECKED_CUDA(cudaDestroyExternalMemory(cudaExternalMemory));
     }
 }

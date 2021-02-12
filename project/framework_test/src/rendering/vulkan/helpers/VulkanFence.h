@@ -13,7 +13,7 @@ class VulkanFence {
 
 public:
     explicit VulkanFence(VulkanContext& context, bool startSignalled=false);
-    VulkanFence(VulkanFence&&) = default;
+    VulkanFence(VulkanFence&&) noexcept = default;
 
     const vk::Fence& operator *() const {
         return *fence;

@@ -12,7 +12,7 @@ class VulkanSemaphore {
 
 public:
     explicit VulkanSemaphore(vk::Device device);
-    VulkanSemaphore(VulkanSemaphore&&) = default;
+    VulkanSemaphore(VulkanSemaphore&&) noexcept = default;
 
     const vk::Semaphore& operator *() const {
         return *semaphore;

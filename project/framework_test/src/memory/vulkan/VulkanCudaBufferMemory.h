@@ -14,14 +14,14 @@ class VulkanCudaBufferMemory {
     vk::UniqueBuffer buffer;
     vk::UniqueDeviceMemory deviceMemory;
     int cudaVulkanFd;
-    cudaExternalMemory_t cudaExternalMemory;
+    cudaExternalMemory_t cudaExternalMemory = nullptr;
     void* cudaPointer = nullptr;
 
 public:
     size_t sizeBytes;
 
     VulkanCudaBufferMemory(VulkanContext& context, size_t sizeBytes);
-    VulkanCudaBufferMemory(VulkanCudaBufferMemory&&) = default;
+    VulkanCudaBufferMemory(VulkanCudaBufferMemory&&) noexcept = default;
     ~VulkanCudaBufferMemory();
 
     vk::Buffer as_buffer() {

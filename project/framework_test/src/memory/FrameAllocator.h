@@ -44,7 +44,7 @@ public:
     }
 
     FrameAllocator() = default;
-    FrameAllocator(FrameAllocator&&) = default;
+    FrameAllocator(FrameAllocator&&) noexcept = default;
     FrameAllocator(const FrameAllocator&) = delete;
 
     template<class T, RedBlackStorage Storage>
@@ -109,7 +109,7 @@ public:
     }
 
     FrameAllocator() = default;
-    FrameAllocator(FrameAllocator&&) = default;
+    FrameAllocator(FrameAllocator&&) noexcept = default;
     FrameAllocator(const FrameAllocator&) = delete;
 
     template<class T, RedBlackStorage Storage>
@@ -177,7 +177,7 @@ public:
                     memory(context, totalAllocationBytes),
                     bytesUsed(0) {}
 
-    FrameAllocator(FrameAllocator&&) = default;
+    FrameAllocator(FrameAllocator&&) noexcept = default;
     FrameAllocator(const FrameAllocator&) = delete;
 
     Size<uint32_t> paddedSize;
