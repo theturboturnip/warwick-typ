@@ -87,21 +87,22 @@ VulkanSimApp::~VulkanSimApp() {
 }
 
 void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParams &params, const SimSnapshot &snapshot) {
-    fprintf(stderr, "Starting main loop\n");
-    const size_t maxFramesInFlight = 3;
+//    fprintf(stderr, "Starting main loop\n");
+    // At max, we can render two frames at once - render n, while simulating n+1
+    const size_t maxFramesInFlight = 2;
 
     auto pipelines = VulkanSimPipelineSet(
         device, *simRenderPass, snapshot.simSize.padded_pixel_size
     );
 
-    fprintf(stderr, "Created pipelines\n");
+//    fprintf(stderr, "Created pipelines\n");
 
     auto simulationRunner = ISimVulkanTickedRunner::getForBackend(
             backendType,
             context
     );
     VulkanFrameSetAllocator* vulkanAllocator = simulationRunner->prepareBackend(params, snapshot, maxFramesInFlight);
-    fprintf(stderr, "created backend and allocator\n");
+//    fprintf(stderr, "created backend and allocator\n");
 
     VulkanSimAppData data(VulkanSimAppData::Global{
         .context = context,
@@ -116,13 +117,13 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
         .pipelines=pipelines
     }, vulkanAllocator->vulkanFrames, swapchain);
-    fprintf(stderr, "created vulkansimappdata\n");
+//    fprintf(stderr, "created vulkansimappdata\n");
 
     simulationRunner->prepareSemaphores(data);
-    fprintf(stderr, "created semaphores\n");
+//    fprintf(stderr, "created semaphores\n");
 
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(data));
-    fprintf(stderr, "created systemworker\n");
+//    fprintf(stderr, "created systemworker\n");
 
     uint32_t renderedFrameNum = 0;
     uint32_t simFrameIdx = 0;
@@ -132,7 +133,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
     bool wantsRunSim = false;
     bool wantsQuit = false;
 
-    fprintf(stderr, "starting loop\n");
+//    fprintf(stderr, "starting loop\n");
     // Store the time the current frame started.
     // When a new frame starts, the delta time will be counted as that frame's length.
     // We will always submit frames and present them at an approximately equal rate, so this is an accurate FPS measure.
@@ -142,7 +143,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         auto frameStartTime = std::chrono::steady_clock::now();
         std::chrono::duration<double> frameTimeDiff = frameStartTime - lastFrameStartTime;
         frameTimes[renderedFrameNum % frameTimes.size()] = (frameTimeDiff).count();
-        fprintf(stderr, "added frame time\n");
+//        fprintf(stderr, "added frame time\n");
         lastFrameStartTime = frameStartTime;
 
         // Get a new sim frame
@@ -158,7 +159,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
             *simFrame.imageAcquired, nullptr,
             &swapchainImageIdx
         );
-        fprintf(stderr, "told to get swapchain image %d\n", swapchainImageIdx);
+//        fprintf(stderr, "told to get swapchain image %d\n", swapchainImageIdx);
         auto& swapchainImage = data.swapchainImageData[swapchainImageIdx];
         // Wait for the last "sim frame" that was rendering this swapchain image to finish
         if (swapchainImage.inFlight) {
@@ -166,7 +167,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         }
         // We are now trying to render this image, so make the swapchain fence point to the simframe fence.
         swapchainImage.inFlight = *simFrame.inFlight;
-        fprintf(stderr, "got sim frame and swapchain image\n");
+//        fprintf(stderr, "got sim frame and swapchain image\n");
 
         // Enqueue work for the SystemWorker
         systemWorker.giveNextWork(SystemWorkerIn{
@@ -177,7 +178,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
                         .currentFrameNum = renderedFrameNum
                 }
         });
-        fprintf(stderr, "gave systemworker work\n");
+//        fprintf(stderr, "gave systemworker work\n");
 
         // This dispatches the simulation, and signals the simFinished semaphore once it's done.
         // The simulation doesn't start until renderFinishedShouldSim is signalled, unless this is the first frame, at which point it doesn't bother waiting.
@@ -187,14 +188,14 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
             wantsRunSim, // Actually run the sim or not
             simFrameIdx
         );
-        fprintf(stderr, "ticked sim\n");
+//        fprintf(stderr, "ticked sim\n");
 
         // Simulation is done, grab the thread output
         SystemWorkerOut systemOutput = systemWorker.getOutput();
         if (systemOutput.wantsQuit)
             wantsQuit = true;
         wantsRunSim = systemOutput.wantsRunSim;
-        fprintf(stderr, "got output\n");
+//        fprintf(stderr, "got output\n");
 
         // Send the graphics work
         {

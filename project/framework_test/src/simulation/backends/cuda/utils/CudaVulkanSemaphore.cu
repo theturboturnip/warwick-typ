@@ -30,8 +30,6 @@ CudaVulkanSemaphore::CudaVulkanSemaphore(vk::Device device, vk::Semaphore vulkan
     semaphoreHandleDesc.handle.fd = fd;
     semaphoreHandleDesc.flags = 0;
     CHECKED_CUDA(cudaImportExternalSemaphore(&cudaSemaphore, &semaphoreHandleDesc));
-
-    fprintf(stderr, "Created CUDA semaphore %p from Vulkan semaphore %p\n", cudaSemaphore, vulkanSemaphore);
 }
 void CudaVulkanSemaphore::signalAsync(cudaStream_t stream) {
     cudaExternalSemaphoreSignalParams signalParams = {};
@@ -49,7 +47,6 @@ void CudaVulkanSemaphore::waitForAsync(cudaStream_t stream) {
 }
 CudaVulkanSemaphore::~CudaVulkanSemaphore() {
     if (cudaSemaphore) {
-        fprintf(stderr, "Destroying %p\n", cudaSemaphore);
         CHECKED_CUDA(cudaDestroyExternalSemaphore(cudaSemaphore));
     }
 }
