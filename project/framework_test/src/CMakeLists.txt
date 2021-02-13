@@ -27,6 +27,7 @@ target_sources(generic_sources INTERFACE
         rendering/threads/IWorkerThread_Impl.inl
         rendering/threads/ThreadWorkData.h
         rendering/threads/WorkerThreadController.h
+        rendering/threads/work/SystemWorker.cpp
         rendering/threads/work/SystemWorker.h
         rendering/vulkan/helpers/VulkanBackedGPUImage.cpp
         rendering/vulkan/helpers/VulkanBackedGPUImage.h

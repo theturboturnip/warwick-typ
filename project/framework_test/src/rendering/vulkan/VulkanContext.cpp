@@ -190,6 +190,7 @@ VulkanContext::VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowS
 
         graphicsQueue = device->getQueue(queueFamilies.graphicsFamily, 0);
         presentQueue = device->getQueue(queueFamilies.presentFamily, 0);
+        computeQueue = device->getQueue(queueFamilies.computeFamily, 0);
     }
 
     // Get possible surface formats

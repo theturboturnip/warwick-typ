@@ -202,7 +202,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
             vk::SubmitInfo submitInfo{};
             vk::Semaphore waitSemaphores[] = {*simFrame.simFinished};
             vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eTopOfPipe};
-            submitInfo.waitSemaphoreCount = 2;
+            submitInfo.waitSemaphoreCount = 1;
             submitInfo.pWaitSemaphores = waitSemaphores;
             submitInfo.pWaitDstStageMask = waitStages;
 
