@@ -10,6 +10,7 @@
 #include "rendering/vulkan/helpers/VulkanDescriptorSetLayout.h"
 #include "rendering/vulkan/helpers/VulkanPipeline.h"
 #include "rendering/vulkan/helpers/VulkanShader.h"
+#include "rendering/vulkan/VulkanContext.h"
 
 class VulkanSimPipelineSet {
 public:
