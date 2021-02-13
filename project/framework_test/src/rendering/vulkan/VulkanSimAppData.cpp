@@ -50,18 +50,20 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
       ),
       vizFramebufferDescriptorSet(
           ImGui_ImplVulkan_MakeDescriptorSet(vizFramebuffer.getImageView()),
+          // TODO - technically this is the incorrect pool
           vk::PoolFree(*context.device, *context.descriptorPool, VULKAN_HPP_DEFAULT_DISPATCHER)
       ),
 
       imageAcquired(*context.device),
       simFinished(*context.device),
       renderFinishedShouldPresent(*context.device),
-      renderFinishedShouldSim(*context.device),
+      computeFinishedShouldSim(*context.device),
       computeFinished(*context.device),
       inFlight(context, true),
 
       threadOutputs({
-          .commandBuffer = std::move(context.allocateCommandBuffers(vk::CommandBufferLevel::ePrimary, 1)[0])
+          .computeCommandBuffer = std::move(context.allocateCommandBuffers(context.computeCmdPool, vk::CommandBufferLevel::ePrimary, 1)[0]),
+          .graphicsCommandBuffer = std::move(context.allocateCommandBuffers(context.graphicsCmdPool, vk::CommandBufferLevel::ePrimary, 1)[0]),
       })
     {}
 

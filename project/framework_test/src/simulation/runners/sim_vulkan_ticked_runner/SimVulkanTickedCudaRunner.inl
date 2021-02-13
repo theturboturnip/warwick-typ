@@ -26,7 +26,7 @@ class SimVulkanTickedCudaRunner : public ISimVulkanTickedRunner {
         CudaVulkanSemaphore simFinished;
 
         Sync(vk::Device device, const VulkanSimAppData::PerFrameData& data)
-            : renderFinished(device, *data.renderFinishedShouldSim),
+            : renderFinished(device, *data.computeFinishedShouldSim),
                 simFinished(device, *data.simFinished) {}
     };
     std::vector<Sync> frameSemaphores;

@@ -26,7 +26,8 @@ struct SystemWorkerIn {
 struct SystemWorkerOut {
     bool wantsQuit = false;
     bool wantsRunSim = false;
-    vk::CommandBuffer cmdBuffer;
+    vk::CommandBuffer graphicsCmdBuffer;
+    vk::CommandBuffer computeCmdBuffer;
 };
 
 /**
@@ -104,64 +105,69 @@ public:
         ImGui::End();
         ImGui::Render();
 
-        const auto& cmdBuffer = *simFrameData.threadOutputs.commandBuffer;
-        cmdBuffer.reset({});
+        const auto& graphicsCmdBuffer = *simFrameData.threadOutputs.graphicsCommandBuffer;
+        const auto& computeCmdBuffer = *simFrameData.threadOutputs.computeCommandBuffer;
 
-        auto clearColor = vk::ClearValue(vk::ClearColorValue());
-        clearColor.color.setFloat32({0.0f, 0.0f, 0.1f, 1.0f});
-
-
-        auto beginInfo = vk::CommandBufferBeginInfo();
-
-        cmdBuffer.begin(beginInfo);
 
         {
-            auto simRenderPassInfo = vk::RenderPassBeginInfo();
-            simRenderPassInfo.renderPass = global.vizRenderPass;
-            simRenderPassInfo.framebuffer = *simFrameData.vizFramebuffer;
-            simRenderPassInfo.renderArea = global.vizRect;
-            simRenderPassInfo.clearValueCount = 1;
-            simRenderPassInfo.pClearValues = &clearColor;
-            cmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
-            cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.fullscreenPressure);
-//            cmdBuffer.pushConstants(
-//                    *global.pipelines.fullscreenPressure.layout,
-//                    vk::ShaderStageFlagBits::eFragment,
-//                    0,
-//                    vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simBuffersPushConstants});
-            cmdBuffer.bindDescriptorSets(
-                    vk::PipelineBindPoint::eGraphics,
-                    *global.pipelines.fullscreenPressure.layout,
-                    0,
-                    {*simFrameData.simBuffersImageDescriptorSet},
-                    {});
-            cmdBuffer.draw(6, 1, 0, 0);
-            cmdBuffer.endRenderPass();
-        }
+            graphicsCmdBuffer.reset({});
 
-        {
-            auto imguiRenderPassInfo = vk::RenderPassBeginInfo();
-            imguiRenderPassInfo.renderPass = global.finalCompositeRenderPass;
-            imguiRenderPassInfo.framebuffer = **swImageData.framebuffer;
-            imguiRenderPassInfo.renderArea = global.finalCompositeRect;
-            imguiRenderPassInfo.clearValueCount = 1;
-            imguiRenderPassInfo.pClearValues = &clearColor;
-            cmdBuffer.beginRenderPass(imguiRenderPassInfo, vk::SubpassContents::eInline);
+            auto clearColor = vk::ClearValue(vk::ClearColorValue());
+            clearColor.color.setFloat32({0.0f, 0.0f, 0.1f, 1.0f});
 
+            auto beginInfo = vk::CommandBufferBeginInfo();
+
+            graphicsCmdBuffer.begin(beginInfo);
 
             {
-                ImDrawData *draw_data = ImGui::GetDrawData();
-                ImGui_ImplVulkan_RenderDrawData(draw_data, global.imguiContext, cmdBuffer, global.finalCompositeRenderPass, VK_SAMPLE_COUNT_1_BIT);
+                auto simRenderPassInfo = vk::RenderPassBeginInfo();
+                simRenderPassInfo.renderPass = global.vizRenderPass;
+                simRenderPassInfo.framebuffer = *simFrameData.vizFramebuffer;
+                simRenderPassInfo.renderArea = global.vizRect;
+                simRenderPassInfo.clearValueCount = 1;
+                simRenderPassInfo.pClearValues = &clearColor;
+                graphicsCmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
+                graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.fullscreenPressure);
+    //            cmdBuffer.pushConstants(
+    //                    *global.pipelines.fullscreenPressure.layout,
+    //                    vk::ShaderStageFlagBits::eFragment,
+    //                    0,
+    //                    vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simBuffersPushConstants});
+                graphicsCmdBuffer.bindDescriptorSets(
+                        vk::PipelineBindPoint::eGraphics,
+                        *global.pipelines.fullscreenPressure.layout,
+                        0,
+                        {*simFrameData.simBuffersImageDescriptorSet},
+                        {});
+                graphicsCmdBuffer.draw(6, 1, 0, 0);
+                graphicsCmdBuffer.endRenderPass();
             }
 
-            cmdBuffer.endRenderPass();
+            {
+                auto imguiRenderPassInfo = vk::RenderPassBeginInfo();
+                imguiRenderPassInfo.renderPass = global.finalCompositeRenderPass;
+                imguiRenderPassInfo.framebuffer = **swImageData.framebuffer;
+                imguiRenderPassInfo.renderArea = global.finalCompositeRect;
+                imguiRenderPassInfo.clearValueCount = 1;
+                imguiRenderPassInfo.pClearValues = &clearColor;
+                graphicsCmdBuffer.beginRenderPass(imguiRenderPassInfo, vk::SubpassContents::eInline);
+
+
+                {
+                    ImDrawData *draw_data = ImGui::GetDrawData();
+                    ImGui_ImplVulkan_RenderDrawData(draw_data, global.imguiContext, graphicsCmdBuffer, global.finalCompositeRenderPass, VK_SAMPLE_COUNT_1_BIT);
+                }
+
+                graphicsCmdBuffer.endRenderPass();
+            }
+            graphicsCmdBuffer.end();
         }
-        cmdBuffer.end();
 
         return SystemWorkerOut{
             .wantsQuit = wantsQuit,
             .wantsRunSim = wantsRunSim,
-            .cmdBuffer = cmdBuffer
+            .graphicsCmdBuffer = graphicsCmdBuffer,
+            .computeCmdBuffer = computeCmdBuffer,
         };
     }
 };

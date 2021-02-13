@@ -277,9 +277,9 @@ uint32_t VulkanContext::selectMemoryTypeIndex(vk::MemoryRequirements requirement
     FATAL_ERROR("Couldn't find suitable memory type!");
 }
 
-std::vector<vk::UniqueCommandBuffer> VulkanContext::allocateCommandBuffers(vk::CommandBufferLevel level, size_t count) {
+std::vector<vk::UniqueCommandBuffer> VulkanContext::allocateCommandBuffers(vk::UniqueCommandPool& pool, vk::CommandBufferLevel level, size_t count) {
     auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
-    cmdBufferAlloc.commandPool = *graphicsCmdPool;
+    cmdBufferAlloc.commandPool = *pool;
     cmdBufferAlloc.level = level;
     cmdBufferAlloc.commandBufferCount = count;
     return device->allocateCommandBuffersUnique(cmdBufferAlloc);

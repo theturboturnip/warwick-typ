@@ -197,22 +197,44 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         wantsRunSim = systemOutput.wantsRunSim;
 //        fprintf(stderr, "got output\n");
 
+        // Send the compute work
+        {
+            vk::SubmitInfo submitInfo{};
+            vk::Semaphore waitSemaphores[] = {*simFrame.simFinished};
+            vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eTopOfPipe};
+            submitInfo.waitSemaphoreCount = 2;
+            submitInfo.pWaitSemaphores = waitSemaphores;
+            submitInfo.pWaitDstStageMask = waitStages;
+
+            vk::CommandBuffer cmdBuffers[] = {
+                    systemOutput.computeCmdBuffer
+            };
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = cmdBuffers;
+
+            vk::Semaphore signalSemaphores[] = {*simFrame.computeFinished, *simFrame.computeFinishedShouldSim};
+            submitInfo.signalSemaphoreCount = 2;
+            submitInfo.pSignalSemaphores = signalSemaphores;
+
+            context.computeQueue.submit({submitInfo}, nullptr);
+        }
+
         // Send the graphics work
         {
             vk::SubmitInfo submitInfo{};
-            vk::Semaphore waitSemaphores[] = {*simFrame.imageAcquired, *simFrame.simFinished};
+            vk::Semaphore waitSemaphores[] = {*simFrame.imageAcquired, *simFrame.computeFinished};
             vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTopOfPipe};
             submitInfo.waitSemaphoreCount = 2;
             submitInfo.pWaitSemaphores = waitSemaphores;
             submitInfo.pWaitDstStageMask = waitStages;
 
             vk::CommandBuffer cmdBuffers[] = {
-                systemOutput.cmdBuffer
+                systemOutput.graphicsCmdBuffer
             };
             submitInfo.commandBufferCount = 1;
             submitInfo.pCommandBuffers = cmdBuffers;
 
-            vk::Semaphore signalSemaphores[] = {*simFrame.renderFinishedShouldPresent, *simFrame.renderFinishedShouldSim};
+            vk::Semaphore signalSemaphores[] = {*simFrame.renderFinishedShouldPresent, *simFrame.computeFinishedShouldSim};
             submitInfo.signalSemaphoreCount = 2;
             submitInfo.pSignalSemaphores = signalSemaphores;
 
