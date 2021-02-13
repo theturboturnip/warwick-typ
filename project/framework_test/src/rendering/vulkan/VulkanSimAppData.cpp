@@ -23,8 +23,23 @@ VulkanSimAppData::VulkanSimAppData(VulkanSimAppData::Global&& globalData,
 VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalData, VulkanContext& context, uint32_t index, VulkanSimFrameData *buffers)
     : index(index),
       buffers(buffers),
+
+      simBuffersImage(
+          context,
+          vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
+          {
+              globalData.simSize.padded_pixel_size.x * 2,
+              globalData.simSize.padded_pixel_size.y * 2,
+          },
+          vk::Format::eR32G32B32A32Sfloat,
+          true
+      ),
+      simBuffersSampler(context, simBuffersImage),
+      simBuffersImageDescriptorSet(
+          globalData.pipelines.buildFullscreenPressureDescriptors(context, simBuffersSampler)
+      ),
       simBuffersDescriptorSet(
-              globalData.pipelines.buildSimulationFragDescriptors(globalData.context, *buffers)
+          globalData.pipelines.buildComputeSimDataImageDescriptors(globalData.context, *buffers, *simBuffersImage, simBuffersSampler)
       ),
 
       vizFramebuffer(
@@ -42,6 +57,7 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
       simFinished(*context.device),
       renderFinishedShouldPresent(*context.device),
       renderFinishedShouldSim(*context.device),
+      computeFinished(*context.device),
       inFlight(context, true),
 
       threadOutputs({

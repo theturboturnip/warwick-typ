@@ -19,6 +19,9 @@ VulkanShader<Stage>::VulkanShader(vk::Device device, const std::vector<char> &da
         case ShaderStage::Fragment:
             shaderStage.stage = vk::ShaderStageFlagBits::eFragment;
             break;
+        case ShaderStage::Compute:
+            shaderStage.stage = vk::ShaderStageFlagBits::eCompute;
+            break;
     }
     shaderStage.module = *shaderModule;
     shaderStage.pName = "main";
@@ -35,3 +38,4 @@ VulkanShader<Stage> VulkanShader<Stage>::from_file(vk::Device device, std::strin
 
 template class VulkanShader<ShaderStage::Vertex>;
 template class VulkanShader<ShaderStage::Fragment>;
+template class VulkanShader<ShaderStage::Compute>;

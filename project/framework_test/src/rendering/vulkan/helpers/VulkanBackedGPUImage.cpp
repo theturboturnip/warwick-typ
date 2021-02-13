@@ -4,17 +4,30 @@
 
 #include "VulkanBackedGPUImage.h"
 
-VulkanBackedGPUImage::VulkanBackedGPUImage(VulkanContext& context, vk::ImageUsageFlags usage, Size<uint32_t> size)
-    : format(vk::Format::eR8G8B8A8Srgb),
+VulkanBackedGPUImage::VulkanBackedGPUImage(VulkanContext& context, vk::ImageUsageFlags usage, Size<uint32_t> size, vk::Format format, bool shared)
+    : format(format),
       size(size)
 {
 
     // Create VkImage
     {
+        // Queue families this would be shared between, if it was shared.
+        // Only used if shared and if necessary.
+        uint32_t sharedQueueFamilies[] = {
+                context.queueFamilies.computeFamily,
+                context.queueFamilies.graphicsFamily
+        };
+
         auto imageCreateInfo = vk::ImageCreateInfo{};
         imageCreateInfo.imageType = vk::ImageType::e2D;
-        imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
-        imageCreateInfo.usage = usage;//vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled;
+        if (shared && (context.queueFamilies.computeFamily != context.queueFamilies.graphicsFamily)) {
+            imageCreateInfo.sharingMode = vk::SharingMode::eConcurrent;
+            imageCreateInfo.queueFamilyIndexCount = 2;
+            imageCreateInfo.pQueueFamilyIndices = sharedQueueFamilies;
+        } else {
+            imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        }
+        imageCreateInfo.usage = usage;
         imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
         imageCreateInfo.extent.width = size.x;
         imageCreateInfo.extent.height = size.y;

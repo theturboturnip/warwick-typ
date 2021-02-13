@@ -41,6 +41,8 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanFence.h
         rendering/vulkan/helpers/VulkanFramebuffer.cpp
         rendering/vulkan/helpers/VulkanFramebuffer.h
+        rendering/vulkan/helpers/VulkanImageSampler.cpp
+        rendering/vulkan/helpers/VulkanImageSampler.h
         rendering/vulkan/helpers/VulkanShader.cpp
         rendering/vulkan/helpers/VulkanShader.h
         rendering/vulkan/helpers/VulkanSemaphore.cpp

@@ -124,16 +124,16 @@ public:
             simRenderPassInfo.pClearValues = &clearColor;
             cmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
             cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.fullscreenPressure);
-            cmdBuffer.pushConstants(
-                    *global.pipelines.fullscreenPressure.layout,
-                    vk::ShaderStageFlagBits::eFragment,
-                    0,
-                    vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simBuffersPushConstants});
+//            cmdBuffer.pushConstants(
+//                    *global.pipelines.fullscreenPressure.layout,
+//                    vk::ShaderStageFlagBits::eFragment,
+//                    0,
+//                    vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simBuffersPushConstants});
             cmdBuffer.bindDescriptorSets(
                     vk::PipelineBindPoint::eGraphics,
                     *global.pipelines.fullscreenPressure.layout,
                     0,
-                    {*simFrameData.simBuffersDescriptorSet},
+                    {*simFrameData.simBuffersImageDescriptorSet},
                     {});
             cmdBuffer.draw(6, 1, 0, 0);
             cmdBuffer.endRenderPass();

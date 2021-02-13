@@ -16,8 +16,10 @@ public:
     vk::Format format;
     Size<uint32_t> size;
 
-    VulkanBackedGPUImage(VulkanContext& context, vk::ImageUsageFlags usage, Size<uint32_t> size);
+    VulkanBackedGPUImage(VulkanContext& context, vk::ImageUsageFlags usage, Size<uint32_t> size, vk::Format format = vk::Format::eR8G8B8A8Srgb, bool shared = false);
     VulkanBackedGPUImage(VulkanBackedGPUImage&&) noexcept = default;
+
+//    void moveToLayout(VulkanContext& context);
 
     vk::DeviceMemory getMemory() {
         return *imageMemory;
