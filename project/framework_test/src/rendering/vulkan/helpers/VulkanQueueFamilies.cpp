@@ -4,24 +4,32 @@
 
 #include "VulkanQueueFamilies.h"
 std::optional<VulkanQueueFamilies> VulkanQueueFamilies::getForDevice(vk::PhysicalDevice device, vk::UniqueSurfaceKHR& surface) {
-    auto queueFamilyProperties = device.getQueueFamilyProperties();
-    uint32_t queueFamilyIndex = 0;
-
     std::optional<uint32_t> graphicsFamily = std::nullopt;
     std::optional<uint32_t> presentFamily = std::nullopt;
+    std::optional<uint32_t> computeFamily = std::nullopt;
 
+    auto queueFamilyProperties = device.getQueueFamilyProperties();
+    uint32_t queueFamilyIndex = 0;
     for (const auto& queueFamily : queueFamilyProperties) {
-        if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
+        if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics) {
             graphicsFamily = queueFamilyIndex;
+        }
+
+        if (queueFamily.queueFlags & vk::QueueFlagBits::eCompute) {
+            computeFamily = queueFamilyIndex;
+        }
 
         if (device.getSurfaceSupportKHR(queueFamilyIndex, *surface)) {
             presentFamily = queueFamilyIndex;
         }
 
-        if (graphicsFamily.has_value() && presentFamily.has_value()) {
+        if (graphicsFamily.has_value() &&
+            presentFamily.has_value() &&
+            computeFamily.has_value()) {
             return VulkanQueueFamilies{
                     .graphicsFamily = graphicsFamily.value(),
-                    .presentFamily = presentFamily.value()
+                    .presentFamily = presentFamily.value(),
+                    .computeFamily = computeFamily.value()
             };
         }
 

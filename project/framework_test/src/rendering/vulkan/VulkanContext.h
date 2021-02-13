@@ -33,8 +33,10 @@ public:
     VulkanQueueFamilies queueFamilies;
     vk::Queue graphicsQueue;
     vk::Queue presentQueue;
+    vk::Queue computeQueue;
 
-    vk::UniqueCommandPool cmdPool;
+    vk::UniqueCommandPool graphicsCmdPool;
+    vk::UniqueCommandPool computeCmdPool;
     vk::UniqueDescriptorPool descriptorPool;
 
     VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize);

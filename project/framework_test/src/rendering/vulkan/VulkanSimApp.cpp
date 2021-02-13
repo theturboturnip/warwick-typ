@@ -57,7 +57,7 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> wi
         // Allocate a command buffer to create the font texture for ImGui
         {
             auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
-            cmdBufferAlloc.commandPool = *context.cmdPool;
+            cmdBufferAlloc.commandPool = *context.graphicsCmdPool;
             cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
             cmdBufferAlloc.commandBufferCount = 1;
             const auto fontCmdBuffer = std::move(device.allocateCommandBuffersUnique(cmdBufferAlloc)[0]);
