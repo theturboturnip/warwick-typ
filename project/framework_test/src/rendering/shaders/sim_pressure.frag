@@ -12,7 +12,7 @@ void main() {
     vec2 offset = vec2(0,0);
     vec4 data = texture(simBufferDataSampler, uv + offset);
 
-    outColor = data;
+    outColor = vec4(data.rgb, 1);
     return;
 
     if (data.w < 0.5) {

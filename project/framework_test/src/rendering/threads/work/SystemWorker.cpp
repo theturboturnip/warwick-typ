@@ -99,7 +99,11 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                                                 {*simFrameData.simBuffersDescriptorSet},
                                                 {});
             // Group size of 16 -> group count in each direction is size/16
-            computeCmdBuffer.dispatch(simFrameData.simBuffersImage.size.x/16, simFrameData.simBuffersImage.size.y/16, 1);
+            // If size isn't a multiple of 16, get extra group to cover the remainder
+            // i.e. (size + 15) / 16
+            //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
+            //  otherwise (size + 15)/16 === (size / 16) + 1
+            computeCmdBuffer.dispatch((simFrameData.simBuffersImage.size.x + 15)/16, (simFrameData.simBuffersImage.size.y+15)/16, 1);
         }
         computeCmdBuffer.end();
     }
