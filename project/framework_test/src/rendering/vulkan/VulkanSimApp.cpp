@@ -22,7 +22,7 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> wi
     : context(appInfo, windowSize),
       device(*context.device),
       finalCompositeRenderPass(device, context.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::ePresentSrcKHR),
-      vizRenderPass(device, vk::Format::eR8G8B8A8Srgb, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal),
+      vizRenderPass(device, vk::Format::eR8G8B8A8Unorm, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal),
       swapchain(context, finalCompositeRenderPass)
 {
     {
@@ -199,6 +199,10 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
         // Send the compute work
         {
+            // TODO - we need to make sure the compute waits for the render to finish.
+            //  example
+            //    | sim | compute | sim | compute |  <- overlaps with render, race condition
+            //                    |   render   |
             vk::SubmitInfo submitInfo{};
             vk::Semaphore waitSemaphores[] = {*simFrame.simFinished};
             vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eTopOfPipe};
