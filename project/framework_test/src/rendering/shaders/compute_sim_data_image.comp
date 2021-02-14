@@ -4,40 +4,99 @@
 layout (local_size_x = 16, local_size_y = 16) in;
 
 layout(push_constant) uniform sim_buffer_params {
-    uint pixelWidth;
-    uint pixelHeight;
-    uint columnStride;
-    uint totalPixels;
+    uint sim_pixelWidth;
+    uint sim_pixelHeight;
+    uint sim_columnStride;
+    uint sim_totalPixels;
 };
 
-layout (binding=0) buffer readonly sim_buffers {
+layout (binding=0) buffer readonly buf_u {
     float velocity_x[];
+};
+layout (binding=1) buffer readonly buf_v {
     float velocity_y[];
+};
+layout (binding=2) buffer readonly buf_p {
     float pressure[];
+};
+layout (binding=3) buffer readonly buf_fluidmask {
     int fluidmask[];
 };
-layout (binding=1,rgba32f) uniform writeonly image2D resultImage;
+layout (binding=4, rgba32f) uniform writeonly image2D resultImage;
+
+// Index of the cell in a buffer corresponding to the 2d coordinate
+int simIdx(ivec2 sim2DIdx) {
+    return (sim2DIdx.x * int(sim_columnStride)) + sim2DIdx.y;
+}
+
+float avg2(float a, float b) {
+    return (a/2 + b/2);
+}
+float avg4(float a, float b, float c, float d) {
+    return (a/4+b/4+c/4+d/4);
+}
 
 void main() {
-    vec4 value = vec4(0, 0, 1, 1);
     ivec2 pxIdx = ivec2(gl_GlobalInvocationID.xy);
-//    if (pxIdx.x == 0 || pxIdx.x == 2*pixelWidth - 1) {
-//        value.x = 1;
-//        value.z = 0;
-//    }
-//    if (pxIdx.y == 0 || pxIdx.y == 2*pixelHeight - 1) {
-//        value.y = 1;
-//        value.z = 0;
-//    }
-//    value.x = pxIdx.x * 1.0 / pixelWidth;
-    value.xyz = vec3(pxIdx.y * 1.0 / pixelHeight);
-    if (pxIdx.y > pixelHeight) {
-        value.xyz = vec3(0,0,1);
-    }
-    if (pxIdx.x > pixelWidth) {
-        value.xyz = vec3(1,0,0);
-    }
+    ivec2 simSize = ivec2(sim_pixelWidth, sim_pixelHeight);
+    ivec2 fullSize = ivec2(simSize * 2);
+
+    // We don't need to check if we're out-of-bounds - imageStore at the end does that for us.
+    // Because each compute group will have at least one in-bounds pixel inside it,
+    // it's likely that the divergence created by early-outing wouldn't significantly improve perf.
 
 
+    // u, v, p, fluidmask
+
+    // Simplest case - p
+    // if aligned with p-columns
+    float p;
+    if (pxIdx.x % 2 == 0) {
+        if (pxIdx.y % 2 == 0) {
+            // p is exactly on top of a value
+            p = pressure[simIdx(pxIdx/2)];
+        } else {
+            // p is vertically between two values
+            p = avg2(
+                pressure[simIdx(
+                    ivec2(pxIdx.x/2, pxIdx.y/2)
+                )],
+                pressure[simIdx(
+                    ivec2(pxIdx.x/2, (pxIdx.y + 1)/2)
+                )]
+            );
+        }
+    } else {
+        if (pxIdx.y % 2 == 0) {
+            // p is horizontally between two values
+            p = avg2(
+                pressure[simIdx(
+                    ivec2(pxIdx.x/2, pxIdx.y/2)
+                )],
+                pressure[simIdx(
+                    ivec2((pxIdx.x + 1)/2, pxIdx.y/2)
+                )]
+            );
+        } else {
+            // p is between four values
+            p = avg4(
+                pressure[simIdx(
+                    ivec2(pxIdx.x/2, pxIdx.y/2)
+                )],
+                pressure[simIdx(
+                    ivec2(pxIdx.x/2, (pxIdx.y + 1)/2)
+                )],
+                pressure[simIdx(
+                    ivec2((pxIdx.x + 1)/2, pxIdx.y/2)
+                )],
+                pressure[simIdx(
+                    ivec2((pxIdx.x + 1)/2, (pxIdx.y + 1)/2)
+                )]
+            );
+        }
+    }
+
+    vec4 value = vec4(0);
+    value.z = p;
     imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), value);
 }

@@ -16,11 +16,29 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
           vk::DescriptorSetLayoutBinding(
               0,
               vk::DescriptorType::eStorageBuffer,
-              4,
+              1,
               vk::ShaderStageFlagBits::eCompute
           ),
           vk::DescriptorSetLayoutBinding(
-              1,
+                  1,
+                  vk::DescriptorType::eStorageBuffer,
+                  1,
+                  vk::ShaderStageFlagBits::eCompute
+          ),
+          vk::DescriptorSetLayoutBinding(
+                  2,
+                  vk::DescriptorType::eStorageBuffer,
+                  1,
+                  vk::ShaderStageFlagBits::eCompute
+          ),
+          vk::DescriptorSetLayoutBinding(
+                  3,
+                  vk::DescriptorType::eStorageBuffer,
+                  1,
+                  vk::ShaderStageFlagBits::eCompute
+          ),
+          vk::DescriptorSetLayoutBinding(
+              4,
               vk::DescriptorType::eStorageImage,
               1,
               vk::ShaderStageFlagBits::eCompute
@@ -83,8 +101,8 @@ VulkanSimPipelineSet::buildComputeSimDataImageDescriptors(VulkanContext &context
     auto writeDescriptorBuffer = [&](uint32_t i, vk::DescriptorBufferInfo bufferInfo) {
         auto descriptorWrite = vk::WriteDescriptorSet{};
         descriptorWrite.dstSet = *descriptorSet;
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.dstArrayElement = i;
+        descriptorWrite.dstBinding = i;
+        descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType = vk::DescriptorType::eStorageBuffer;
         descriptorWrite.descriptorCount = 1;
 
@@ -107,7 +125,7 @@ VulkanSimPipelineSet::buildComputeSimDataImageDescriptors(VulkanContext &context
 
         auto descriptorWrite = vk::WriteDescriptorSet{};
         descriptorWrite.dstSet = *descriptorSet;
-        descriptorWrite.dstBinding = 1;
+        descriptorWrite.dstBinding = 4;
         descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType = vk::DescriptorType::eStorageImage;
         descriptorWrite.descriptorCount = 1;
