@@ -11,6 +11,10 @@ void main() {
     // TODO - offset by 1/2 pixel
     vec2 offset = vec2(0,0);
     vec4 data = texture(simBufferDataSampler, uv + offset);
+
+    outColor = data;
+    return;
+
     if (data.w < 0.5) {
         // pixIdx is a valid fluid square, display pressure
         outColor = vec4(data.zzz, 1);

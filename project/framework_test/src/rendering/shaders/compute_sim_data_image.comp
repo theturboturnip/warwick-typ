@@ -19,7 +19,25 @@ layout (binding=0) buffer readonly sim_buffers {
 layout (binding=1,rgba32f) uniform writeonly image2D resultImage;
 
 void main() {
-    // TODO
-    vec4 value = vec4(0, 1, 5, 1);
+    vec4 value = vec4(0, 0, 1, 1);
+    ivec2 pxIdx = ivec2(gl_GlobalInvocationID.xy);
+//    if (pxIdx.x == 0 || pxIdx.x == 2*pixelWidth - 1) {
+//        value.x = 1;
+//        value.z = 0;
+//    }
+//    if (pxIdx.y == 0 || pxIdx.y == 2*pixelHeight - 1) {
+//        value.y = 1;
+//        value.z = 0;
+//    }
+//    value.x = pxIdx.x * 1.0 / pixelWidth;
+    value.xyz = vec3(pxIdx.y * 1.0 / pixelHeight);
+    if (pxIdx.y > pixelHeight) {
+        value.xyz = vec3(0,0,1);
+    }
+    if (pxIdx.x > pixelWidth) {
+        value.xyz = vec3(1,0,0);
+    }
+
+
     imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), value);
 }

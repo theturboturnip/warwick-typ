@@ -35,7 +35,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
           )
       }),
       simBuffersPushConstantRange(
-              vk::ShaderStageFlagBits::eFragment,
+              vk::ShaderStageFlagBits::eCompute,
               0,
               sizeof(SimFragPushConstants)
               ),

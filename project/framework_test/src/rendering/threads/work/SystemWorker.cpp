@@ -14,28 +14,6 @@ SystemWorker::SystemWorker(VulkanSimAppData &data)
                                           .totalPixels=(uint32_t)global.simSize.pixel_count()
                                   })
 {
-    // Transition all images to eGeneral initially
-//    const auto cmdBuffer = *data.frameData[0].threadOutputs.computeCommandBuffer;
-//    cmdBuffer.reset({});
-//
-//    auto beginInfo = vk::CommandBufferBeginInfo();
-//    cmdBuffer.begin(beginInfo);
-//    for (auto& frameData : data.frameData) {
-//        // Transfer the simBuffersImage to eGeneral so it can be written next frame.
-//        transferImageLayout(
-//                cmdBuffer,
-//                *frameData.simBuffersImage,
-//                vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral,
-//                vk::AccessFlagBits(0), vk::AccessFlagBits(0)
-////                vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eComputeShader
-//        );
-//    }
-//    cmdBuffer.end();
-//    auto submitInfo = vk::SubmitInfo{};
-//    submitInfo.pCommandBuffers = &cmdBuffer;
-//    submitInfo.commandBufferCount = 1;
-//    global.context.computeQueue.submit({submitInfo}, nullptr);
-//    global.context.computeQueue.waitIdle();
 }
 
 
@@ -109,6 +87,19 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
         {
             // TODO - run the compute shader
+            computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeSimDataImage);
+            computeCmdBuffer.pushConstants(
+                                        *global.pipelines.computeSimDataImage.layout,
+                                        vk::ShaderStageFlagBits::eCompute,
+                                        0,
+                                        vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simBuffersPushConstants});
+            computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                *global.pipelines.computeSimDataImage.layout,
+                                                0,
+                                                {*simFrameData.simBuffersDescriptorSet},
+                                                {});
+            // Group size of 16 -> group count in each direction is size/16
+            computeCmdBuffer.dispatch(simFrameData.simBuffersImage.size.x/16, simFrameData.simBuffersImage.size.y/16, 1);
         }
         computeCmdBuffer.end();
     }
@@ -142,11 +133,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             simRenderPassInfo.pClearValues = &clearColor;
             graphicsCmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
             graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.fullscreenPressure);
-            //            cmdBuffer.pushConstants(
-            //                    *global.pipelines.fullscreenPressure.layout,
-            //                    vk::ShaderStageFlagBits::eFragment,
-            //                    0,
-            //                    vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simBuffersPushConstants});
             graphicsCmdBuffer.bindDescriptorSets(
                     vk::PipelineBindPoint::eGraphics,
                     *global.pipelines.fullscreenPressure.layout,
