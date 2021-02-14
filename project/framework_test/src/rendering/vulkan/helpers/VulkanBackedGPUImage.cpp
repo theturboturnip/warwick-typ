@@ -15,6 +15,8 @@ VulkanBackedGPUImage::VulkanBackedGPUImage(VulkanContext& context, vk::ImageUsag
         // Only used if shared and if necessary.
         // TODO - image sharing may be unnecessary if ownership can be transferred
         //  https://harrylovescode.gitbooks.io/vulkan-api/content/chap07/chap07.html
+        //  keeping this for now though, because in our specific case compute+graphics are the same queue anyway and
+        //  I don't want to bother with it.
         uint32_t sharedQueueFamilies[] = {
                 context.queueFamilies.computeFamily,
                 context.queueFamilies.graphicsFamily
