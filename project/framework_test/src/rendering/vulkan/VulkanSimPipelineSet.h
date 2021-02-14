@@ -29,10 +29,9 @@ public:
     FragmentShader simPressure;
     ComputeShader computeSimDataImage_shader;
 
-    VulkanDescriptorSetLayout simBuffersDescriptorLayout;
-//    VulkanDescriptorSetLayout simBuffersImage_computeDescriptorLayout;
+    VulkanDescriptorSetLayout simBuffers_computeDescriptorLayout;
     VulkanDescriptorSetLayout simBuffersImage_fragmentDescriptorLayout;
-    vk::PushConstantRange simBuffersPushConstantRange;
+    vk::PushConstantRange simBuffers_computePushConstantRange;
 
     VulkanPipeline redTriangle;
     VulkanPipeline redQuad;

@@ -12,7 +12,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
       simPressure(FragmentShader::from_file(device, "sim_pressure.frag")),
       computeSimDataImage_shader(ComputeShader::from_file(device, "compute_sim_data_image.comp")),
 
-      simBuffersDescriptorLayout(device, {
+      simBuffers_computeDescriptorLayout(device, {
           vk::DescriptorSetLayoutBinding(
               0,
               vk::DescriptorType::eStorageBuffer,
@@ -52,7 +52,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
               vk::ShaderStageFlagBits::eFragment
           )
       }),
-      simBuffersPushConstantRange(
+      simBuffers_computePushConstantRange(
               vk::ShaderStageFlagBits::eCompute,
               0,
               sizeof(SimFragPushConstants)
@@ -64,7 +64,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
               viewportSize.x*2,
               viewportSize.y*2
       }, fullscreenQuadVert, simPressure, &*simBuffersImage_fragmentDescriptorLayout),
-      computeSimDataImage(device, computeSimDataImage_shader, &*simBuffersDescriptorLayout,&simBuffersPushConstantRange)
+      computeSimDataImage(device, computeSimDataImage_shader, &*simBuffers_computeDescriptorLayout, &simBuffers_computePushConstantRange)
 {}
 
 vk::UniqueDescriptorSet VulkanSimPipelineSet::buildFullscreenPressureDescriptors(VulkanContext& context, VulkanImageSampler& simBuffersImageSampler) {
@@ -98,7 +98,7 @@ VulkanSimPipelineSet::buildComputeSimDataImageDescriptors(VulkanContext &context
     auto allocInfo = vk::DescriptorSetAllocateInfo{};
     allocInfo.descriptorPool = *context.descriptorPool;
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &*simBuffersDescriptorLayout;
+    allocInfo.pSetLayouts = &*simBuffers_computeDescriptorLayout;
     auto descriptorSet = std::move(context.device->allocateDescriptorSetsUnique(allocInfo)[0]);
 
     auto writeDescriptorBuffer = [&](uint32_t i, vk::DescriptorBufferInfo bufferInfo) {

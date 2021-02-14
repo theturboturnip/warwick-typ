@@ -86,7 +86,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         }
 
         {
-            // TODO - run the compute shader
+            // Run the compute shader
             computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeSimDataImage);
             computeCmdBuffer.pushConstants(
                                         *global.pipelines.computeSimDataImage.layout,
@@ -96,7 +96,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
                                                 *global.pipelines.computeSimDataImage.layout,
                                                 0,
-                                                {*simFrameData.simBuffersDescriptorSet},
+                                                {*simFrameData.simBuffersComputeDescriptorSet},
                                                 {});
             // Group size of 16 -> group count in each direction is size/16
             // If size isn't a multiple of 16, get extra group to cover the remainder

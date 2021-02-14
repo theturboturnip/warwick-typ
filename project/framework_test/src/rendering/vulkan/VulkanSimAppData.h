@@ -44,9 +44,10 @@ public:
         // .w = fluidmask
         VulkanBackedGPUImage simBuffersImage;
         VulkanImageSampler simBuffersSampler;
+        // SimBuffers Image descriptor set containing simBuffersImage, used in fragment shader
         vk::UniqueDescriptorSet simBuffersImageDescriptorSet;
-        // Used for compute TODO rename
-        vk::UniqueDescriptorSet simBuffersDescriptorSet;
+        // SimBuffers descriptor set containing the buffers + a writable simBuffersImage, used in compute shader
+        vk::UniqueDescriptorSet simBuffersComputeDescriptorSet;
 
         // The framebuffer to render the visualization into, and a descriptor set that samples it for ImGui.
         VulkanBackedFramebuffer vizFramebuffer;

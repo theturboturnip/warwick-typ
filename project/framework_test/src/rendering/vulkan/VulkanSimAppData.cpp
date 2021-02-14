@@ -38,7 +38,7 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
       simBuffersImageDescriptorSet(
           globalData.pipelines.buildFullscreenPressureDescriptors(context, simBuffersSampler)
       ),
-      simBuffersDescriptorSet(
+      simBuffersComputeDescriptorSet(
           globalData.pipelines.buildComputeSimDataImageDescriptors(globalData.context, *buffers, *simBuffersImage, simBuffersSampler)
       ),
 

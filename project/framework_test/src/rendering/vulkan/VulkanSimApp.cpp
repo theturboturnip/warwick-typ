@@ -201,8 +201,11 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         {
             // We need to make sure the compute waits for the render to finish.
             //  example
-            //    | sim | compute | sim | compute |  <- overlaps with render, race condition
-            //                    |   render   |
+            //    | sim1 | compute1 | sim2 | compute2 |  <- overlaps with render, race condition
+            //                      |   render1   |
+            //  with the semaphore:
+            //    | sim1 | compute1 | sim2 |      | compute2 |  <- no overlap
+            //                      |   render1   |
             vk::SubmitInfo submitInfo{};
             std::vector<vk::Semaphore> waitSemaphores = {*simFrame.simFinished};
             std::vector<vk::PipelineStageFlags> waitStages = {vk::PipelineStageFlagBits::eComputeShader};
