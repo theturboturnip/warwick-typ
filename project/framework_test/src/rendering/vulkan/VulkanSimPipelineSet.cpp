@@ -60,7 +60,10 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
 
       redTriangle(device, renderPass, viewportSize, triVert, redFrag),
       redQuad(device, renderPass, viewportSize, fullscreenQuadVert, uvFrag),
-      fullscreenPressure(device, renderPass, viewportSize, fullscreenQuadVert, simPressure, &*simBuffersImage_fragmentDescriptorLayout),
+      fullscreenPressure(device, renderPass, {
+              viewportSize.x*2,
+              viewportSize.y*2
+      }, fullscreenQuadVert, simPressure, &*simBuffersImage_fragmentDescriptorLayout),
       computeSimDataImage(device, computeSimDataImage_shader, &*simBuffersDescriptorLayout,&simBuffersPushConstantRange)
 {}
 

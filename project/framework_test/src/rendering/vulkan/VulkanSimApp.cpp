@@ -113,7 +113,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         .finalCompositeRenderPass = *finalCompositeRenderPass,
         .finalCompositeRect = vk::Rect2D({0, 0}, {context.windowSize.x, context.windowSize.y}),
         .vizRenderPass = *vizRenderPass,
-        .vizRect = vk::Rect2D({0, 0}, {snapshot.simSize.padded_pixel_size.x, snapshot.simSize.padded_pixel_size.y}),
+        .vizRect = vk::Rect2D({0, 0}, {snapshot.simSize.padded_pixel_size.x*2, snapshot.simSize.padded_pixel_size.y*2}),
 
         .pipelines=pipelines
     }, vulkanAllocator->vulkanFrames, swapchain);
