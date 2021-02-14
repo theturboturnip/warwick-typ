@@ -60,7 +60,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     ImGui::Begin("Simulation", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Image(
             (ImTextureID)*simFrameData.vizFramebufferDescriptorSet,
-            ImVec2(global.simSize.padded_pixel_size.x, global.simSize.padded_pixel_size.y)
+            ImVec2(global.simSize.padded_pixel_size.x*1.5, global.simSize.padded_pixel_size.y*1.5)
     );
     ImGui::End();
     ImGui::Render();

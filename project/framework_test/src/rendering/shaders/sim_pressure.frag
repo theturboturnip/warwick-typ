@@ -15,7 +15,7 @@ void main() {
 //    outColor = vec4(data.rgb, 1);
 //    return;
 
-    if (data.w < 0.5) {
+    if (data.w > 0.5) {
         // pixIdx is a valid fluid square, display pressure
         outColor = vec4(data.zzz, 1);
     } else {

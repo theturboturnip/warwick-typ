@@ -36,6 +36,38 @@ float avg4(float a, float b, float c, float d) {
     return (a/4+b/4+c/4+d/4);
 }
 
+struct TapData {
+    // Represents 4 texture samples.
+
+    float tap00; // Tap at pxIdx/2
+    float tap01; // Tap at (pxIdx.x/2, pxIdx.y+1/2)
+    float tap10; // Tap at (pxIdx.x+1/2, pxIdx.y/2)
+    float tap11; // Tap at (pxIdx.x+1/2, pxIdx.y+1/2)
+};
+
+float evaluate(ivec2 rel_pxIdx, TapData taps) {
+    // rel_pxIdx.xy can be -1, if sampling u or v.
+    // these cases should be identical to if they were 0.
+
+    if ((rel_pxIdx.x % 2 == 0) || (rel_pxIdx.x < 0)) {
+        if ((rel_pxIdx.y % 2 == 0) || (rel_pxIdx.y < 0)) {
+            // p is exactly on top of a value
+            return taps.tap00;
+        } else {
+            // p is vertically between two values
+            return avg2(taps.tap00, taps.tap01);
+        }
+    } else {
+        if ((rel_pxIdx.y % 2 == 0) || (rel_pxIdx.y < 0)) {
+            // p is horizontally between two values
+            return avg2(taps.tap00, taps.tap10);
+        } else {
+            // p is between four values
+            return avg4(taps.tap00, taps.tap01, taps.tap11, taps.tap10);
+        }
+    }
+}
+
 void main() {
     ivec2 pxIdx = ivec2(gl_GlobalInvocationID.xy);
     ivec2 simSize = ivec2(sim_pixelWidth, sim_pixelHeight);
@@ -48,55 +80,51 @@ void main() {
 
     // u, v, p, fluidmask
 
+    // u-grid is offset by 1 in x
+    ivec2 u_pxIdx = ivec2(pxIdx.x - 1, pxIdx.y);
+    TapData uTaps = TapData(
+        velocity_x[simIdx(u_pxIdx/2)],
+        velocity_x[simIdx(ivec2(u_pxIdx.x/2, (u_pxIdx.y+1)/2))],
+        velocity_x[simIdx(ivec2((u_pxIdx.x+1)/2, u_pxIdx.y/2))],
+        velocity_x[simIdx(ivec2((u_pxIdx.x+1)/2, (u_pxIdx.y+1)/2))]
+    );
+    float u = evaluate(u_pxIdx, uTaps);
+
+    ivec2 v_pxIdx = ivec2(pxIdx.x, pxIdx.y - 1);
+    TapData vTaps = TapData(
+        velocity_y[simIdx(v_pxIdx/2)],
+        velocity_y[simIdx(ivec2(v_pxIdx.x/2, (v_pxIdx.y+1)/2))],
+        velocity_y[simIdx(ivec2((v_pxIdx.x+1)/2, v_pxIdx.y/2))],
+        velocity_y[simIdx(ivec2((v_pxIdx.x+1)/2, (v_pxIdx.y+1)/2))]
+    );
+    float v = evaluate(v_pxIdx, vTaps);
+
     // Simplest case - p
     // if aligned with p-columns
-    float p;
-    if (pxIdx.x % 2 == 0) {
-        if (pxIdx.y % 2 == 0) {
-            // p is exactly on top of a value
-            p = pressure[simIdx(pxIdx/2)];
-        } else {
-            // p is vertically between two values
-            p = avg2(
-                pressure[simIdx(
-                    ivec2(pxIdx.x/2, pxIdx.y/2)
-                )],
-                pressure[simIdx(
-                    ivec2(pxIdx.x/2, (pxIdx.y + 1)/2)
-                )]
-            );
-        }
-    } else {
-        if (pxIdx.y % 2 == 0) {
-            // p is horizontally between two values
-            p = avg2(
-                pressure[simIdx(
-                    ivec2(pxIdx.x/2, pxIdx.y/2)
-                )],
-                pressure[simIdx(
-                    ivec2((pxIdx.x + 1)/2, pxIdx.y/2)
-                )]
-            );
-        } else {
-            // p is between four values
-            p = avg4(
-                pressure[simIdx(
-                    ivec2(pxIdx.x/2, pxIdx.y/2)
-                )],
-                pressure[simIdx(
-                    ivec2(pxIdx.x/2, (pxIdx.y + 1)/2)
-                )],
-                pressure[simIdx(
-                    ivec2((pxIdx.x + 1)/2, pxIdx.y/2)
-                )],
-                pressure[simIdx(
-                    ivec2((pxIdx.x + 1)/2, (pxIdx.y + 1)/2)
-                )]
-            );
-        }
-    }
+    TapData pTaps = TapData(
+        pressure[simIdx(
+            pxIdx/2
+        )],
+        pressure[simIdx(
+            ivec2(pxIdx.x/2, (pxIdx.y + 1)/2)
+        )],
+        pressure[simIdx(
+            ivec2((pxIdx.x + 1)/2, pxIdx.y/2)
+        )],
+        pressure[simIdx(
+            ivec2((pxIdx.x + 1)/2, (pxIdx.y + 1)/2)
+        )]
+    );
+    float p = evaluate(pxIdx, pTaps);
 
-    vec4 value = vec4(0);
-    value.z = p;
+    TapData fluidmaskTaps = TapData(
+        (fluidmask[simIdx(pxIdx/2)] != 0) ? 1.0 : 0.0,
+        (fluidmask[simIdx(ivec2(pxIdx.x/2, (pxIdx.y+1)/2))] != 0) ? 1.0 : 0.0,
+        (fluidmask[simIdx(ivec2((pxIdx.x+1)/2, pxIdx.y/2))] != 0) ? 1.0 : 0.0,
+        (fluidmask[simIdx(ivec2((pxIdx.x+1)/2, (pxIdx.y+1)/2))] != 0) ? 1.0 : 0.0
+    );
+    float fluidmask = evaluate(pxIdx, fluidmaskTaps);
+
+    vec4 value = vec4(u, v, p, fluidmask);
     imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), value);
 }
