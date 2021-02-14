@@ -26,7 +26,9 @@ layout (binding=4, rgba32f) uniform writeonly image2D resultImage;
 
 // Index of the cell in a buffer corresponding to the 2d coordinate
 int simIdx(ivec2 sim2DIdx) {
-    return (sim2DIdx.x * int(sim_columnStride)) + sim2DIdx.y;
+    // do height - y because opengl/vulkan coordinates are vertically flipped w.r.t. simulation coords,
+    // height - 1 - y because 0 should map to height - 1
+    return (sim2DIdx.x * int(sim_columnStride)) + (int(sim_pixelHeight - 1) - sim2DIdx.y);
 }
 
 float avg2(float a, float b) {
@@ -76,7 +78,6 @@ void main() {
     // We don't need to check if we're out-of-bounds - imageStore at the end does that for us.
     // Because each compute group will have at least one in-bounds pixel inside it,
     // it's likely that the divergence created by early-outing wouldn't significantly improve perf.
-
 
     // u, v, p, fluidmask
 
