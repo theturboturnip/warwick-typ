@@ -199,16 +199,20 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
         // Send the compute work
         {
-            // TODO - we need to make sure the compute waits for the render to finish.
+            // We need to make sure the compute waits for the render to finish.
             //  example
             //    | sim | compute | sim | compute |  <- overlaps with render, race condition
             //                    |   render   |
             vk::SubmitInfo submitInfo{};
-            vk::Semaphore waitSemaphores[] = {*simFrame.simFinished};
-            vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eTopOfPipe};
-            submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = waitSemaphores;
-            submitInfo.pWaitDstStageMask = waitStages;
+            std::vector<vk::Semaphore> waitSemaphores = {*simFrame.simFinished};
+            std::vector<vk::PipelineStageFlags> waitStages = {vk::PipelineStageFlagBits::eComputeShader};
+            if (!simFrameIsFresh) {
+                waitSemaphores.push_back(*simFrame.renderFinishedShouldCompute);
+                waitStages.push_back(vk::PipelineStageFlagBits::eComputeShader);
+            }
+            submitInfo.waitSemaphoreCount = waitSemaphores.size();
+            submitInfo.pWaitSemaphores = waitSemaphores.data();
+            submitInfo.pWaitDstStageMask = waitStages.data();
 
             vk::CommandBuffer cmdBuffers[] = {
                     systemOutput.computeCmdBuffer
@@ -238,7 +242,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
             submitInfo.commandBufferCount = 1;
             submitInfo.pCommandBuffers = cmdBuffers;
 
-            vk::Semaphore signalSemaphores[] = {*simFrame.renderFinishedShouldPresent, *simFrame.computeFinishedShouldSim};
+            vk::Semaphore signalSemaphores[] = {*simFrame.renderFinishedShouldPresent, *simFrame.renderFinishedShouldCompute};
             submitInfo.signalSemaphoreCount = 2;
             submitInfo.pSignalSemaphores = signalSemaphores;
 

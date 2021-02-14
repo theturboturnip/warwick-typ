@@ -60,6 +60,7 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
       imageAcquired(*context.device),
       simFinished(*context.device),
       renderFinishedShouldPresent(*context.device),
+      renderFinishedShouldCompute(*context.device),
       computeFinishedShouldSim(*context.device),
       computeFinished(*context.device),
       inFlight(context, true),

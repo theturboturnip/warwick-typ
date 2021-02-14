@@ -53,7 +53,7 @@ public:
         vk::UniqueDescriptorSet vizFramebufferDescriptorSet;
 
         // Synchronization
-        VulkanSemaphore imageAcquired, simFinished, renderFinishedShouldPresent, computeFinishedShouldSim, computeFinished;
+        VulkanSemaphore imageAcquired, simFinished, renderFinishedShouldPresent, renderFinishedShouldCompute, computeFinishedShouldSim, computeFinished;
         VulkanFence inFlight; // Used to wait for the render to finish
 
         // Data which should only be accessed by the worker thread.
