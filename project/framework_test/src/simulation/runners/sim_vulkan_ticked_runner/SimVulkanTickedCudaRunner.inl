@@ -77,7 +77,8 @@ public:
                 currentTime += maxTimestep;
             }
         } else {
-            // TODO - copy data from frame A to frame B - requires change to runner
+            // Copy data from frame A to frame B
+            backend->copyToFrame(frameIdx);
         }
 //        fprintf(stderr, "Signalling simFinished\n");
         semaphores.simFinished.signalAsync(backend->stream);

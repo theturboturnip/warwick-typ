@@ -410,6 +410,21 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
 }
 
 template<bool UnifiedMemoryForExport>
+void CudaBackendV1<UnifiedMemoryForExport>::copyToFrame(int frameToWriteIdx) {
+    const Frame& copyFrom = frames[lastWrittenFrame];
+    Frame& copyTo = frames[frameToWriteIdx];
+
+    // Values of f,g,rhs etc. aren't persisted between invocations, so we don't need to copy them
+    copyTo.u.dispatch_memcpy_in(copyFrom.u, stream);
+    copyTo.v.dispatch_memcpy_in(copyFrom.v, stream);
+    copyTo.p.joined.dispatch_memcpy_in(copyFrom.p.joined, stream);
+    copyTo.p.red.dispatch_memcpy_in(copyFrom.p.red, stream);
+    copyTo.p.black.dispatch_memcpy_in(copyFrom.p.black, stream);
+
+    lastWrittenFrame = frameToWriteIdx;
+}
+
+template<bool UnifiedMemoryForExport>
 CudaBackendV1<UnifiedMemoryForExport>::Frame::Frame(FrameAllocator<ExportMemType>& exportAlloc,
                                                     FrameAllocator<MType::Cuda>& cudaAlloc,
                                                     Size<uint32_t> paddedSize)

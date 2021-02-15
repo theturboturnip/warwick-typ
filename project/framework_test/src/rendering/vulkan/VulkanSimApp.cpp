@@ -212,7 +212,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         });
 //        fprintf(stderr, "gave systemworker work\n");
 
-        // TODO Decide on the next simulation tick length.
+        // Decide on the next simulation tick length.
         float simTickLength;
         bool shouldRunSim = true;
         if (props.lockSimFrequency != std::nullopt) {
@@ -227,7 +227,6 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
                 //  (i.e. elapsedSimTime + simTickLength == current elapsedRealTime + lastFrameTime).
                 // If we're already ahead of the game, don't simulate on this frame.
                 if (elapsedRealTimeDuringSim + lastSimFrameTime - elapsedSimTime < simTickLength) {
-                    // TODO - this has the same flickering issue as pausing the sim halfway through - we need buffer copying
                     shouldRunSim = false;
                 }
             } else {
@@ -235,7 +234,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
             }
         } else {
             // Try to match the previous frame time.
-            // TODO - at high frame rates this has a much different result than expected (120fps != 60fps).
+            // TODO - at high frame rates this has a much different result than expected (1000fps != 60fps).
             const float maxSimTickLength = 1.0f / props.minUnlockedSimFrequency;
             if (lastFrameTime > maxSimTickLength) {
                 simTickLength = maxSimTickLength;

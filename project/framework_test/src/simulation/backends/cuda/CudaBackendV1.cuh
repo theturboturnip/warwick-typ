@@ -23,6 +23,7 @@ class CudaBackendV1 : public BaseCudaBackend {
 public:
     float findMaxTimestep();
     void tick(float timestep, int frameToWriteIdx);
+    void copyToFrame(int frameToWriteIdx);
 
     LegacySimDump dumpStateAsLegacy();
     SimSnapshot get_snapshot();
