@@ -49,6 +49,6 @@ void InteractiveSubApp::setupArgumentsForSubcommand(CLI::App *subcommand, const 
     subcommand->add_option("--vsync", simProperties.useVsync, "Should vsync be enabled")
               ->default_val(false);
     subcommand->add_option("--lock_sim_freq", simProperties.lockSimFrequency, "Lock the simulation tick-rate to a value");
-    subcommand->add_option("--unlocked_max_freq", simProperties.maxUnlockedSimFrequency, "Maximum simulation frequency when not locked")
+    subcommand->add_option("--unlocked_min_freq", simProperties.minUnlockedSimFrequency, "Minimum simulation frequency when not locked")
               ->default_val(30);
 }

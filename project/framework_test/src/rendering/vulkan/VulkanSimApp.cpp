@@ -159,12 +159,13 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         // Record how long the last frame took
         auto frameStartTime = std::chrono::steady_clock::now();
         std::chrono::duration<double> frameTimeDiff = frameStartTime - lastFrameStartTime;
+        const double lastFrameTime = frameTimeDiff.count();
 
-        frameTimes[renderedFrameNum % frameTimes.size()] = frameTimeDiff.count();
-        elapsedRealTime += frameTimeDiff.count();
+        frameTimes[renderedFrameNum % frameTimes.size()] = lastFrameTime;
+        elapsedRealTime += lastFrameTime;
         if (wantsRunSim) {
-            elapsedRealTimeDuringSim += frameTimeDiff.count();
-            simFrameTimes[simFrameNum % frameTimes.size()] = frameTimeDiff.count();
+            elapsedRealTimeDuringSim += lastFrameTime;
+            simFrameTimes[simFrameNum % frameTimes.size()] = lastFrameTime;
         }
 //        fprintf(stderr, "added frame time\n");
         lastFrameStartTime = frameStartTime;
@@ -212,19 +213,48 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 //        fprintf(stderr, "gave systemworker work\n");
 
         // TODO Decide on the next simulation tick length.
-        const float simTickLength = 1/60.0f;
+        float simTickLength;
+        bool shouldRunSim = true;
+        if (props.lockSimFrequency != std::nullopt) {
+            // Sim frequency should be locked.
+            simTickLength = 1.0f / props.lockSimFrequency.value();
+
+            // If we have enough info to determine how long a sim frame takes, try to match real time.
+            if (simFrameNum > 0) {
+                float lastSimFrameTime = simTickLengths[(simFrameNum - 1) % simTickLengths.size()];
+
+                // Ideally, we want the elapsedSimTime at the end of this frame to equal the real time that has elapsed.
+                //  (i.e. elapsedSimTime + simTickLength == current elapsedRealTime + lastFrameTime).
+                // If we're already ahead of the game, don't simulate on this frame.
+                if (elapsedRealTimeDuringSim + lastSimFrameTime - elapsedSimTime < simTickLength) {
+                    // TODO - this has the same flickering issue as pausing the sim halfway through - we need buffer copying
+                    shouldRunSim = false;
+                }
+            } else {
+                // Otherwise just run it
+            }
+        } else {
+            // Try to match the previous frame time.
+            // TODO - at high frame rates this has a much different result than expected (120fps != 60fps).
+            const float maxSimTickLength = 1.0f / props.minUnlockedSimFrequency;
+            if (lastFrameTime > maxSimTickLength) {
+                simTickLength = maxSimTickLength;
+            } else {
+                simTickLength = lastFrameTime;
+            }
+        }
 
         // This dispatches the simulation, and signals the simFinished semaphore once it's done.
         // The simulation doesn't start until renderFinishedShouldSim is signalled, unless this is the first frame, at which point it doesn't bother waiting.
         simulationRunner->tick(
             simTickLength,
             !simFrameIsFresh, // Only wait for the render if this sim frame has started rendering before
-            wantsRunSim, // Actually run the sim or not
+            wantsRunSim && shouldRunSim, // Actually run the sim or not
             simFrameIdx
         );
 //        fprintf(stderr, "ticked sim\n");
 
-        if (wantsRunSim) {
+        if (wantsRunSim && shouldRunSim) {
             elapsedSimTime += simTickLength;
             simTickLengths[simFrameNum % simTickLengths.size()] = simTickLength;
         }
