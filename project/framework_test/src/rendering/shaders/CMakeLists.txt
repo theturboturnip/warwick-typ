@@ -38,5 +38,6 @@ compile_glsl(shader_files
         uv.frag
         triangle.vert
         fullscreen_quad.vert
+        compute_sim_data_image.comp
         )
 add_library(shaders OBJECT ${PROJECT_SHADER_DIR} ${shader_files})

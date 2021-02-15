@@ -22,7 +22,7 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> wi
     : context(appInfo, windowSize),
       device(*context.device),
       finalCompositeRenderPass(device, context.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::ePresentSrcKHR),
-      vizRenderPass(device, vk::Format::eR8G8B8A8Srgb, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal),
+      vizRenderPass(device, vk::Format::eR8G8B8A8Unorm, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal),
       swapchain(context, finalCompositeRenderPass)
 {
     {
@@ -57,7 +57,7 @@ VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> wi
         // Allocate a command buffer to create the font texture for ImGui
         {
             auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
-            cmdBufferAlloc.commandPool = *context.cmdPool;
+            cmdBufferAlloc.commandPool = *context.graphicsCmdPool;
             cmdBufferAlloc.level = vk::CommandBufferLevel::ePrimary;
             cmdBufferAlloc.commandBufferCount = 1;
             const auto fontCmdBuffer = std::move(device.allocateCommandBuffersUnique(cmdBufferAlloc)[0]);
@@ -113,7 +113,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         .finalCompositeRenderPass = *finalCompositeRenderPass,
         .finalCompositeRect = vk::Rect2D({0, 0}, {context.windowSize.x, context.windowSize.y}),
         .vizRenderPass = *vizRenderPass,
-        .vizRect = vk::Rect2D({0, 0}, {snapshot.simSize.padded_pixel_size.x, snapshot.simSize.padded_pixel_size.y}),
+        .vizRect = vk::Rect2D({0, 0}, {snapshot.simSize.padded_pixel_size.x*2, snapshot.simSize.padded_pixel_size.y*2}),
 
         .pipelines=pipelines
     }, vulkanAllocator->vulkanFrames, swapchain);
@@ -197,22 +197,55 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         wantsRunSim = systemOutput.wantsRunSim;
 //        fprintf(stderr, "got output\n");
 
+        // Send the compute work
+        {
+            // We need to make sure the compute waits for the render to finish.
+            //  example
+            //    | sim1 | compute1 | sim2 | compute2 |  <- overlaps with render, race condition
+            //                      |   render1   |
+            //  with the semaphore:
+            //    | sim1 | compute1 | sim2 |      | compute2 |  <- no overlap
+            //                      |   render1   |
+            vk::SubmitInfo submitInfo{};
+            std::vector<vk::Semaphore> waitSemaphores = {*simFrame.simFinished};
+            std::vector<vk::PipelineStageFlags> waitStages = {vk::PipelineStageFlagBits::eComputeShader};
+            if (!simFrameIsFresh) {
+                waitSemaphores.push_back(*simFrame.renderFinishedShouldCompute);
+                waitStages.push_back(vk::PipelineStageFlagBits::eComputeShader);
+            }
+            submitInfo.waitSemaphoreCount = waitSemaphores.size();
+            submitInfo.pWaitSemaphores = waitSemaphores.data();
+            submitInfo.pWaitDstStageMask = waitStages.data();
+
+            vk::CommandBuffer cmdBuffers[] = {
+                    systemOutput.computeCmdBuffer
+            };
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = cmdBuffers;
+
+            vk::Semaphore signalSemaphores[] = {*simFrame.computeFinished, *simFrame.computeFinishedShouldSim};
+            submitInfo.signalSemaphoreCount = 2;
+            submitInfo.pSignalSemaphores = signalSemaphores;
+
+            context.computeQueue.submit({submitInfo}, nullptr);
+        }
+
         // Send the graphics work
         {
             vk::SubmitInfo submitInfo{};
-            vk::Semaphore waitSemaphores[] = {*simFrame.imageAcquired, *simFrame.simFinished};
+            vk::Semaphore waitSemaphores[] = {*simFrame.imageAcquired, *simFrame.computeFinished};
             vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTopOfPipe};
             submitInfo.waitSemaphoreCount = 2;
             submitInfo.pWaitSemaphores = waitSemaphores;
             submitInfo.pWaitDstStageMask = waitStages;
 
             vk::CommandBuffer cmdBuffers[] = {
-                systemOutput.cmdBuffer
+                systemOutput.graphicsCmdBuffer
             };
             submitInfo.commandBufferCount = 1;
             submitInfo.pCommandBuffers = cmdBuffers;
 
-            vk::Semaphore signalSemaphores[] = {*simFrame.renderFinishedShouldPresent, *simFrame.renderFinishedShouldSim};
+            vk::Semaphore signalSemaphores[] = {*simFrame.renderFinishedShouldPresent, *simFrame.renderFinishedShouldCompute};
             submitInfo.signalSemaphoreCount = 2;
             submitInfo.pSignalSemaphores = signalSemaphores;
 

@@ -190,6 +190,7 @@ VulkanContext::VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowS
 
         graphicsQueue = device->getQueue(queueFamilies.graphicsFamily, 0);
         presentQueue = device->getQueue(queueFamilies.presentFamily, 0);
+        computeQueue = device->getQueue(queueFamilies.computeFamily, 0);
     }
 
     // Get possible surface formats
@@ -218,13 +219,22 @@ VulkanContext::VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowS
         printf("Using present mode %s\n", vk::to_string(presentMode).c_str());
     }
 
-    // Create the command buffer pool
+    // Create the graphics command buffer pool
     {
         auto poolInfo = vk::CommandPoolCreateInfo();
         poolInfo.queueFamilyIndex = queueFamilies.graphicsFamily;
         poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer; // Allow command buffers to be reset outside of the pool?
 
-        cmdPool = device->createCommandPoolUnique(poolInfo);
+        graphicsCmdPool = device->createCommandPoolUnique(poolInfo);
+    }
+
+    // Create the compute command buffer pool
+    {
+        auto poolInfo = vk::CommandPoolCreateInfo();
+        poolInfo.queueFamilyIndex = queueFamilies.computeFamily;
+        poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer; // Allow command buffers to be reset outside of the pool?
+
+        computeCmdPool = device->createCommandPoolUnique(poolInfo);
     }
 
     // Create the descriptor pool
@@ -268,9 +278,9 @@ uint32_t VulkanContext::selectMemoryTypeIndex(vk::MemoryRequirements requirement
     FATAL_ERROR("Couldn't find suitable memory type!");
 }
 
-std::vector<vk::UniqueCommandBuffer> VulkanContext::allocateCommandBuffers(vk::CommandBufferLevel level, size_t count) {
+std::vector<vk::UniqueCommandBuffer> VulkanContext::allocateCommandBuffers(vk::UniqueCommandPool& pool, vk::CommandBufferLevel level, size_t count) {
     auto cmdBufferAlloc = vk::CommandBufferAllocateInfo();
-    cmdBufferAlloc.commandPool = *cmdPool;
+    cmdBufferAlloc.commandPool = *pool;
     cmdBufferAlloc.level = level;
     cmdBufferAlloc.commandBufferCount = count;
     return device->allocateCommandBuffersUnique(cmdBufferAlloc);

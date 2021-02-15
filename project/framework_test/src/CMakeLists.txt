@@ -27,6 +27,7 @@ target_sources(generic_sources INTERFACE
         rendering/threads/IWorkerThread_Impl.inl
         rendering/threads/ThreadWorkData.h
         rendering/threads/WorkerThreadController.h
+        rendering/threads/work/SystemWorker.cpp
         rendering/threads/work/SystemWorker.h
         rendering/vulkan/helpers/VulkanBackedGPUImage.cpp
         rendering/vulkan/helpers/VulkanBackedGPUImage.h
@@ -41,6 +42,8 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanFence.h
         rendering/vulkan/helpers/VulkanFramebuffer.cpp
         rendering/vulkan/helpers/VulkanFramebuffer.h
+        rendering/vulkan/helpers/VulkanImageSampler.cpp
+        rendering/vulkan/helpers/VulkanImageSampler.h
         rendering/vulkan/helpers/VulkanShader.cpp
         rendering/vulkan/helpers/VulkanShader.h
         rendering/vulkan/helpers/VulkanSemaphore.cpp

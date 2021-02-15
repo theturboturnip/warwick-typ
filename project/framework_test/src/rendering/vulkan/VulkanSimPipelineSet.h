@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan.hpp>
 #include <memory/FrameSetAllocator.h>
+#include <rendering/vulkan/helpers/VulkanImageSampler.h>
 
 #include "rendering/vulkan/helpers/VulkanDescriptorSetLayout.h"
 #include "rendering/vulkan/helpers/VulkanPipeline.h"
@@ -26,16 +27,20 @@ public:
     FragmentShader redFrag;
     FragmentShader uvFrag;
     FragmentShader simPressure;
+    ComputeShader computeSimDataImage_shader;
 
-    VulkanDescriptorSetLayout simulationFragDescriptorLayout;
-    vk::PushConstantRange simulationFragPushConstantRange;
+    VulkanDescriptorSetLayout simBuffers_computeDescriptorLayout;
+    VulkanDescriptorSetLayout simBuffersImage_fragmentDescriptorLayout;
+    vk::PushConstantRange simBuffers_computePushConstantRange;
 
     VulkanPipeline redTriangle;
     VulkanPipeline redQuad;
     VulkanPipeline fullscreenPressure;
+    VulkanPipeline computeSimDataImage;
 
     explicit VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize);
     VulkanSimPipelineSet(VulkanSimPipelineSet &&) noexcept = default;
 
-    vk::UniqueDescriptorSet buildSimulationFragDescriptors(VulkanContext& context, VulkanSimFrameData& buffers);
+    vk::UniqueDescriptorSet buildFullscreenPressureDescriptors(VulkanContext& context, VulkanImageSampler& simBuffersImageSampler);
+    vk::UniqueDescriptorSet buildComputeSimDataImageDescriptors(VulkanContext& context, VulkanSimFrameData& buffers, vk::Image simBuffersImage, VulkanImageSampler& simBuffersImageSampler);
 };

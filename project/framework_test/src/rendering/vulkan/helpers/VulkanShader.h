@@ -11,7 +11,8 @@
 
 enum class ShaderStage {
     Vertex,
-    Fragment
+    Fragment,
+    Compute
 };
 
 template<ShaderStage Stage>
@@ -30,3 +31,4 @@ private:
 
 using VertexShader = VulkanShader<ShaderStage::Vertex>;
 using FragmentShader = VulkanShader<ShaderStage::Fragment>;
+using ComputeShader = VulkanShader<ShaderStage::Compute>;

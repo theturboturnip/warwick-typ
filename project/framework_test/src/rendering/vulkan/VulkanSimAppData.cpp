@@ -23,29 +23,51 @@ VulkanSimAppData::VulkanSimAppData(VulkanSimAppData::Global&& globalData,
 VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalData, VulkanContext& context, uint32_t index, VulkanSimFrameData *buffers)
     : index(index),
       buffers(buffers),
-      simBuffersDescriptorSet(
-              globalData.pipelines.buildSimulationFragDescriptors(globalData.context, *buffers)
+
+      simBuffersImage(
+          context,
+          vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
+          {
+              globalData.simSize.padded_pixel_size.x * 2,
+              globalData.simSize.padded_pixel_size.y * 2,
+          },
+          vk::Format::eR32G32B32A32Sfloat,
+          true
+      ),
+      simBuffersSampler(context, simBuffersImage),
+      simBuffersImageDescriptorSet(
+          globalData.pipelines.buildFullscreenPressureDescriptors(context, simBuffersSampler)
+      ),
+      simBuffersComputeDescriptorSet(
+          globalData.pipelines.buildComputeSimDataImageDescriptors(globalData.context, *buffers, *simBuffersImage, simBuffersSampler)
       ),
 
       vizFramebuffer(
           context,
           vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled,
-          globalData.simSize.padded_pixel_size,
+          {
+                  globalData.simSize.padded_pixel_size.x * 2,
+                  globalData.simSize.padded_pixel_size.y * 2,
+          },
           globalData.vizRenderPass
       ),
       vizFramebufferDescriptorSet(
           ImGui_ImplVulkan_MakeDescriptorSet(vizFramebuffer.getImageView()),
+          // TODO - technically this is the incorrect pool
           vk::PoolFree(*context.device, *context.descriptorPool, VULKAN_HPP_DEFAULT_DISPATCHER)
       ),
 
       imageAcquired(*context.device),
       simFinished(*context.device),
       renderFinishedShouldPresent(*context.device),
-      renderFinishedShouldSim(*context.device),
+      renderFinishedShouldCompute(*context.device),
+      computeFinishedShouldSim(*context.device),
+      computeFinished(*context.device),
       inFlight(context, true),
 
       threadOutputs({
-          .commandBuffer = std::move(context.allocateCommandBuffers(vk::CommandBufferLevel::ePrimary, 1)[0])
+          .computeCommandBuffer = std::move(context.allocateCommandBuffers(context.computeCmdPool, vk::CommandBufferLevel::ePrimary, 1)[0]),
+          .graphicsCommandBuffer = std::move(context.allocateCommandBuffers(context.graphicsCmdPool, vk::CommandBufferLevel::ePrimary, 1)[0]),
       })
     {}
 

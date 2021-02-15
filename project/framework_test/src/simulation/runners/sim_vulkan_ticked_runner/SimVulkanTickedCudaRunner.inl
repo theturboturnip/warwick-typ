@@ -26,7 +26,7 @@ class SimVulkanTickedCudaRunner : public ISimVulkanTickedRunner {
         CudaVulkanSemaphore simFinished;
 
         Sync(vk::Device device, const VulkanSimAppData::PerFrameData& data)
-            : renderFinished(device, *data.renderFinishedShouldSim),
+            : renderFinished(device, *data.computeFinishedShouldSim),
                 simFinished(device, *data.simFinished) {}
     };
     std::vector<Sync> frameSemaphores;
@@ -63,17 +63,21 @@ public:
             semaphores.renderFinished.waitForAsync(backend->stream);
         }
 
-        float currentTime = 0;
-        while(doSim && currentTime < timeToRun) {
+        if (doSim) {
+            float currentTime = 0;
+            while (currentTime < timeToRun) {
 //            fprintf(stderr, "Starting findMaxTimestep\n");
-            float maxTimestep = backend->findMaxTimestep();
+                float maxTimestep = backend->findMaxTimestep();
 //            fprintf(stderr, "Ended findMaxTimestep\n");
-            if (currentTime + maxTimestep > timeToRun)
-                maxTimestep = timeToRun - currentTime;
+                if (currentTime + maxTimestep > timeToRun)
+                    maxTimestep = timeToRun - currentTime;
 //            fprintf(stderr, "Starting backend->tick()\n");
-            backend->tick(maxTimestep, frameIdx);
+                backend->tick(maxTimestep, frameIdx);
 //            fprintf(stderr, "Finishing findMaxTimestep\n");
-            currentTime += maxTimestep;
+                currentTime += maxTimestep;
+            }
+        } else {
+            // TODO - copy data from frame A to frame B - requires change to runner
         }
 //        fprintf(stderr, "Signalling simFinished\n");
         semaphores.simFinished.signalAsync(backend->stream);

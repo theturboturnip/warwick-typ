@@ -11,10 +11,11 @@
 struct VulkanQueueFamilies {
     uint32_t graphicsFamily;
     uint32_t presentFamily;
+    uint32_t computeFamily;
 
     static std::optional<VulkanQueueFamilies> getForDevice(vk::PhysicalDevice device, vk::UniqueSurfaceKHR& surface);
 
     [[nodiscard]] std::set<uint32_t> uniqueFamilies() const {
-        return {graphicsFamily, presentFamily};
+        return {graphicsFamily, presentFamily, computeFamily};
     }
 };

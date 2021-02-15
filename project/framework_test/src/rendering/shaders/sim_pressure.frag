@@ -5,36 +5,19 @@ layout(location = 0) in vec2 uv;
 
 layout(location = 0) out vec4 outColor;
 
-layout(push_constant) uniform WindowParams {
-    uint pixelWidth;
-    uint pixelHeight;
-    uint columnStride;
-    uint totalPixels;
-};
-
-layout(binding=0) buffer readonly velocity_x_buffer {
-    float velocity_x[];
-};
-layout(binding=1) buffer readonly velocity_y_buffer {
-    float velocity_y[];
-};
-layout(binding=2) buffer readonly pressure_buffer {
-    float pressure[];
-};
-layout(binding=3) buffer readonly fluidmask_buffer {
-    int fluidmask[];
-};
+layout(binding = 0) uniform sampler2D simBufferDataSampler;
 
 void main() {
-    uvec2 pixCoords = uvec2(uv * uvec2(pixelWidth, pixelHeight));
-    uint pixIdx = (pixCoords.x * columnStride) + pixCoords.y;
-    if (pixIdx >= totalPixels) {
-        // Something's gone wrong - go purple!
-        outColor = vec4(1, 0, 1, 0);
-    } else if (fluidmask[pixIdx] != 0) {
+    // TODO - offset by 1/2 pixel
+    vec2 offset = vec2(0,0);
+    vec4 data = texture(simBufferDataSampler, uv + offset);
+
+//    outColor = vec4(data.rgb, 1);
+//    return;
+
+    if (data.w > 0.5) {
         // pixIdx is a valid fluid square, display pressure
-        float pressure01 = pressure[pixIdx] / 10;
-        outColor = vec4(pressure[pixIdx].xxx, 1);
+        outColor = vec4(data.zzz, 1);
     } else {
         // pixIdx is a valid obstacle square, go green
         outColor = vec4(0, 1, 0, 1);

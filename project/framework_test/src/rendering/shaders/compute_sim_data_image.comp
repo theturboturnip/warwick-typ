@@ -1,0 +1,131 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+layout(push_constant) uniform sim_buffer_params {
+    uint sim_pixelWidth;
+    uint sim_pixelHeight;
+    uint sim_columnStride;
+    uint sim_totalPixels;
+};
+
+layout (binding=0) buffer readonly buf_u {
+    float velocity_x[];
+};
+layout (binding=1) buffer readonly buf_v {
+    float velocity_y[];
+};
+layout (binding=2) buffer readonly buf_p {
+    float pressure[];
+};
+layout (binding=3) buffer readonly buf_fluidmask {
+    int fluidmask[];
+};
+layout (binding=4, rgba32f) uniform writeonly image2D resultImage;
+
+// Index of the cell in a buffer corresponding to the 2d coordinate
+int simIdx(ivec2 sim2DIdx) {
+    // do height - y because opengl/vulkan coordinates are vertically flipped w.r.t. simulation coords,
+    // height - 1 - y because 0 should map to height - 1
+    return (sim2DIdx.x * int(sim_columnStride)) + (int(sim_pixelHeight - 1) - sim2DIdx.y);
+}
+
+float avg2(float a, float b) {
+    return (a/2 + b/2);
+}
+float avg4(float a, float b, float c, float d) {
+    return (a/4+b/4+c/4+d/4);
+}
+
+struct TapData {
+    // Represents 4 texture samples.
+
+    float tap00; // Tap at pxIdx/2
+    float tap01; // Tap at (pxIdx.x/2, pxIdx.y+1/2)
+    float tap10; // Tap at (pxIdx.x+1/2, pxIdx.y/2)
+    float tap11; // Tap at (pxIdx.x+1/2, pxIdx.y+1/2)
+};
+
+float evaluate(ivec2 rel_pxIdx, TapData taps) {
+    // rel_pxIdx.xy can be -1, if sampling u or v.
+    // these cases should be identical to if they were 0.
+
+    if ((rel_pxIdx.x % 2 == 0) || (rel_pxIdx.x < 0)) {
+        if ((rel_pxIdx.y % 2 == 0) || (rel_pxIdx.y < 0)) {
+            // p is exactly on top of a value
+            return taps.tap00;
+        } else {
+            // p is vertically between two values
+            return avg2(taps.tap00, taps.tap01);
+        }
+    } else {
+        if ((rel_pxIdx.y % 2 == 0) || (rel_pxIdx.y < 0)) {
+            // p is horizontally between two values
+            return avg2(taps.tap00, taps.tap10);
+        } else {
+            // p is between four values
+            return avg4(taps.tap00, taps.tap01, taps.tap11, taps.tap10);
+        }
+    }
+}
+
+void main() {
+    ivec2 pxIdx = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 simSize = ivec2(sim_pixelWidth, sim_pixelHeight);
+    ivec2 fullSize = ivec2(simSize * 2);
+
+    // We don't need to check if we're out-of-bounds - imageStore at the end does that for us.
+    // Because each compute group will have at least one in-bounds pixel inside it,
+    // it's likely that the divergence created by early-outing wouldn't significantly improve perf.
+
+    // u, v, p, fluidmask
+
+    // u-grid is offset by 1 in x
+    ivec2 u_pxIdx = ivec2(pxIdx.x - 1, pxIdx.y);
+    TapData uTaps = TapData(
+        velocity_x[simIdx(u_pxIdx/2)],
+        velocity_x[simIdx(ivec2(u_pxIdx.x/2, (u_pxIdx.y+1)/2))],
+        velocity_x[simIdx(ivec2((u_pxIdx.x+1)/2, u_pxIdx.y/2))],
+        velocity_x[simIdx(ivec2((u_pxIdx.x+1)/2, (u_pxIdx.y+1)/2))]
+    );
+    float u = evaluate(u_pxIdx, uTaps);
+
+    ivec2 v_pxIdx = ivec2(pxIdx.x, pxIdx.y - 1);
+    TapData vTaps = TapData(
+        velocity_y[simIdx(v_pxIdx/2)],
+        velocity_y[simIdx(ivec2(v_pxIdx.x/2, (v_pxIdx.y+1)/2))],
+        velocity_y[simIdx(ivec2((v_pxIdx.x+1)/2, v_pxIdx.y/2))],
+        velocity_y[simIdx(ivec2((v_pxIdx.x+1)/2, (v_pxIdx.y+1)/2))]
+    );
+    float v = evaluate(v_pxIdx, vTaps);
+
+    // Simplest case - p
+    // if aligned with p-columns
+    TapData pTaps = TapData(
+        pressure[simIdx(
+            pxIdx/2
+        )],
+        pressure[simIdx(
+            ivec2(pxIdx.x/2, (pxIdx.y + 1)/2)
+        )],
+        pressure[simIdx(
+            ivec2((pxIdx.x + 1)/2, pxIdx.y/2)
+        )],
+        pressure[simIdx(
+            ivec2((pxIdx.x + 1)/2, (pxIdx.y + 1)/2)
+        )]
+    );
+    float p = evaluate(pxIdx, pTaps);
+
+    TapData fluidmaskTaps = TapData(
+        (fluidmask[simIdx(pxIdx/2)] != 0) ? 1.0 : 0.0,
+        (fluidmask[simIdx(ivec2(pxIdx.x/2, (pxIdx.y+1)/2))] != 0) ? 1.0 : 0.0,
+        (fluidmask[simIdx(ivec2((pxIdx.x+1)/2, pxIdx.y/2))] != 0) ? 1.0 : 0.0,
+        (fluidmask[simIdx(ivec2((pxIdx.x+1)/2, (pxIdx.y+1)/2))] != 0) ? 1.0 : 0.0
+    );
+    float fluidmask = evaluate(pxIdx, fluidmaskTaps);
+
+    vec4 value = vec4(u, v, p, fluidmask);
+    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), value);
+}

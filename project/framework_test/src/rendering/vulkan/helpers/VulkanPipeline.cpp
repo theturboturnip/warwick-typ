@@ -108,6 +108,27 @@ VulkanPipeline::VulkanPipeline(vk::Device device, vk::RenderPass renderPass, Siz
     pipelineInfo.basePipelineHandle = nullptr; // Optional
     pipelineInfo.basePipelineIndex = -1; // Optional
 
-    auto pipelines = device.createGraphicsPipelines(nullptr, {pipelineInfo});
-    pipeline = vk::UniquePipeline(pipelines.value[0], device);
+    pipeline = device.createGraphicsPipelineUnique(nullptr, {pipelineInfo});
+}
+
+VulkanPipeline::VulkanPipeline(vk::Device device, const ComputeShader &compute,
+                               const vk::DescriptorSetLayout *descriptorSetLayout,
+                               const vk::PushConstantRange *pushConstantRange) {
+    {
+        auto pipelineLayoutInfo = vk::PipelineLayoutCreateInfo();
+        pipelineLayoutInfo.setLayoutCount = (descriptorSetLayout ? 1 : 0);// Descriptor sets
+        pipelineLayoutInfo.pSetLayouts = descriptorSetLayout;
+        pipelineLayoutInfo.pushConstantRangeCount = (pushConstantRange ? 1 : 0);// Push constants
+        pipelineLayoutInfo.pPushConstantRanges = pushConstantRange;
+
+        layout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
+    }
+
+    auto pipelineInfo = vk::ComputePipelineCreateInfo();
+    pipelineInfo.layout = *layout;
+    pipelineInfo.stage = compute.shaderStage;
+    pipelineInfo.basePipelineHandle = nullptr; // Optional
+    pipelineInfo.basePipelineIndex = -1; // Optional
+
+    pipeline = device.createComputePipelineUnique(nullptr, {pipelineInfo});
 }
