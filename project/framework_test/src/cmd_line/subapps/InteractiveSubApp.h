@@ -6,6 +6,8 @@
 
 #include "ISubApp.h"
 
+#include "rendering/vulkan/SimAppProperties.h"
+
 class InteractiveSubApp : public ISubApp {
 public:
     ~InteractiveSubApp() override = default;
@@ -21,5 +23,7 @@ public:
     std::string input_file;
     std::optional<std::string> outputFile;
     SimulationBackendEnum backend;
+
+    SimAppProperties simProperties;
 };
 

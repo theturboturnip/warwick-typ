@@ -18,8 +18,9 @@
 #include "memory/FrameSetAllocator.h"
 
 
-VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> windowSize)
-    : context(appInfo, windowSize),
+VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, SimAppProperties props, Size<uint32_t> windowSize)
+    : props(props),
+      context(appInfo, windowSize, props.useVsync),
       device(*context.device),
       finalCompositeRenderPass(device, context.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::ePresentSrcKHR),
       vizRenderPass(device, vk::Format::eR8G8B8A8Unorm, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal),
@@ -133,6 +134,12 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
     bool wantsRunSim = false;
     bool wantsQuit = false;
 
+    std::array<float, 32> simTickTimes{};
+
+    double elapsedSimTime = 0.0;
+    double elapsedRealTime = 0.0;
+    double elapsedRealTimeDuringSim = 0.0;
+
 //    fprintf(stderr, "starting loop\n");
     // Store the time the current frame started.
     // When a new frame starts, the delta time will be counted as that frame's length.
@@ -142,7 +149,11 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         // Record how long the last frame took
         auto frameStartTime = std::chrono::steady_clock::now();
         std::chrono::duration<double> frameTimeDiff = frameStartTime - lastFrameStartTime;
-        frameTimes[renderedFrameNum % frameTimes.size()] = (frameTimeDiff).count();
+        frameTimes[renderedFrameNum % frameTimes.size()] = frameTimeDiff.count();
+        elapsedRealTime += frameTimeDiff.count();
+        if (wantsRunSim) {
+            elapsedRealTimeDuringSim += frameTimeDiff.count();
+        }
 //        fprintf(stderr, "added frame time\n");
         lastFrameStartTime = frameStartTime;
 
@@ -180,15 +191,21 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         });
 //        fprintf(stderr, "gave systemworker work\n");
 
+        // TODO Decide on the next simulation tick length.
+        const float simTickLength = 1/60.0f;
+
         // This dispatches the simulation, and signals the simFinished semaphore once it's done.
         // The simulation doesn't start until renderFinishedShouldSim is signalled, unless this is the first frame, at which point it doesn't bother waiting.
         simulationRunner->tick(
-            1/60.0f, // Simulate 1/60th of a second
+            simTickLength,
             !simFrameIsFresh, // Only wait for the render if this sim frame has started rendering before
             wantsRunSim, // Actually run the sim or not
             simFrameIdx
         );
 //        fprintf(stderr, "ticked sim\n");
+
+        elapsedSimTime += simTickLength;
+        simTickTimes[renderedFrameNum % simTickTimes.size()] = simTickLength;
 
         // Simulation is done, grab the thread output
         SystemWorkerOut systemOutput = systemWorker.getOutput();

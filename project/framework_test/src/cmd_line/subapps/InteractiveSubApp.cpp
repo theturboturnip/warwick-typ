@@ -22,9 +22,10 @@ void InteractiveSubApp::run() {
                 );
 
         auto window = VulkanSimApp(
-                appinfo,
-                {1280, 720}//{ initial.simSize.pixel_size.x + 2, initial.simSize.pixel_size.y + 2 }
-                        );
+            appinfo,
+            simProperties,
+            {1280, 720}//{ initial.simSize.pixel_size.x + 2, initial.simSize.pixel_size.y + 2 }
+        );
 
 #if CUDA_ENABLED
         if (outputFile) {
@@ -45,4 +46,9 @@ void InteractiveSubApp::setupArgumentsForSubcommand(CLI::App *subcommand, const 
             ->required(true);
     converters.addBackendArgument(subcommand, backend);
     subcommand->add_option("--output,-o", outputFile, "File to store the final simulation state");
+    subcommand->add_option("--vsync", simProperties.useVsync, "Should vsync be enabled")
+              ->default_val(false);
+    subcommand->add_option("--lock_sim_freq", simProperties.lockSimFrequency, "Lock the simulation tick-rate to a value");
+    subcommand->add_option("--unlocked_max_freq", simProperties.maxUnlockedSimFrequency, "Maximum simulation frequency when not locked")
+              ->default_val(30);
 }

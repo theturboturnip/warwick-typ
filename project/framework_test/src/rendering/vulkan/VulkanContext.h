@@ -39,7 +39,7 @@ public:
     vk::UniqueCommandPool computeCmdPool;
     vk::UniqueDescriptorPool descriptorPool;
 
-    VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize);
+    VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize, bool useVsync);
     VulkanContext(VulkanContext&&) = delete;
     ~VulkanContext();
 
