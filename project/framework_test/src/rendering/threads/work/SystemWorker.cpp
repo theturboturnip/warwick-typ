@@ -53,6 +53,22 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             ImGui::Text("Not enough frames for FPS");
         }
         ImGui::Checkbox("Running", &wantsRunSim);
+
+        if (input.perf.elapsedSimTime > 0.0) {
+            ImGui::Text("Elapsed Sim Time: %.2f", input.perf.elapsedSimTime);
+            ImGui::Text("Elapsed Real Time for Sim: %.2f", input.perf.elapsedRealTimeDuringSim);
+            double simRealTimeRatio = input.perf.elapsedSimTime / input.perf.elapsedRealTimeDuringSim;
+            ImGui::Text("Sim/Real Time Ratio: %.2f", simRealTimeRatio);
+
+            if (input.perf.simFrameNum >= input.perf.simFrameTimes.size()) {
+                float sumSimFrameTimes = std::accumulate(input.perf.simFrameTimes.begin(), input.perf.simFrameTimes.end(), 0.0f);
+                float avgSimFrameTime = sumSimFrameTimes / input.perf.simFrameTimes.size();
+                ImGui::Text("Avg Sim FPS: %.1f", 1.0f / avgSimFrameTime);
+                ImGui::Text("Avg Sim frame time: %.2fms", avgSimFrameTime*1000.0f);
+            } else {
+                ImGui::Text("Not enough frames for Sim FPS");
+            }
+        }
     }
     ImGui::End();
 

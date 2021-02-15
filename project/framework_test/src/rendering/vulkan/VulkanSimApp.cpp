@@ -126,15 +126,25 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(data));
 //    fprintf(stderr, "created systemworker\n");
 
+    // Number of total rendered/simulated frames
     uint32_t renderedFrameNum = 0;
+    uint32_t simFrameNum = 0;
+
+    // Index of the simulation frame buffer to use
     uint32_t simFrameIdx = 0;
+    // Index of the swapchain image to use
     uint32_t swapchainImageIdx = 0;
 
-    std::array<float, 32> frameTimes{};
+    // User Input Values
     bool wantsRunSim = false;
     bool wantsQuit = false;
 
-    std::array<float, 32> simTickTimes{};
+    // Time taken to render overall
+    std::array<float, 32> frameTimes{};
+    // Sim-time taken in previous sim ticks
+    std::array<float, 32> simTickLengths{};
+    // Real-time taken to simulate sim-ticks
+    std::array<float, 32> simFrameTimes{};
 
     double elapsedSimTime = 0.0;
     double elapsedRealTime = 0.0;
@@ -149,10 +159,12 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         // Record how long the last frame took
         auto frameStartTime = std::chrono::steady_clock::now();
         std::chrono::duration<double> frameTimeDiff = frameStartTime - lastFrameStartTime;
+
         frameTimes[renderedFrameNum % frameTimes.size()] = frameTimeDiff.count();
         elapsedRealTime += frameTimeDiff.count();
         if (wantsRunSim) {
             elapsedRealTimeDuringSim += frameTimeDiff.count();
+            simFrameTimes[simFrameNum % frameTimes.size()] = frameTimeDiff.count();
         }
 //        fprintf(stderr, "added frame time\n");
         lastFrameStartTime = frameStartTime;
@@ -186,7 +198,15 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
                 .simFrameIndex = simFrameIdx,
                 .perf = {
                         .frameTimes = frameTimes,
-                        .currentFrameNum = renderedFrameNum
+                        .currentFrameNum = renderedFrameNum,
+
+                        .simFrameTimes = simFrameTimes,
+                        .simTickLengths = simTickLengths,
+                        .simFrameNum = simFrameNum,
+
+                        .elapsedRealTime = elapsedRealTime,
+                        .elapsedSimTime = elapsedSimTime,
+                        .elapsedRealTimeDuringSim = elapsedRealTimeDuringSim
                 }
         });
 //        fprintf(stderr, "gave systemworker work\n");
@@ -204,8 +224,10 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         );
 //        fprintf(stderr, "ticked sim\n");
 
-        elapsedSimTime += simTickLength;
-        simTickTimes[renderedFrameNum % simTickTimes.size()] = simTickLength;
+        if (wantsRunSim) {
+            elapsedSimTime += simTickLength;
+            simTickLengths[simFrameNum % simTickLengths.size()] = simTickLength;
+        }
 
         // Simulation is done, grab the thread output
         SystemWorkerOut systemOutput = systemWorker.getOutput();
@@ -287,6 +309,10 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
         // Increment renderedFrameNum without bounding
         renderedFrameNum++;
+        if (wantsRunSim) {
+            // Increment simFrameNum without bounding
+            simFrameNum++;
+        }
         // Increment simFrameIdx with looping
         simFrameIdx = (simFrameIdx + 1) % maxFramesInFlight;
     }

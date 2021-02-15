@@ -20,6 +20,14 @@ struct SystemWorkerIn {
     struct PerfData {
         std::array<float, 32> frameTimes;
         uint32_t currentFrameNum;
+
+        std::array<float, 32> simFrameTimes;
+        std::array<float, 32> simTickLengths;
+        uint32_t simFrameNum;
+
+        double elapsedRealTime;
+        double elapsedSimTime;
+        double elapsedRealTimeDuringSim;
     } perf;
 };
 
