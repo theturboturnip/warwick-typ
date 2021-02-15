@@ -220,7 +220,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
             simTickLength = 1.0f / props.lockSimFrequency.value();
 
             // If we have enough info to determine how long a sim frame takes, try to match real time.
-            if (simFrameNum > 0) {
+            if (!props.unlockFrequencyFromRealTime && simFrameNum > 0) {
                 float lastSimFrameTime = simTickLengths[(simFrameNum - 1) % simTickLengths.size()];
 
                 // Ideally, we want the elapsedSimTime at the end of this frame to equal the real time that has elapsed.
@@ -229,11 +229,13 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
                 if (elapsedRealTimeDuringSim + lastSimFrameTime - elapsedSimTime < simTickLength) {
                     shouldRunSim = false;
                 }
+                // TODO - if elapsedRealTime + lastSimFrameTime >>> elapsedSimTime + simTickLength should we sim multiple times?
             } else {
                 // Otherwise just run it
             }
         } else {
             // Try to match the previous frame time.
+            // TODO - use an average here - this is vulnerable to spikes/single-frame drops, even when just shaking the window
             // TODO - at high frame rates this has a much different result than expected (1000fps != 60fps).
             const float maxSimTickLength = 1.0f / props.minUnlockedSimFrequency;
             if (lastFrameTime > maxSimTickLength) {
