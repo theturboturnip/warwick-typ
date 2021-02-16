@@ -151,7 +151,6 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
     double elapsedRealTimeWhileSimWanted = 0.0;
 
     // Equivalent to (wanted to run sim && should have run sim).
-    // Determines if the
     bool actuallyRanSim = false;
 
 //    fprintf(stderr, "starting loop\n");
@@ -267,7 +266,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         simulationRunner->tick(
             simTickLength,
             !simFrameIsFresh, // Only wait for the render if this sim frame has started rendering before
-            actuallyRanSim, // Actually run the sim or not
+            actuallyRanSim, // Run the sim, or just copy data to this buffer.
             simFrameIdx
         );
 //        fprintf(stderr, "ticked sim\n");
