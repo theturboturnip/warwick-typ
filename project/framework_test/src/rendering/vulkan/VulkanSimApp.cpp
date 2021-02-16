@@ -257,7 +257,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
                         .elapsedRealTime = elapsedRealTime,
                         .elapsedSimTime = elapsedSimTime,
-                        .elapsedRealTimeDuringSim = elapsedRealTimeWhileSimWanted
+                        .elapsedRealTimeWhileSimWanted = elapsedRealTimeWhileSimWanted
                 }
         });
 //        fprintf(stderr, "gave systemworker work\n");

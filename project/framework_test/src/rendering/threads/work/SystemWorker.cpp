@@ -56,8 +56,8 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
         if (input.perf.elapsedSimTime > 0.0) {
             ImGui::Text("Elapsed Sim Time: %.2f", input.perf.elapsedSimTime);
-            ImGui::Text("Elapsed Real Time for Sim: %.2f", input.perf.elapsedRealTimeDuringSim);
-            double simRealTimeRatio = input.perf.elapsedSimTime / input.perf.elapsedRealTimeDuringSim;
+            ImGui::Text("Elapsed Real Time for Sim: %.2f", input.perf.elapsedRealTimeWhileSimWanted);
+            double simRealTimeRatio = input.perf.elapsedSimTime / input.perf.elapsedRealTimeWhileSimWanted;
             ImGui::Text("Sim/Real Time Ratio: %.2f", simRealTimeRatio);
 
             if (input.perf.simFrameNum >= input.perf.simFrameTimes.size()) {

@@ -28,7 +28,7 @@ struct SystemWorkerIn {
 
         double elapsedRealTime;
         double elapsedSimTime;
-        double elapsedRealTimeDuringSim;
+        double elapsedRealTimeWhileSimWanted;
     } perf;
 };
 
