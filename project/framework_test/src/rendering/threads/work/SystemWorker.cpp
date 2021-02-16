@@ -61,11 +61,14 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             ImGui::Text("Sim/Real Time Ratio: %.2f", simRealTimeRatio);
 
             if (input.perf.simFrameNum >= input.perf.simFrameTimes.size()) {
-                // TODO - note that this is real-time, not sim-time.
+                // Note that this is real-time, not sim-time.
                 float sumSimFrameTimes = std::accumulate(input.perf.simFrameTimes.begin(), input.perf.simFrameTimes.end(), 0.0f);
                 float avgSimFrameTime = sumSimFrameTimes / input.perf.simFrameTimes.size();
-                ImGui::Text("Avg Sim FPS: %.1f", 1.0f / avgSimFrameTime);
-                ImGui::Text("Avg Sim frame time: %.2fms", avgSimFrameTime*1000.0f);
+                ImGui::Text("Avg Sim frame real-time: %.2fms", avgSimFrameTime*1000.0f);
+
+                float sumSimTickLength = std::accumulate(input.perf.simTickLengths.begin(), input.perf.simTickLengths.end(), 0.0f);
+                float avgSimTickLength = sumSimTickLength / input.perf.simTickLengths.size();
+                ImGui::Text("Avg Sim frame sim-time: %.2fms", avgSimTickLength*1000.0f);
             } else {
                 ImGui::Text("Not enough frames for Sim FPS");
             }

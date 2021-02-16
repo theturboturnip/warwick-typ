@@ -48,11 +48,11 @@ void InteractiveSubApp::setupArgumentsForSubcommand(CLI::App *subcommand, const 
     subcommand->add_option("--output,-o", outputFile, "File to store the final simulation state");
     subcommand->add_option("--vsync", simProperties.useVsync, "Should vsync be enabled")
               ->default_val(false);
-    auto* locked_freq =
-            subcommand->add_option("--lock_sim_freq", simProperties.lockSimFrequency, "Lock the simulation tick-rate to a value");
-    subcommand->add_option("--unlock_from_realtime", simProperties.unlockFrequencyFromRealTime, "Unlock the simulation from real-time. Requires a locked sim-time frequency to be set.")
-              ->default_val(false)
-              ->needs(locked_freq);
+    subcommand->add_option("--fixed_freq", simProperties.fixedSimFrequency, "Fix the simulation tick-rate to a value");
     subcommand->add_option("--unlocked_min_freq", simProperties.minUnlockedSimFrequency, "Minimum simulation frequency when not locked")
-              ->default_val(30);
+            ->default_val(30);
+    subcommand->add_option("--unlocked_max_freq", simProperties.maxUnlockedSimFrequency, "Maximum simulation frequency when not locked")
+            ->default_val(250);
+    subcommand->add_option("--match_realtime", simProperties.matchFrequencyToRealTime, "Match the simulation speed from real-time. Independent of fixed/not fixed rate")
+            ->default_val(true);
 }
