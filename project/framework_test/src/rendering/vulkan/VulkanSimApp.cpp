@@ -148,7 +148,11 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
     double elapsedSimTime = 0.0;
     double elapsedRealTime = 0.0;
-    double elapsedRealTimeDuringSim = 0.0;
+    double elapsedRealTimeWhileSimWanted = 0.0;
+
+    // Equivalent to (wanted to run sim && should have run sim).
+    // Determines if the
+    bool actuallyRanSim = false;
 
 //    fprintf(stderr, "starting loop\n");
     // Store the time the current frame started.
@@ -164,10 +168,9 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         frameTimes[renderedFrameNum % frameTimes.size()] = lastFrameTime;
         elapsedRealTime += lastFrameTime;
         if (wantsRunSim) {
-            elapsedRealTimeDuringSim += lastFrameTime;
-
-            // TODO - technically this should only be set if the sim actually ran last frame - we're just checking if the played *wanted* to run it, not if it did.
-            // This is correct behaviour for elapsedRealTimeDuringSim tho.
+            elapsedRealTimeWhileSimWanted += lastFrameTime;
+        }
+        if (actuallyRanSim) {
             simFrameTimes[simFrameNum % frameTimes.size()] = lastFrameTime;
         }
 //        fprintf(stderr, "added frame time\n");
@@ -195,25 +198,6 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         // We are now trying to render this image, so make the swapchain fence point to the simframe fence.
         swapchainImage.inFlight = *simFrame.inFlight;
 //        fprintf(stderr, "got sim frame and swapchain image\n");
-
-        // Enqueue work for the SystemWorker
-        systemWorker.giveNextWork(SystemWorkerIn{
-                .swapchainImageIndex = swapchainImageIdx,
-                .simFrameIndex = simFrameIdx,
-                .perf = {
-                        .frameTimes = frameTimes,
-                        .currentFrameNum = renderedFrameNum,
-
-                        .simFrameTimes = simFrameTimes,
-                        .simTickLengths = simTickLengths,
-                        .simFrameNum = simFrameNum,
-
-                        .elapsedRealTime = elapsedRealTime,
-                        .elapsedSimTime = elapsedSimTime,
-                        .elapsedRealTimeDuringSim = elapsedRealTimeDuringSim
-                }
-        });
-//        fprintf(stderr, "gave systemworker work\n");
 
         // Decide on the next simulation tick length.
         float simTickLength;
@@ -251,24 +235,44 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
             // Ideally, we want the elapsedSimTime at the end of this frame to equal the real time that has elapsed.
             //  (i.e. elapsedSimTime + simTickLength == current elapsedRealTime + lastFrameTime).
             // If we're already ahead of the game, don't simulate on this frame.
-            if (elapsedRealTimeDuringSim + lastSimFrameTime - elapsedSimTime < simTickLength) {
+            if (elapsedRealTimeWhileSimWanted + lastSimFrameTime - elapsedSimTime < simTickLength) {
                 shouldRunSim = false;
             }
             // TODO - if elapsedRealTime + lastSimFrameTime >>> elapsedSimTime + simTickLength should we sim multiple times?
         }
+        actuallyRanSim = wantsRunSim && shouldRunSim;
 
+        // Enqueue work for the SystemWorker
+        systemWorker.giveNextWork(SystemWorkerIn{
+                .swapchainImageIndex = swapchainImageIdx,
+                .simFrameIndex = simFrameIdx,
+                .shouldSimParticles = actuallyRanSim,
+                .perf = {
+                        .frameTimes = frameTimes,
+                        .currentFrameNum = renderedFrameNum,
+
+                        .simFrameTimes = simFrameTimes,
+                        .simTickLengths = simTickLengths,
+                        .simFrameNum = simFrameNum,
+
+                        .elapsedRealTime = elapsedRealTime,
+                        .elapsedSimTime = elapsedSimTime,
+                        .elapsedRealTimeDuringSim = elapsedRealTimeWhileSimWanted
+                }
+        });
+//        fprintf(stderr, "gave systemworker work\n");
 
         // This dispatches the simulation, and signals the simFinished semaphore once it's done.
         // The simulation doesn't start until renderFinishedShouldSim is signalled, unless this is the first frame, at which point it doesn't bother waiting.
         simulationRunner->tick(
             simTickLength,
             !simFrameIsFresh, // Only wait for the render if this sim frame has started rendering before
-            wantsRunSim && shouldRunSim, // Actually run the sim or not
+            actuallyRanSim, // Actually run the sim or not
             simFrameIdx
         );
 //        fprintf(stderr, "ticked sim\n");
 
-        if (wantsRunSim && shouldRunSim) {
+        if (actuallyRanSim) {
             elapsedSimTime += simTickLength;
             simTickLengths[simFrameNum % simTickLengths.size()] = simTickLength;
         }

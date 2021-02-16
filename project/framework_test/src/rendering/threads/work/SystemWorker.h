@@ -16,6 +16,7 @@
 struct SystemWorkerIn {
     uint32_t swapchainImageIndex;
     uint32_t simFrameIndex;
+    bool shouldSimParticles;
 
     struct PerfData {
         std::array<float, 32> frameTimes;
