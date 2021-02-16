@@ -18,8 +18,9 @@
 #include "memory/FrameSetAllocator.h"
 
 
-VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> windowSize)
-    : context(appInfo, windowSize),
+VulkanSimApp::VulkanSimApp(const vk::ApplicationInfo& appInfo, SimAppProperties props, Size<uint32_t> windowSize)
+    : props(props),
+      context(appInfo, windowSize, props.useVsync),
       device(*context.device),
       finalCompositeRenderPass(device, context.surfaceFormat.format, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::ePresentSrcKHR),
       vizRenderPass(device, vk::Format::eR8G8B8A8Unorm, VulkanRenderPass::Position::PipelineStartAndEnd, vk::ImageLayout::eShaderReadOnlyOptimal),
@@ -125,13 +126,32 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
     auto systemWorker = SystemWorkerThreadController(std::make_unique<SystemWorkerThread>(data));
 //    fprintf(stderr, "created systemworker\n");
 
+    // Number of total rendered/simulated frames
     uint32_t renderedFrameNum = 0;
+    uint32_t simFrameNum = 0;
+
+    // Index of the simulation frame buffer to use
     uint32_t simFrameIdx = 0;
+    // Index of the swapchain image to use
     uint32_t swapchainImageIdx = 0;
 
-    std::array<float, 32> frameTimes{};
+    // User Input Values
     bool wantsRunSim = false;
     bool wantsQuit = false;
+
+    // Time taken to render overall
+    std::array<float, 32> frameTimes{};
+    // Sim-time taken in previous sim ticks
+    std::array<float, 32> simTickLengths{};
+    // Real-time taken to simulate sim-ticks
+    std::array<float, 32> simFrameTimes{};
+
+    double elapsedSimTime = 0.0;
+    double elapsedRealTime = 0.0;
+    double elapsedRealTimeWhileSimWanted = 0.0;
+
+    // Equivalent to (wanted to run sim && should have run sim).
+    bool actuallyRanSim = false;
 
 //    fprintf(stderr, "starting loop\n");
     // Store the time the current frame started.
@@ -142,7 +162,16 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         // Record how long the last frame took
         auto frameStartTime = std::chrono::steady_clock::now();
         std::chrono::duration<double> frameTimeDiff = frameStartTime - lastFrameStartTime;
-        frameTimes[renderedFrameNum % frameTimes.size()] = (frameTimeDiff).count();
+        const double lastFrameTime = frameTimeDiff.count();
+
+        frameTimes[renderedFrameNum % frameTimes.size()] = lastFrameTime;
+        elapsedRealTime += lastFrameTime;
+        if (wantsRunSim) {
+            elapsedRealTimeWhileSimWanted += lastFrameTime;
+        }
+        if (actuallyRanSim) {
+            simFrameTimes[simFrameNum % frameTimes.size()] = lastFrameTime;
+        }
 //        fprintf(stderr, "added frame time\n");
         lastFrameStartTime = frameStartTime;
 
@@ -169,13 +198,65 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         swapchainImage.inFlight = *simFrame.inFlight;
 //        fprintf(stderr, "got sim frame and swapchain image\n");
 
+        // Decide on the next simulation tick length.
+        float simTickLength;
+        bool shouldRunSim = true;
+        if (props.fixedSimFrequency != std::nullopt) {
+            // Sim frequency should be locked.
+            simTickLength = 1.0f / props.fixedSimFrequency.value();
+        } else {
+            // Try to match the previous frame time.
+            // Use an average here - otherwise it's vulnerable to spikes/single-frame drops, even when just shaking the window
+            float avgFrameLength = 1/60.0f; // Use a sensible default when initially running
+            if (simFrameNum >= simFrameTimes.size()) {
+                float sumSimFrameTimes = std::accumulate(simFrameTimes.begin(),
+                                                         simFrameTimes.end(), 0.0f);
+                avgFrameLength = sumSimFrameTimes / simFrameTimes.size();
+            }
+
+            // At high frame rates this has a much different result than expected (1000fps != 60fps).
+            const float maxSimTickLength = 1.0f / props.minUnlockedSimFrequency;
+            const float minSimTickLength = 1.0f / props.maxUnlockedSimFrequency;
+            if (avgFrameLength > maxSimTickLength) {
+                simTickLength = maxSimTickLength;
+            } else if (avgFrameLength < minSimTickLength) {
+                simTickLength = minSimTickLength;
+            } else {
+                simTickLength = avgFrameLength;
+            }
+        }
+
+        // If we have enough info to determine how long a sim frame takes, try to match real time.
+        // This also applies to the unlocked frame time - in case it hits the min tick length, it could be moving faster than real time
+        if (props.matchFrequencyToRealTime && simFrameNum > 0) {
+            float lastSimFrameTime = simTickLengths[(simFrameNum - 1) % simTickLengths.size()];
+
+            // Ideally, we want the elapsedSimTime at the end of this frame to equal the real time that has elapsed.
+            //  (i.e. elapsedSimTime + simTickLength == current elapsedRealTime + lastFrameTime).
+            // If we're already ahead of the game, don't simulate on this frame.
+            if (elapsedRealTimeWhileSimWanted + lastSimFrameTime - elapsedSimTime < simTickLength) {
+                shouldRunSim = false;
+            }
+            // TODO - if elapsedRealTime + lastSimFrameTime >>> elapsedSimTime + simTickLength should we sim multiple times?
+        }
+        actuallyRanSim = wantsRunSim && shouldRunSim;
+
         // Enqueue work for the SystemWorker
         systemWorker.giveNextWork(SystemWorkerIn{
                 .swapchainImageIndex = swapchainImageIdx,
                 .simFrameIndex = simFrameIdx,
+                .shouldSimParticles = actuallyRanSim,
                 .perf = {
                         .frameTimes = frameTimes,
-                        .currentFrameNum = renderedFrameNum
+                        .currentFrameNum = renderedFrameNum,
+
+                        .simFrameTimes = simFrameTimes,
+                        .simTickLengths = simTickLengths,
+                        .simFrameNum = simFrameNum,
+
+                        .elapsedRealTime = elapsedRealTime,
+                        .elapsedSimTime = elapsedSimTime,
+                        .elapsedRealTimeWhileSimWanted = elapsedRealTimeWhileSimWanted
                 }
         });
 //        fprintf(stderr, "gave systemworker work\n");
@@ -183,12 +264,17 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         // This dispatches the simulation, and signals the simFinished semaphore once it's done.
         // The simulation doesn't start until renderFinishedShouldSim is signalled, unless this is the first frame, at which point it doesn't bother waiting.
         simulationRunner->tick(
-            1/60.0f, // Simulate 1/60th of a second
+            simTickLength,
             !simFrameIsFresh, // Only wait for the render if this sim frame has started rendering before
-            wantsRunSim, // Actually run the sim or not
+            actuallyRanSim, // Run the sim, or just copy data to this buffer.
             simFrameIdx
         );
 //        fprintf(stderr, "ticked sim\n");
+
+        if (actuallyRanSim) {
+            elapsedSimTime += simTickLength;
+            simTickLengths[simFrameNum % simTickLengths.size()] = simTickLength;
+        }
 
         // Simulation is done, grab the thread output
         SystemWorkerOut systemOutput = systemWorker.getOutput();
@@ -270,6 +356,10 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
         // Increment renderedFrameNum without bounding
         renderedFrameNum++;
+        if (wantsRunSim) {
+            // Increment simFrameNum without bounding
+            simFrameNum++;
+        }
         // Increment simFrameIdx with looping
         simFrameIdx = (simFrameIdx + 1) % maxFramesInFlight;
     }

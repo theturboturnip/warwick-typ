@@ -24,8 +24,7 @@ CommandLineConverters::CommandLineConverters()
 #endif
                 }),
       backendToStrMap(flip_map(backendMap)),
-// TODO: Once CUDA is implemented, remove this "false &&"
-#if false && CUDA_ENABLED
+#if CUDA_ENABLED
       defaultBackend(SimulationBackendEnum::CUDA)
 #else
       defaultBackend(SimulationBackendEnum::CpuAdapted)

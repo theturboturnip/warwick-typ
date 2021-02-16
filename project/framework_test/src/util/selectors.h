@@ -10,7 +10,7 @@
 #include "fatal_error.h"
 
 template<class T, class TList>
-static T selectIfPossible(TList list, std::vector<T> wishes) {
+static T selectIfPossible(TList list, const std::vector<T>& wishes) {
     for (const auto& wish : wishes) {
         if (std::find(list.begin(), list.end(), wish) != list.end())
             return wish;
@@ -20,7 +20,7 @@ static T selectIfPossible(TList list, std::vector<T> wishes) {
 }
 
 template<class T, class TList>
-static T selectOrFallback(TList list, std::vector<T> wishes) {
+static T selectOrFallback(TList list, const std::vector<T>& wishes) {
     for (const auto& wish : wishes) {
         if (std::find(list.begin(), list.end(), wish) != list.end())
             return wish;

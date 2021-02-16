@@ -20,8 +20,10 @@
 #include "rendering/vulkan/helpers/VulkanShader.h"
 #include "util/Size.h"
 #include "imgui.h"
+#include "SimAppProperties.h"
 
 class VulkanSimApp {
+    SimAppProperties props;
     VulkanContext context;
     vk::Device device;
 
@@ -35,7 +37,7 @@ class VulkanSimApp {
 
     friend class SystemWorker;
 public:
-    VulkanSimApp(const vk::ApplicationInfo& appInfo, Size<uint32_t> windowSize);
+    VulkanSimApp(const vk::ApplicationInfo& appInfo, SimAppProperties props, Size<uint32_t> windowSize);
     VulkanSimApp(const VulkanSimApp &) = delete;
     VulkanSimApp(VulkanSimApp &&) = delete;
     ~VulkanSimApp();

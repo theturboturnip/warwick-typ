@@ -36,7 +36,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebug(
     return VK_FALSE;
 }
 
-VulkanContext::VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize)
+VulkanContext::VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowSize, bool useVsync)
     : windowSize(windowSize) {
 
     window = SDL_CreateWindow(
@@ -207,14 +207,15 @@ VulkanContext::VulkanContext(vk::ApplicationInfo appInfo, Size<uint32_t> windowS
                 }
         );
 
+        std::vector<vk::PresentModeKHR> presentModeWishes;
+        if (!useVsync) {
+            presentModeWishes.push_back(vk::PresentModeKHR::eImmediate);
+        }
+        presentModeWishes.push_back(vk::PresentModeKHR::eMailbox);
+        presentModeWishes.push_back(vk::PresentModeKHR::eFifo); // Always present
         presentMode = selectIfPossible<vk::PresentModeKHR>(
                 physicalDevice.getSurfacePresentModesKHR(*surface),
-                {
-                        vk::PresentModeKHR::eImmediate,
-                        vk::PresentModeKHR::eMailbox,
-                        vk::PresentModeKHR::eFifoRelaxed,
-                        vk::PresentModeKHR::eFifo // Will always be present
-                }
+                presentModeWishes
         );
         printf("Using present mode %s\n", vk::to_string(presentMode).c_str());
     }
