@@ -5,15 +5,21 @@
 #include "SystemWorker.h"
 
 std::array<const char*, 5> SystemWorker::scalarQuantity = {
-"None",
-"Velocity X [TODO]",
-"Velocity Y [TODO]",
-"Pressure [TODO]",
-"Vorticity [TODO]",
+        "None",
+        "Velocity X [TODO]",
+        "Velocity Y [TODO]",
+        "Pressure [TODO]",
+        "Vorticity [TODO]",
 };
 std::array<const char*, 2> SystemWorker::vectorQuantity = {
         "None",
         "Velocity [TODO]",
+};
+std::array<const char*, 4> SystemWorker::particleTrailType = {
+        "None",
+        "Streakline [TODO]",
+        "Pathline [TODO]",
+        "Ribbon [TODO]",
 };
 
 SystemWorker::SystemWorker(VulkanSimAppData &data)
@@ -128,7 +134,29 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         ImGui::Checkbox("Streamline Overlay", &overlayStreamlines);
 
         ImGui::NewLine();
-        ImGui::Text("Particles");
+        ImGui::Checkbox("Particles", &showParticles);
+        if (showParticles) {
+            ImGui::Indent();
+
+            ImGui::Checkbox("Render as Glyphs", &renderParticleGlyphs);
+
+            ImGui::NewLine();
+            ImGui::Text("Particle Trail Type");
+            if (ImGui::BeginCombo("##TraceType", particleTrailType[(int)trailType])) {
+                for (size_t i = 0; i < particleTrailType.size(); i++) {
+                    bool is_selected = (i == (size_t)trailType);
+                    if (ImGui::Selectable(particleTrailType[i], is_selected)) {
+                        trailType = (ParticleTrailType)i;
+                    }
+                    if (is_selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::Unindent();
+        }
     }
     ImGui::End();
 

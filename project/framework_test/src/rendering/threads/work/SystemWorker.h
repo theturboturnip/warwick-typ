@@ -77,8 +77,18 @@ class SystemWorker {
     VizValueRange vizScalarRange;
     VectorQuantity vizVector = VectorQuantity::None;
     VizValueRange vizVectorMagnitudeRange;
-    // TODO Particle Options
-
+    // Particle Options
+    bool showParticles = false;
+    bool renderParticleGlyphs = true;
+    enum class ParticleTrailType : size_t {
+        None=0,
+        Streakline=1,
+        Pathline=2, // < are these different?
+        Ribbon=3    // <
+    };
+    static std::array<const char*, 4> particleTrailType;
+    ParticleTrailType trailType = ParticleTrailType::None;
+    float trailLength = 0;
 
 
     // In case the constants change over time i.e. for color
