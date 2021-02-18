@@ -80,6 +80,8 @@ private:
     const dim3 blocksize_vertical, gridsize_vertical;
     const dim3 blocksize_horizontal, gridsize_horizontal;
 
+    CudaGraphCapture poissonGraph;
+
     template<MType SplitMType>
     void dispatch_splitRedBlackCUDA(SimRedBlackArray<float, SplitMType, RedBlackStorage::WithJoined>& to_split,
                                     CommonParams gpu_params);

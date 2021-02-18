@@ -6,12 +6,10 @@
 
 CudaGraphCapture::~CudaGraphCapture() {
     if (graph.has_value() && graph.get()) {
-        cudaGraphDestroy(graph.get());
-        graph.set(nullptr);
+        cudaGraphDestroy(graph.release());
     }
     if (instance.has_value() && instance.get()) {
-        cudaGraphExecDestroy(instance.get());
-        instance.set(nullptr);
+        cudaGraphExecDestroy(instance.release());
     }
 }
 
