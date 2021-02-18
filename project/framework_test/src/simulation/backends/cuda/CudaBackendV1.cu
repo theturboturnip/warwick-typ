@@ -70,11 +70,12 @@ float CudaBackendV1<UnifiedMemoryForExport>::findMaxTimestep() {
     float delta_t = -1;
     auto fabsf_lambda = [] __device__ (float x) { return fabsf(x); };
     auto max_lambda = [] __device__ (float x, float y) { return max(x, y); };
-    // TODO - having multiple reducers here would be more efficient - could dispatch both, and then wait for one then the other?
-    float u_max = frameWithVelocity.reducer_fullsize.map_reduce(frameWithVelocity.u, fabsf_lambda, max_lambda, stream);
-    u_max = host_max(u_max, 1.0e-10);
-    float v_max = frameWithVelocity.reducer_fullsize.map_reduce(frameWithVelocity.v, fabsf_lambda, max_lambda, stream);
-    v_max = host_max(v_max, 1.0e-10);
+    // Call map_reduce to enqueue the operations on stream, then synchronize and pull the data out of CUDA managed memory
+    float* u_max_ptr = frameWithVelocity.reducer_fullsize_u.map_reduce(frameWithVelocity.u, fabsf_lambda, max_lambda, stream);
+    float* v_max_ptr = frameWithVelocity.reducer_fullsize_v.map_reduce(frameWithVelocity.v, fabsf_lambda, max_lambda, stream);
+    CHECKED_CUDA(cudaStreamSynchronize(stream));
+    float u_max = host_max(*u_max_ptr, 1.0e-10);
+    float v_max = host_max(*v_max_ptr, 1.0e-10);
 
     float delt_u = del_x/u_max;
     float delt_v = del_y/v_max;
@@ -448,7 +449,8 @@ CudaBackendV1<UnifiedMemoryForExport>::Frame::Frame(FrameAllocator<ExportMemType
       flag(cudaAlloc, paddedSize),
       surroundmask(cudaAlloc, paddedSize),
 
-      reducer_fullsize(cudaAlloc, paddedSize.area())
+      reducer_fullsize_u(cudaAlloc, paddedSize.area()),
+      reducer_fullsize_v(cudaAlloc, paddedSize.area())
 {}
 
 template class CudaBackendV1<true>;

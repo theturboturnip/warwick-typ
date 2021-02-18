@@ -23,9 +23,9 @@ public:
           second(alloc, {next_reduction_size(first.stats.raw_length), 1}){}
 
     template<MType MemType, typename Preproc, typename Func>
-    float map_reduce(Sim2DArray<float, MemType>& input, Preproc pre, Func func, cudaStream_t stream);
+    float* map_reduce(Sim2DArray<float, MemType>& input, Preproc pre, Func func, cudaStream_t stream);
     template<MType MemType, typename Func>
-    float reduce(Sim2DArray<float, MemType>& input, Func func, cudaStream_t stream);
+    float* reduce(Sim2DArray<float, MemType>& input, Func func, cudaStream_t stream);
 
     static uint32_t next_reduction_size(uint32_t input_size) {
         return (input_size + BlockSize - 1) / BlockSize;

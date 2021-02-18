@@ -54,7 +54,8 @@ public:
         CudaUnified2DArray<float, UnifiedMemoryForExport> u, v;
         CudaUnifiedRedBlackArray<float, UnifiedMemoryForExport, RedBlackStorage::WithJoined> p;
 
-        CudaReducer<128> reducer_fullsize;
+        CudaReducer<128> reducer_fullsize_u;
+        CudaReducer<128> reducer_fullsize_v;
     };
 
     explicit CudaBackendV1(std::vector<Frame> frames, const FluidParams& params, const SimSnapshot& s);
