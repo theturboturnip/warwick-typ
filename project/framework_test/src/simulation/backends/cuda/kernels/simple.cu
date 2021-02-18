@@ -25,6 +25,7 @@ __global__ void computeTentativeVelocity_apply(
         in_matrix<float> u, in_matrix<float> v, in_matrix<uint> is_fluid,
         out_matrix<float> f, out_matrix<float> g,
         const CommonParams params,
+        const float timestep,
         const float gamma, const float Re
 ) {
     const uint i = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -85,7 +86,7 @@ __global__ void computeTentativeVelocity_apply(
 
 
         // This is not implicitly casted, so the division by Re cannot be converted to a multiplication.
-        f[idx] = u[idx]+params.timestep*(laplu/Re-du2dx-duvdy);
+        f[idx] = u[idx]+timestep*(laplu/Re-du2dx-duvdy);
 //
 //        if (i == 100 && j == 2) {
 //            printf("100/2 GPU f\n");
@@ -123,7 +124,7 @@ __global__ void computeTentativeVelocity_apply(
 //            printf("%a %a\n", _4delx, gamma);
 //        }
 
-        g[idx] = v[idx]+params.timestep*(laplv/Re-duvdx-dv2dy);
+        g[idx] = v[idx]+timestep*(laplv/Re-duvdx-dv2dy);
     } else {
         g[idx] = v[idx];
     }
@@ -165,7 +166,7 @@ __global__ void computeTentativeVelocity_postproc_horizontal(in_matrix<float> v,
 }
 
 __global__ void computeRHS_1per(in_matrix<float> f, in_matrix<float> __restrict__ g, in_matrix<uint> is_fluid, out_matrix<float> rhs,
-                                const CommonParams params) {
+                                const CommonParams params, const float timestep) {
     const uint i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const uint j = (blockIdx.y * blockDim.y) + threadIdx.y;
 
@@ -180,7 +181,7 @@ __global__ void computeRHS_1per(in_matrix<float> f, in_matrix<float> __restrict_
     const float g_this = g[idx];
     const float g_south = g[params.flatten_4byte(i, j - 1)];
 
-    const float new_rhs = ((f_this-f_west)/params.deltas.x + (g_this-g_south)/params.deltas.y) / params.timestep;
+    const float new_rhs = ((f_this-f_west)/params.deltas.x + (g_this-g_south)/params.deltas.y) / timestep;
 
 //    if (i == 100 && j == 2) {
 //        printf("GPU RHS %dx%d\n", i, j);
@@ -332,7 +333,8 @@ __global__ void poisson_single_tick(in_matrix<float> this_pressure_rb,
 
 __global__ void updateVelocity_1per(in_matrix<float> f, in_matrix<float> g, in_matrix<float> p, in_matrix<uint> is_fluid,
                                     out_matrix<float> u, out_matrix<float> v,
-                                    const CommonParams params)
+                                    const CommonParams params,
+                                    const float timestep)
 {
     const uint i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const uint j = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -346,10 +348,10 @@ __global__ void updateVelocity_1per(in_matrix<float> f, in_matrix<float> g, in_m
         const uint idx_north = params.flatten_4byte(i, j+1);
 
         if (is_fluid[idx_east]) {
-            u[idx] = f[idx]-(p[idx_east]-p[idx])*params.timestep/params.deltas.x;
+            u[idx] = f[idx]-(p[idx_east]-p[idx])*timestep/params.deltas.x;
         }
         if (is_fluid[idx_north]) {
-            v[idx] = g[idx]-(p[idx_north]-p[idx])*params.timestep/params.deltas.y;
+            v[idx] = g[idx]-(p[idx_north]-p[idx])*timestep/params.deltas.y;
         }
     }
 }

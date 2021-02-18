@@ -50,6 +50,8 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(std::vector<Frame> frames, 
       blocksize_horizontal(32),
       gridsize_horizontal((matrix_size.x + blocksize_horizontal.x - 1) / blocksize_horizontal.x),
 
+      poissonGraph(stream),
+
       frames(std::move(frames)),
       lastWrittenFrame(0)
 {
@@ -106,13 +108,6 @@ float CudaBackendV1<UnifiedMemoryForExport>::findMaxTimestep() {
 
     DASSERT(delta_t != -1);
     return delta_t;
-}
-
-template<bool UnifiedMemoryForExport>
-void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep, int frameToWriteIdx) {
-    tickBetweenFrames(frames[lastWrittenFrame], frames[frameToWriteIdx], timestep);
-
-    lastWrittenFrame = frameToWriteIdx;
 }
 
 template<bool UnifiedMemoryForExport>
@@ -228,7 +223,6 @@ void CudaBackendV1<UnifiedMemoryForExport>::resetFrame(CudaBackendV1::Frame &fra
             .col_pitch_4byte=frame.u.stats.col_pitch,
             .col_pitch_redblack=frame.rhs.red.stats.col_pitch,
             .deltas = float2{del_x, del_y},
-            .timestep = 0,
     };
 
     frame.u.memcpy_in(s.velocity_x);
@@ -286,16 +280,16 @@ void CudaBackendV1<UnifiedMemoryForExport>::resetFrame(CudaBackendV1::Frame &fra
 }
 
 template<bool UnifiedMemoryForExport>
-void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV1::Frame &previousFrame,
-                                                              CudaBackendV1::Frame &frame,
-                                                              float timestep) {
+void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep, int frameToWriteIdx) {
+    const auto& previousFrame = frames[lastWrittenFrame];
+    auto& frame = frames[frameToWriteIdx];
+
     auto gpu_params = CommonParams{
             .size = uint2{matrix_size.x, matrix_size.y},
             .redblack_size = uint2{redblack_matrix_size.x, redblack_matrix_size.y},
             .col_pitch_4byte=frame.u.stats.col_pitch,
             .col_pitch_redblack=frame.rhs.red.stats.col_pitch,
             .deltas = float2{del_x, del_y},
-            .timestep = timestep,
     };
 
     // Compute Tentative Velocity from previousFrame.u,v => frame.f,g
@@ -303,7 +297,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
         computeTentativeVelocity_apply<<<gridsize_2d, blocksize_2d, 0, stream>>>(
                 previousFrame.u.as_cuda(), previousFrame.v.as_cuda(), frame.fluidmask.as_cuda(),
                 frame.f.as_cuda(), frame.g.as_cuda(),
-                gpu_params, fluidParams.gamma, fluidParams.Re
+                gpu_params, timestep, fluidParams.gamma, fluidParams.Re
         );
 
         computeTentativeVelocity_postproc_vertical<<<gridsize_vertical, blocksize_vertical, 0, stream>>>(
@@ -317,7 +311,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
     // Compute RHS from frame.f,g => frame.rhs
     {
         computeRHS_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(frame.f.as_cuda(), frame.g.as_cuda(), frame.fluidmask.as_cuda(),
-                                                                  frame.rhs.joined.as_cuda(), gpu_params);
+                                                                  frame.rhs.joined.as_cuda(), gpu_params, timestep);
         // Split RHS
         dispatch_splitRedBlackCUDA(frame.rhs, gpu_params);
         CHECK_KERNEL_ERROR();
@@ -343,33 +337,38 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
                                                         fluidParams.poisson_error_threshold, fluidParams.poisson_max_iterations, fluidParams.poisson_omega,
                                                         ifluid);
             } else {
-                // Sum of squares of pressure - reduction
-                // poisson_pSquareSumReduce(p.joined.as_cuda(), p_sum_squares.as_cuda())
-                // p0 = p_sum_squares.as_cpu(?????)???
-                // TODO - accessing memory like this is very convenient with managed memory
-                //  We *might* be able to us VK_EXT_external_memory_host to import CUDA Managed Memory as Vulkan, bypassing Vulkan allocations
+                if (!poissonGraph.recorded) {
+                    poissonGraph.record([&, this]() {
+                        // Sum of squares of pressure - reduction
+                        // poisson_pSquareSumReduce(p.joined.as_cuda(), p_sum_squares.as_cuda())
+                        // p0 = p_sum_squares.as_cpu(?????)???
+                        // TODO - accessing memory like this is very convenient with managed memory
+                        //  We *might* be able to us VK_EXT_external_memory_host to import CUDA Managed Memory as Vulkan, bypassing Vulkan allocations
 
-                //const float partial_res_sqr_thresh = params.poisson_error_threshold * p0 * params.poisson_error_threshold * p0 * (float)ifluid;
+                        //const float partial_res_sqr_thresh = params.poisson_error_threshold * p0 * params.poisson_error_threshold * p0 * (float)ifluid;
 
-                // Red/Black SOR-iteration
-                for (int iter = 0; iter < fluidParams.poisson_max_iterations; iter++) {
-                    //  redblack<Red>();
-                    dispatch_poissonRedBlackCUDA<RedBlack::Red>(iter, frame, gpu_params);
-                    //  float approxRes = redblack<Black>(); (capture approximate residual here)
-                    //float approxRes; // TODO - ???
-                    dispatch_poissonRedBlackCUDA<RedBlack::Black>(iter, frame, gpu_params);
-                    //  [ IMPLICIT STREAM SYNC FOR RESIDUAL ]
-                    // [ NOT NECESSARY WHEN NOT CALCULATING RESIDUAL ]
-                    //  if (approxRes < partial_res_sqr_thresh)
-                    //      TODO - necessary to capture full res at all? if the approxRes is actually accurate, then maybe not
-                    //       If we have to calculate this we may have to merge pressure here
-                    //      break;
-                    //  TODO - dynamic error
+                        // Red/Black SOR-iteration
+                        for (int iter = 0; iter < fluidParams.poisson_max_iterations; iter++) {
+                            //  redblack<Red>();
+                            dispatch_poissonRedBlackCUDA<RedBlack::Red>(iter, frame, gpu_params);
+                            //  float approxRes = redblack<Black>(); (capture approximate residual here)
+                            //float approxRes; // TODO - ???
+                            dispatch_poissonRedBlackCUDA<RedBlack::Black>(iter, frame, gpu_params);
+                            //  [ IMPLICIT STREAM SYNC FOR RESIDUAL ]
+                            // [ NOT NECESSARY WHEN NOT CALCULATING RESIDUAL ]
+                            //  if (approxRes < partial_res_sqr_thresh)
+                            //      TODO - necessary to capture full res at all? if the approxRes is actually accurate, then maybe not
+                            //       If we have to calculate this we may have to merge pressure here
+                            //      break;
+                            //  TODO - dynamic error
+                        }
+
+                        // join p
+                        dispatch_joinRedBlackCUDA(frame.p, gpu_params);
+                        // Stream sync not necessary here, because the rest is CUDA
+                    });
                 }
-
-                // join p
-                dispatch_joinRedBlackCUDA(frame.p, gpu_params);
-                // Stream sync not necessary here, because the rest is CUDA
+                poissonGraph.execute();
             }
         }
     }
@@ -382,7 +381,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
 //                       imax, jmax, timestep, del_x, del_y);
         updateVelocity_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(frame.f.as_cuda(), frame.g.as_cuda(), frame.p.joined.as_cuda(), frame.fluidmask.as_cuda(),
                                                                       frame.u.as_cuda(), frame.v.as_cuda(),
-                                                                      gpu_params);
+                                                                      gpu_params, timestep);
         CHECK_KERNEL_ERROR();
     }
 
@@ -407,6 +406,9 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
 
         //    OriginalOptimized::applyBoundaryConditions(u2.as_cpu(), v2.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
     }
+
+    // Done!
+    lastWrittenFrame = frameToWriteIdx;
 }
 
 template<bool UnifiedMemoryForExport>

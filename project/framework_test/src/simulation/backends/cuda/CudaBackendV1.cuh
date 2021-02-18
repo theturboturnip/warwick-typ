@@ -10,11 +10,13 @@
 #include <simulation/backends/cuda/utils/CudaUnified2DArray.cuh>
 #include <simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh>
 #include <simulation/backends/cuda/utils/CudaUnifiedReducer.cuh>
+#include <simulation/backends/cuda/utils/CudaUniquePtr.cuh>
 #include <simulation/file_format/FluidParams.h>
 
 #include "BaseCudaBackend.cuh"
 
 #include <type_traits>
+#include <simulation/backends/cuda/utils/CudaGraphCapture.cuh>
 
 struct CommonParams;
 
@@ -61,8 +63,6 @@ private:
     std::vector<Frame> frames;
     int lastWrittenFrame;
 
-    void tickBetweenFrames(const Frame& previousFrame, Frame& frame, float timestep);
-
     void resetFrame(Frame& frame, const SimSnapshot& s);
 
     const FluidParams fluidParams;
@@ -79,6 +79,8 @@ private:
     const dim3 blocksize_redblack, gridsize_redblack;
     const dim3 blocksize_vertical, gridsize_vertical;
     const dim3 blocksize_horizontal, gridsize_horizontal;
+
+    CudaGraphCapture poissonGraph;
 
     template<MType SplitMType>
     void dispatch_splitRedBlackCUDA(SimRedBlackArray<float, SplitMType, RedBlackStorage::WithJoined>& to_split,
