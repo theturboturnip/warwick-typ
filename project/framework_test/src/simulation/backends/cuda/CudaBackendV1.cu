@@ -337,35 +337,38 @@ void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep, int frameToWrit
                                                         fluidParams.poisson_error_threshold, fluidParams.poisson_max_iterations, fluidParams.poisson_omega,
                                                         ifluid);
             } else {
-                poissonGraph.recordOrExecute([&, this]() {
-                    // Sum of squares of pressure - reduction
-                    // poisson_pSquareSumReduce(p.joined.as_cuda(), p_sum_squares.as_cuda())
-                    // p0 = p_sum_squares.as_cpu(?????)???
-                    // TODO - accessing memory like this is very convenient with managed memory
-                    //  We *might* be able to us VK_EXT_external_memory_host to import CUDA Managed Memory as Vulkan, bypassing Vulkan allocations
+                if (!poissonGraph.recorded) {
+                    poissonGraph.record([&, this]() {
+                        // Sum of squares of pressure - reduction
+                        // poisson_pSquareSumReduce(p.joined.as_cuda(), p_sum_squares.as_cuda())
+                        // p0 = p_sum_squares.as_cpu(?????)???
+                        // TODO - accessing memory like this is very convenient with managed memory
+                        //  We *might* be able to us VK_EXT_external_memory_host to import CUDA Managed Memory as Vulkan, bypassing Vulkan allocations
 
-                    //const float partial_res_sqr_thresh = params.poisson_error_threshold * p0 * params.poisson_error_threshold * p0 * (float)ifluid;
+                        //const float partial_res_sqr_thresh = params.poisson_error_threshold * p0 * params.poisson_error_threshold * p0 * (float)ifluid;
 
-                    // Red/Black SOR-iteration
-                    for (int iter = 0; iter < fluidParams.poisson_max_iterations; iter++) {
-                        //  redblack<Red>();
-                        dispatch_poissonRedBlackCUDA<RedBlack::Red>(iter, frame, gpu_params);
-                        //  float approxRes = redblack<Black>(); (capture approximate residual here)
-                        //float approxRes; // TODO - ???
-                        dispatch_poissonRedBlackCUDA<RedBlack::Black>(iter, frame, gpu_params);
-                        //  [ IMPLICIT STREAM SYNC FOR RESIDUAL ]
-                        // [ NOT NECESSARY WHEN NOT CALCULATING RESIDUAL ]
-                        //  if (approxRes < partial_res_sqr_thresh)
-                        //      TODO - necessary to capture full res at all? if the approxRes is actually accurate, then maybe not
-                        //       If we have to calculate this we may have to merge pressure here
-                        //      break;
-                        //  TODO - dynamic error
-                    }
+                        // Red/Black SOR-iteration
+                        for (int iter = 0; iter < fluidParams.poisson_max_iterations; iter++) {
+                            //  redblack<Red>();
+                            dispatch_poissonRedBlackCUDA<RedBlack::Red>(iter, frame, gpu_params);
+                            //  float approxRes = redblack<Black>(); (capture approximate residual here)
+                            //float approxRes; // TODO - ???
+                            dispatch_poissonRedBlackCUDA<RedBlack::Black>(iter, frame, gpu_params);
+                            //  [ IMPLICIT STREAM SYNC FOR RESIDUAL ]
+                            // [ NOT NECESSARY WHEN NOT CALCULATING RESIDUAL ]
+                            //  if (approxRes < partial_res_sqr_thresh)
+                            //      TODO - necessary to capture full res at all? if the approxRes is actually accurate, then maybe not
+                            //       If we have to calculate this we may have to merge pressure here
+                            //      break;
+                            //  TODO - dynamic error
+                        }
 
-                    // join p
-                    dispatch_joinRedBlackCUDA(frame.p, gpu_params);
-                    // Stream sync not necessary here, because the rest is CUDA
-                });
+                        // join p
+                        dispatch_joinRedBlackCUDA(frame.p, gpu_params);
+                        // Stream sync not necessary here, because the rest is CUDA
+                    });
+                }
+                poissonGraph.execute();
             }
         }
     }

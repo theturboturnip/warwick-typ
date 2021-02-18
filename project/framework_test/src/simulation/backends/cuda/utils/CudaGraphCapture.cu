@@ -13,23 +13,25 @@ CudaGraphCapture::~CudaGraphCapture() {
     }
 }
 
-void CudaGraphCapture::recordOrExecute(std::function<void()> record) {
-    if (!recorded) {
-        cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+void CudaGraphCapture::record(std::function<void()> record) {
+    DASSERT(!recorded);
+    cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
 
-        record();
+    record();
 
-        cudaGraph_t capturedGraph = nullptr;
-        cudaStreamEndCapture(stream, &capturedGraph);
-        DASSERT(capturedGraph != nullptr);
+    cudaGraph_t capturedGraph = nullptr;
+    cudaStreamEndCapture(stream, &capturedGraph);
+    DASSERT(capturedGraph != nullptr);
 
-        graph.set(capturedGraph);
+    graph.set(capturedGraph);
 
-        cudaGraphExec_t toExec = nullptr;
-        cudaGraphInstantiate(&toExec, graph.get(), nullptr, nullptr, 0);
-        instance.set(toExec);
+    cudaGraphExec_t toExec = nullptr;
+    cudaGraphInstantiate(&toExec, graph.get(), nullptr, nullptr, 0);
+    instance.set(toExec);
 
-        recorded = true;
-    }
+    recorded = true;
+}
+
+void CudaGraphCapture::execute() {
     cudaGraphLaunch(instance.get(), stream);
 }

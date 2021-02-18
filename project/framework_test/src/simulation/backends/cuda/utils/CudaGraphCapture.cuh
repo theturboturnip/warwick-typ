@@ -12,14 +12,16 @@ class CudaGraphCapture {
     cudaStream_t stream;
     ForgetOnMove<cudaGraph_t> graph;
     ForgetOnMove<cudaGraphExec_t> instance;
-    bool recorded = false;
 
 public:
+    bool recorded = false;
+
     explicit CudaGraphCapture(cudaStream_t stream) : stream(stream), graph(), instance(), recorded(false) {}
     CudaGraphCapture(CudaGraphCapture&&) noexcept = default;
     CudaGraphCapture(const CudaGraphCapture&) = delete;
     ~CudaGraphCapture();
 
-    void recordOrExecute(std::function<void()> record);
+    void record(std::function<void()> record);
+    void execute();
 };
 
