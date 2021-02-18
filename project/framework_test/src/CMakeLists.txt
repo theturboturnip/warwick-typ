@@ -128,6 +128,8 @@ target_sources(cuda_sources INTERFACE
         simulation/backends/cuda/utils/CudaUnifiedReducer.inl
         simulation/backends/cuda/utils/CudaVulkanSemaphore.cu
         simulation/backends/cuda/utils/CudaVulkanSemaphore.cuh
+        simulation/backends/cuda/utils/CudaGraphCapture.cu
+        simulation/backends/cuda/utils/CudaGraphCapture.cuh
         util/check_cuda_error.cuh
         simulation/runners/sim_vulkan_ticked_runner/SimVulkanTickedCudaRunner.inl
         )

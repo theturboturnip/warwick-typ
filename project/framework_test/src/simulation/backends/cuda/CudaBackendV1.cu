@@ -49,7 +49,7 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(std::vector<Frame> frames, 
       gridsize_vertical((matrix_size.y + blocksize_vertical.x - 1) / blocksize_vertical.x),
       blocksize_horizontal(32),
       gridsize_horizontal((matrix_size.x + blocksize_horizontal.x - 1) / blocksize_horizontal.x),
-
+      
       frames(std::move(frames)),
       lastWrittenFrame(0)
 {
@@ -106,13 +106,6 @@ float CudaBackendV1<UnifiedMemoryForExport>::findMaxTimestep() {
 
     DASSERT(delta_t != -1);
     return delta_t;
-}
-
-template<bool UnifiedMemoryForExport>
-void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep, int frameToWriteIdx) {
-    tickBetweenFrames(frames[lastWrittenFrame], frames[frameToWriteIdx], timestep);
-
-    lastWrittenFrame = frameToWriteIdx;
 }
 
 template<bool UnifiedMemoryForExport>
@@ -228,7 +221,6 @@ void CudaBackendV1<UnifiedMemoryForExport>::resetFrame(CudaBackendV1::Frame &fra
             .col_pitch_4byte=frame.u.stats.col_pitch,
             .col_pitch_redblack=frame.rhs.red.stats.col_pitch,
             .deltas = float2{del_x, del_y},
-            .timestep = 0,
     };
 
     frame.u.memcpy_in(s.velocity_x);
@@ -286,16 +278,16 @@ void CudaBackendV1<UnifiedMemoryForExport>::resetFrame(CudaBackendV1::Frame &fra
 }
 
 template<bool UnifiedMemoryForExport>
-void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV1::Frame &previousFrame,
-                                                              CudaBackendV1::Frame &frame,
-                                                              float timestep) {
+void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep, int frameToWriteIdx) {
+    const auto& previousFrame = frames[lastWrittenFrame];
+    auto& frame = frames[frameToWriteIdx];
+
     auto gpu_params = CommonParams{
             .size = uint2{matrix_size.x, matrix_size.y},
             .redblack_size = uint2{redblack_matrix_size.x, redblack_matrix_size.y},
             .col_pitch_4byte=frame.u.stats.col_pitch,
             .col_pitch_redblack=frame.rhs.red.stats.col_pitch,
             .deltas = float2{del_x, del_y},
-            .timestep = timestep,
     };
 
     // Compute Tentative Velocity from previousFrame.u,v => frame.f,g
@@ -303,7 +295,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
         computeTentativeVelocity_apply<<<gridsize_2d, blocksize_2d, 0, stream>>>(
                 previousFrame.u.as_cuda(), previousFrame.v.as_cuda(), frame.fluidmask.as_cuda(),
                 frame.f.as_cuda(), frame.g.as_cuda(),
-                gpu_params, fluidParams.gamma, fluidParams.Re
+                gpu_params, timestep, fluidParams.gamma, fluidParams.Re
         );
 
         computeTentativeVelocity_postproc_vertical<<<gridsize_vertical, blocksize_vertical, 0, stream>>>(
@@ -317,7 +309,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
     // Compute RHS from frame.f,g => frame.rhs
     {
         computeRHS_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(frame.f.as_cuda(), frame.g.as_cuda(), frame.fluidmask.as_cuda(),
-                                                                  frame.rhs.joined.as_cuda(), gpu_params);
+                                                                  frame.rhs.joined.as_cuda(), gpu_params, timestep);
         // Split RHS
         dispatch_splitRedBlackCUDA(frame.rhs, gpu_params);
         CHECK_KERNEL_ERROR();
@@ -382,7 +374,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
 //                       imax, jmax, timestep, del_x, del_y);
         updateVelocity_1per<<<gridsize_2d, blocksize_2d, 0, stream>>>(frame.f.as_cuda(), frame.g.as_cuda(), frame.p.joined.as_cuda(), frame.fluidmask.as_cuda(),
                                                                       frame.u.as_cuda(), frame.v.as_cuda(),
-                                                                      gpu_params);
+                                                                      gpu_params, timestep);
         CHECK_KERNEL_ERROR();
     }
 
@@ -407,6 +399,9 @@ void CudaBackendV1<UnifiedMemoryForExport>::tickBetweenFrames(const CudaBackendV
 
         //    OriginalOptimized::applyBoundaryConditions(u2.as_cpu(), v2.as_cpu(), flag.as_cpu(), imax, jmax, params.initial_velocity_x, params.initial_velocity_y);
     }
+
+    // Done!
+    lastWrittenFrame = frameToWriteIdx;
 }
 
 template<bool UnifiedMemoryForExport>

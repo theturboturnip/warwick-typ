@@ -10,6 +10,7 @@ __global__ void computeTentativeVelocity_apply(
         in_matrix<float> u, in_matrix<float> v, in_matrix<uint> is_fluid,
         out_matrix<float> f, out_matrix<float> g,
         const CommonParams params,
+        const float timestep,
         const float gamma, const float Re
         );
 
@@ -18,7 +19,7 @@ __global__ void computeTentativeVelocity_postproc_horizontal(in_matrix<float> v,
 
 
 __global__ void computeRHS_1per(in_matrix<float> f, in_matrix<float> g, in_matrix<uint> is_fluid, out_matrix<float> rhs,
-                                const CommonParams params);
+                                const CommonParams params, const float timestep);
 
 // TODO - this should operate linearly, as 2D traversal is never performed
 // poisson_pSquareSumReduce(in_matrix<float> p, out_matrix<float> p_squares)
@@ -38,7 +39,8 @@ __global__ void poisson_single_tick(in_matrix<float> this_pressure_rb,
 
 __global__ void updateVelocity_1per(in_matrix<float> f, in_matrix<float> g, in_matrix<float> p, in_matrix<uint> is_fluid,
                                     out_matrix<float> u, out_matrix<float> v,
-                                    const CommonParams params);
+                                    const CommonParams params,
+                                    const float timestep);
 
 __global__ void boundaryConditions_preproc_vertical(out_matrix<float> u, out_matrix<float> v, const CommonParams params);
 __global__ void boundaryConditions_preproc_horizontal(out_matrix<float> u, out_matrix<float> v, const CommonParams params);

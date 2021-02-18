@@ -24,8 +24,6 @@ struct CommonParams {
     // Equivalent to (del_x, del_y)
     float2 deltas;
 
-    float timestep;
-
     __device__ inline uint flatten_4byte(uint i, uint j) const {
         // Arrays are column-contiguous
         return i * col_pitch_4byte + j;

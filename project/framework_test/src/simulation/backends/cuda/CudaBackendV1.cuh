@@ -10,11 +10,13 @@
 #include <simulation/backends/cuda/utils/CudaUnified2DArray.cuh>
 #include <simulation/backends/cuda/utils/CudaUnifiedRedBlackArray.cuh>
 #include <simulation/backends/cuda/utils/CudaUnifiedReducer.cuh>
+#include <simulation/backends/cuda/utils/CudaUniquePtr.cuh>
 #include <simulation/file_format/FluidParams.h>
 
 #include "BaseCudaBackend.cuh"
 
 #include <type_traits>
+#include <simulation/backends/cuda/utils/CudaGraphCapture.cuh>
 
 struct CommonParams;
 
@@ -60,8 +62,6 @@ public:
 private:
     std::vector<Frame> frames;
     int lastWrittenFrame;
-
-    void tickBetweenFrames(const Frame& previousFrame, Frame& frame, float timestep);
 
     void resetFrame(Frame& frame, const SimSnapshot& s);
 

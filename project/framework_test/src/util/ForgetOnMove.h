@@ -39,8 +39,8 @@ public:
         //DASSERT(has_value())
         return value.value();
     }
-    void set(T&& newValue) {
-        FATAL_ERROR_UNLESS(value.empty(), "Can't set a value on top of an already-existing value");
+    void set(T newValue) {
+        FATAL_ERROR_UNLESS(!value.has_value(), "Can't set a value on top of an already-existing value");
         value = newValue;
     }
     bool has_value() const {
