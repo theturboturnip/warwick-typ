@@ -15,13 +15,6 @@
 
 class VulkanSimPipelineSet {
 public:
-    struct SimFragPushConstants {
-        uint32_t pixelWidth;
-        uint32_t pixelHeight;
-        uint32_t columnStride;
-        uint32_t totalPixels;
-    };
-
     VertexShader triVert;
     VertexShader fullscreenQuadVert;
     FragmentShader redFrag;

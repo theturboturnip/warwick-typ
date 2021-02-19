@@ -23,6 +23,8 @@ target_sources(generic_sources INTERFACE
         memory/internal/MType.h
         memory/internal/Sim2DArray.h
         memory/internal/SimRedBlackArray.h
+        rendering/shaders/global_structures.glsl
+        rendering/shaders/global_structures.h
         rendering/threads/IWorkerThread.h
         rendering/threads/IWorkerThread_Impl.inl
         rendering/threads/ThreadWorkData.h

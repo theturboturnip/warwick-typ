@@ -58,6 +58,7 @@ class SystemWorker {
     // internal
     bool showDemoWindow = true;
     bool wantsRunSim = false;
+
     enum class ScalarQuantity : size_t {
         None=0,
         VelocityX=1,

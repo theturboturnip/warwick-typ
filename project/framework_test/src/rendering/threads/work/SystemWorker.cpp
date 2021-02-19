@@ -4,6 +4,8 @@
 
 #include "SystemWorker.h"
 
+#include "rendering/shaders/global_structures.h"
+
 std::array<const char*, 5> SystemWorker::scalarQuantity = {
         "None",
         "Velocity X [TODO]",
@@ -24,13 +26,7 @@ std::array<const char*, 4> SystemWorker::particleTrailType = {
 
 SystemWorker::SystemWorker(VulkanSimAppData &data)
         : data(data),
-          global(data.globalData),
-          simBuffersPushConstants({
-                                          .pixelWidth=global.simSize.padded_pixel_size.x,
-                                          .pixelHeight=global.simSize.padded_pixel_size.y,
-                                          .columnStride=global.simSize.padded_pixel_size.y, // TODO
-                                          .totalPixels=(uint32_t)global.simSize.pixel_count()
-                                  })
+          global(data.globalData)
 {
 }
 
@@ -168,6 +164,13 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     );
     ImGui::End();
     ImGui::Render();
+
+    auto simBuffersPushConstants = Shaders::SimDataBufferStats{
+        .sim_pixelWidth=global.simSize.padded_pixel_size.x,
+        .sim_pixelHeight=global.simSize.padded_pixel_size.y,
+        .sim_columnStride=global.simSize.padded_pixel_size.y,
+        .sim_totalPixels=(uint32_t)global.simSize.pixel_count()
+    };
 
     const auto& graphicsCmdBuffer = *simFrameData.threadOutputs.graphicsCommandBuffer;
     const auto& computeCmdBuffer = *simFrameData.threadOutputs.computeCommandBuffer;

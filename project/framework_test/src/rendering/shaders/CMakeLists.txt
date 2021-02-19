@@ -7,6 +7,7 @@ else()
     message(WARNING "Vulkan package did not find glslc. Selecting '${GLSLC}'")
 endif()
 
+message(INFO "BINARY DIR IS ${PROJECT_BINARY_DIR}")
 set(PROJECT_SHADER_DIR "${PROJECT_BINARY_DIR}/shaders")
 add_custom_command(
         OUTPUT ${PROJECT_SHADER_DIR}
@@ -22,10 +23,11 @@ function(compile_glsl out_var)
         set(out_f "${PROJECT_SHADER_DIR}/${out_f}.spv")
         add_custom_command(OUTPUT ${out_f}
                 COMMAND ${GLSLC} -o ${out_f} ${in_f_abs}
-                DEPENDS ${in_f_abs}
+                DEPENDS ${in_f_abs} ${CMAKE_CURRENT_SOURCE_DIR}/global_structures.glsl ${CMAKE_CURRENT_SOURCE_DIR}/global_descriptor_sets.glsl
                 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                 COMMENT "Creating SPIR-V file ${out_f} from ${in_f}"
                 VERBATIM
+                IMPLICIT_DEPENDS
                 )
         list(APPEND result ${out_f})
     endforeach()
@@ -39,5 +41,6 @@ compile_glsl(shader_files
         triangle.vert
         fullscreen_quad.vert
         compute_sim_data_image.comp
+        compute_update_particles.comp
         )
 add_library(shaders OBJECT ${PROJECT_SHADER_DIR} ${shader_files})

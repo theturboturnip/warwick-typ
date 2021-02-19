@@ -1,13 +1,12 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+#include "global_structures.glsl"
+
 layout (local_size_x = 16, local_size_y = 16) in;
 
-layout(push_constant) uniform sim_buffer_params {
-    uint sim_pixelWidth;
-    uint sim_pixelHeight;
-    uint sim_columnStride;
-    uint sim_totalPixels;
+layout(push_constant) uniform pushConstants {
+    SimDataBufferStats stats;
 };
 
 layout (binding=0) buffer readonly buf_u {
@@ -28,7 +27,7 @@ layout (binding=4, rgba32f) uniform writeonly image2D resultImage;
 int simIdx(ivec2 sim2DIdx) {
     // do height - y because opengl/vulkan coordinates are vertically flipped w.r.t. simulation coords,
     // height - 1 - y because 0 should map to height - 1
-    return (sim2DIdx.x * int(sim_columnStride)) + (int(sim_pixelHeight - 1) - sim2DIdx.y);
+    return (sim2DIdx.x * int(stats.sim_columnStride)) + (int(stats.sim_pixelHeight - 1) - sim2DIdx.y);
 }
 
 float avg2(float a, float b) {
@@ -72,7 +71,7 @@ float evaluate(ivec2 rel_pxIdx, TapData taps) {
 
 void main() {
     ivec2 pxIdx = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 simSize = ivec2(sim_pixelWidth, sim_pixelHeight);
+    ivec2 simSize = ivec2(stats.sim_pixelWidth, stats.sim_pixelHeight);
     ivec2 fullSize = ivec2(simSize * 2);
 
     // We don't need to check if we're out-of-bounds - imageStore at the end does that for us.

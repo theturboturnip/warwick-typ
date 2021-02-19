@@ -1,11 +1,13 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+#include "global_descriptor_sets.glsl"
+
 layout(location = 0) in vec2 uv;
 
 layout(location = 0) out vec4 outColor;
 
-layout(binding = 0) uniform sampler2D simBufferDataSampler;
+SIM_DATA_SAMPLER(0, simBufferDataSampler)
 
 void main() {
     // TODO - offset by 1/2 pixel

@@ -4,6 +4,8 @@
 
 #include "VulkanSimPipelineSet.h"
 
+#include "rendering/shaders/global_structures.h"
+
 VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize)
     : triVert(VertexShader::from_file(device, "triangle.vert")),
       fullscreenQuadVert(VertexShader::from_file(device, "fullscreen_quad.vert")),
@@ -55,7 +57,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
       simBuffers_computePushConstantRange(
               vk::ShaderStageFlagBits::eCompute,
               0,
-              sizeof(SimFragPushConstants)
+              sizeof(Shaders::SimDataBufferStats)
               ),
 
       redTriangle(device, renderPass, viewportSize, triVert, redFrag),
