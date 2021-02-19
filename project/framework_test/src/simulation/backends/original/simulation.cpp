@@ -507,8 +507,10 @@ res_stack += add * add;
                 }
             }
             res_stack = sqrt((res_stack) / ifull) / p0;
+            fprintf(stdout, "res_stack: %g                                 \r",res_stack);
             ///fprintf(stdout, "res_stack: %g, eps: %g, ifull:%d, p0:%g\n", res_stack, eps, ifull, p0);
             if (res_stack < eps) {
+                fprintf(stdout, "Early-out at iter %d due to residual %f < %f\n", iter, res_stack, eps);
                 //fprintf(stdout, "\n");
                 return iter;
             }

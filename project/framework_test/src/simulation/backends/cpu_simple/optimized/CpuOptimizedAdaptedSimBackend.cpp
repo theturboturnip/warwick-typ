@@ -34,7 +34,7 @@ void CpuOptimizedAdaptedSimBackend::tick(float del_t, int frameToWriteIdx) {
 
     float res = 0;
     if (ifluid > 0) {
-        OriginalOptimized::poissonSolver<false>(frame.p.as_cpu(), frame.p_red.as_cpu(), frame.p_black.as_cpu(),
+        OriginalOptimized::poissonSolver<true>(frame.p.as_cpu(), frame.p_red.as_cpu(), frame.p_black.as_cpu(),
                                                 frame.p_beta.as_cpu(), frame.p_beta_red.as_cpu(), frame.p_beta_black.as_cpu(),
                                                 frame.rhs.as_cpu(), frame.rhs_red.as_cpu(), frame.rhs_black.as_cpu(),
                                                 frame.fluidmask.as_cpu(), frame.surroundmask_black.as_cpu(),

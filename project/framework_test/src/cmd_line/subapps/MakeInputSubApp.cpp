@@ -48,10 +48,9 @@ void MakeInputSubApp::run() {
             } else {
                 simSnapshot.cell_type[idx] = CellType::Boundary;
             }
-            // TODO - connect to fluid.json params?
-            simSnapshot.velocity_x[idx] = 1;
+            simSnapshot.velocity_x[idx] = 0;
             simSnapshot.velocity_y[idx] = 0;
-            simSnapshot.pressure[idx] = 1;
+            simSnapshot.pressure[idx] = 0;
         }
     }
 
