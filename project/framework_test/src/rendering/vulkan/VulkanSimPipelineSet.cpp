@@ -69,7 +69,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
       computeSimDataImage(device, computeSimDataImage_shader, &*simBuffers_computeDescriptorLayout, &simBuffers_computePushConstantRange)
 {}
 
-vk::UniqueDescriptorSet VulkanSimPipelineSet::buildFullscreenPressureDescriptors(VulkanContext& context, VulkanImageSampler& simBuffersImageSampler) {
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimDataSampler_ds(VulkanContext& context, VulkanImageSampler& simBuffersImageSampler) {
     auto allocInfo = vk::DescriptorSetAllocateInfo{};
     allocInfo.descriptorPool = *context.descriptorPool;
     allocInfo.descriptorSetCount = 1;
@@ -96,7 +96,7 @@ vk::UniqueDescriptorSet VulkanSimPipelineSet::buildFullscreenPressureDescriptors
     return descriptorSet;
 }
 vk::UniqueDescriptorSet
-VulkanSimPipelineSet::buildComputeSimDataImageDescriptors(VulkanContext &context, VulkanSimFrameData &buffers, vk::Image simBuffersImage, VulkanImageSampler& simBuffersImageSampler) {
+VulkanSimPipelineSet::buildSimBuffersDescriptors(VulkanContext &context, VulkanSimFrameData &buffers, vk::Image simBuffersImage, VulkanImageSampler& simBuffersImageSampler) {
     auto allocInfo = vk::DescriptorSetAllocateInfo{};
     allocInfo.descriptorPool = *context.descriptorPool;
     allocInfo.descriptorSetCount = 1;

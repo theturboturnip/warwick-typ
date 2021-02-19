@@ -36,10 +36,11 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
       ),
       simBuffersSampler(context, simBuffersImage),
       simBuffersImageDescriptorSet(
-          globalData.pipelines.buildFullscreenPressureDescriptors(context, simBuffersSampler)
+              globalData.pipelines.buildSimDataSampler_frag_ds(context, simBuffersSampler)
       ),
       simBuffersComputeDescriptorSet(
-          globalData.pipelines.buildComputeSimDataImageDescriptors(globalData.context, *buffers, *simBuffersImage, simBuffersSampler)
+              globalData.pipelines.buildSimBuffers_comp_ds(globalData.context, *buffers, *simBuffersImage,
+                                                           simBuffersSampler)
       ),
 
       vizFramebuffer(

@@ -21,4 +21,7 @@ struct SimAppProperties {
     // If set to true, the simulation will only update N times a second in real-time.
     // If set to false, the simulation will update with a 1/N second sim-time tick every frame.
     bool matchFrequencyToRealTime;
+
+    // Maximum amount of particles that could be rendered
+    size_t maxParticles = 1000;
 };

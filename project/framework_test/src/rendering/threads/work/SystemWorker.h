@@ -91,10 +91,6 @@ class SystemWorker {
     ParticleTrailType trailType = ParticleTrailType::None;
     float trailLength = 0;
 
-
-    // In case the constants change over time i.e. for color
-    VulkanSimPipelineSet::SimFragPushConstants simBuffersPushConstants;
-
     void transferImageLayout(vk::CommandBuffer cmdBuffer,
                              vk::Image image,
                              vk::ImageLayout oldLayout, vk::ImageLayout newLayout,

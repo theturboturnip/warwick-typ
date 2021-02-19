@@ -199,11 +199,11 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                                         *global.pipelines.computeSimDataImage.layout,
                                         vk::ShaderStageFlagBits::eCompute,
                                         0,
-                                        vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simBuffersPushConstants});
+                                        vk::ArrayProxy<const Shaders::SimDataBufferStats>{simBuffersPushConstants});
             computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
                                                 *global.pipelines.computeSimDataImage.layout,
                                                 0,
-                                                {*simFrameData.simBuffersComputeDescriptorSet},
+                                                {*simFrameData.simBuffers_comp_ds},
                                                 {});
             // Group size of 16 -> group count in each direction is size/16
             // If size isn't a multiple of 16, get extra group to cover the remainder
@@ -211,6 +211,20 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
             //  otherwise (size + 15)/16 === (size / 16) + 1
             computeCmdBuffer.dispatch((simFrameData.simBuffersImage.size.x + 15)/16, (simFrameData.simBuffersImage.size.y+15)/16, 1);
+        }
+        {
+            // Transfer the simBuffersImage layout so that the shader can read it
+            transferImageLayout(
+                    graphicsCmdBuffer,
+                    *simFrameData.simBuffersImage,
+                    vk::ImageLayout::eGeneral,vk::ImageLayout::eShaderReadOnlyOptimal,
+                    vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead,
+                    vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader
+            );
+        }
+        // Particle Update
+        {
+
         }
         computeCmdBuffer.end();
     }
@@ -225,17 +239,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         graphicsCmdBuffer.begin(beginInfo);
 
         {
-            // Transfer the simBuffersImage layout so that the shader can read it
-            transferImageLayout(
-                    graphicsCmdBuffer,
-                    *simFrameData.simBuffersImage,
-                    vk::ImageLayout::eGeneral,vk::ImageLayout::eShaderReadOnlyOptimal,
-                    vk::AccessFlagBits(0), vk::AccessFlagBits::eShaderRead,
-                    vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eComputeShader
-            );
-        }
-
-        {
             auto simRenderPassInfo = vk::RenderPassBeginInfo();
             simRenderPassInfo.renderPass = global.vizRenderPass;
             simRenderPassInfo.framebuffer = *simFrameData.vizFramebuffer;
@@ -248,7 +251,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                     vk::PipelineBindPoint::eGraphics,
                     *global.pipelines.fullscreenPressure.layout,
                     0,
-                    {*simFrameData.simBuffersImageDescriptorSet},
+                    {*simFrameData.simDataSampler_frag_ds},
                     {});
             graphicsCmdBuffer.draw(6, 1, 0, 0);
             graphicsCmdBuffer.endRenderPass();
