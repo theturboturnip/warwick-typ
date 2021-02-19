@@ -50,7 +50,7 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(std::vector<Frame> frames, 
       blocksize_horizontal(32),
       gridsize_horizontal((matrix_size.x + blocksize_horizontal.x - 1) / blocksize_horizontal.x),
 
-      poissonGraph(stream),
+      poissonGraphs(),
 
       frames(std::move(frames)),
       lastWrittenFrame(0)
@@ -60,6 +60,7 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(std::vector<Frame> frames, 
     // Use this->frames because `frames` on it's own is the newly-removed argument
     for (auto& frame : this->frames) {
         resetFrame(frame, s);
+        poissonGraphs.emplace_back(stream);
     }
 }
 
@@ -337,6 +338,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::tick(float timestep, int frameToWrit
                                                         fluidParams.poisson_error_threshold, fluidParams.poisson_max_iterations, fluidParams.poisson_omega,
                                                         ifluid);
             } else {
+                auto& poissonGraph = poissonGraphs[frameToWriteIdx];
                 if (!poissonGraph.recorded) {
                     poissonGraph.record([&, this]() {
                         // Sum of squares of pressure - reduction
