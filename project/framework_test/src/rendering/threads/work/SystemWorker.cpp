@@ -4,6 +4,24 @@
 
 #include "SystemWorker.h"
 
+std::array<const char*, 5> SystemWorker::scalarQuantity = {
+        "None",
+        "Velocity X [TODO]",
+        "Velocity Y [TODO]",
+        "Pressure [TODO]",
+        "Vorticity [TODO]",
+};
+std::array<const char*, 2> SystemWorker::vectorQuantity = {
+        "None",
+        "Velocity [TODO]",
+};
+std::array<const char*, 4> SystemWorker::particleTrailType = {
+        "None",
+        "Streakline [TODO]",
+        "Pathline [TODO]",
+        "Ribbon [TODO]",
+};
+
 SystemWorker::SystemWorker(VulkanSimAppData &data)
         : data(data),
           global(data.globalData),
@@ -72,6 +90,72 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             } else {
                 ImGui::Text("Not enough frames for Sim FPS");
             }
+        }
+    }
+    ImGui::End();
+
+    ImGui::Begin("Visualization", nullptr, 0);
+    {
+        ImGui::Text("Scalar Quantity");
+        // From https://github.com/ocornut/imgui/issues/1658
+        if (ImGui::BeginCombo("##Scalar Quantity", scalarQuantity[(int)vizScalar])) {
+            for (size_t i = 0; i < scalarQuantity.size(); i++) {
+                bool is_selected = (i == (size_t)vizScalar);
+                if (ImGui::Selectable(scalarQuantity[i], is_selected)) {
+                    vizScalar = (ScalarQuantity)i;
+                }
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        if (vizScalar != ScalarQuantity::None)
+            showRange(&vizScalarRange);
+
+        ImGui::NewLine();
+        ImGui::Text("Vector Quantity");
+        if (ImGui::BeginCombo("##Vector Quantity", vectorQuantity[(int)vizVector])) {
+            for (size_t i = 0; i < vectorQuantity.size(); i++) {
+                bool is_selected = (i == (size_t)vizVector);
+                if (ImGui::Selectable(vectorQuantity[i], is_selected)) {
+                    vizVector = (VectorQuantity)i;
+                }
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        if (vizVector != VectorQuantity::None)
+            showRange(&vizVectorMagnitudeRange);
+
+        ImGui::NewLine();
+        ImGui::Checkbox("Streamline Overlay", &overlayStreamlines);
+
+        ImGui::NewLine();
+        ImGui::Checkbox("Particles", &showParticles);
+        if (showParticles) {
+            ImGui::Indent();
+
+            ImGui::Checkbox("Render as Glyphs", &renderParticleGlyphs);
+
+            ImGui::NewLine();
+            ImGui::Text("Particle Trail Type");
+            if (ImGui::BeginCombo("##TraceType", particleTrailType[(int)trailType])) {
+                for (size_t i = 0; i < particleTrailType.size(); i++) {
+                    bool is_selected = (i == (size_t)trailType);
+                    if (ImGui::Selectable(particleTrailType[i], is_selected)) {
+                        trailType = (ParticleTrailType)i;
+                    }
+                    if (is_selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::Unindent();
         }
     }
     ImGui::End();
@@ -217,4 +301,16 @@ SystemWorker::transferImageLayout(vk::CommandBuffer cmdBuffer, vk::Image image,
     cmdBuffer.pipelineBarrier(
         oldStage, newStage, vk::DependencyFlagBits(0), {}, {}, {imageBarrier}
     );
+}
+
+void SystemWorker::showRange(VizValueRange* range) {
+    ImGui::PushID(range);
+    ImGui::Checkbox("Auto-Range", &range->autoRange);
+    if (!range->autoRange) {
+        float rangeValue[2] = {range->min, range->max};
+        ImGui::InputFloat2("Range", static_cast<float*>(rangeValue));
+        range->min = rangeValue[0];
+        range->max = rangeValue[1];
+    }
+    ImGui::PopID();
 }
