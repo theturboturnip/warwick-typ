@@ -18,12 +18,12 @@ public:
     VulkanPipeline(vk::Device device, vk::RenderPass renderPass,
                    Size<uint32_t> viewportSize,
                    const VertexShader& vertex, const FragmentShader& fragment,
-                   const std::vector<vk::DescriptorSetLayout> descriptorSetLayouts = {},
+                   const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts = {},
                    size_t pushConstantSize=0,
                    vk::SpecializationInfo specInfo={0, nullptr, 0, nullptr});
     VulkanPipeline(vk::Device device,
                    const ComputeShader& compute,
-                   const std::vector<vk::DescriptorSetLayout> descriptorSetLayouts = {},
+                   const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts = {},
                    size_t pushConstantSize=0,
                    vk::SpecializationInfo specInfo={0, nullptr, 0, nullptr});
     VulkanPipeline(VulkanPipeline&&) noexcept = default;

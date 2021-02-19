@@ -6,67 +6,139 @@
 
 #include "rendering/shaders/global_structures.h"
 
-VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize)
-    : triVert(VertexShader::from_file(device, "triangle.vert")),
-      fullscreenQuadVert(VertexShader::from_file(device, "fullscreen_quad.vert")),
-      redFrag(FragmentShader::from_file(device, "red.frag")),
-      uvFrag(FragmentShader::from_file(device, "uv.frag")),
-      simPressure(FragmentShader::from_file(device, "sim_pressure.frag")),
-      computeSimDataImage_shader(ComputeShader::from_file(device, "compute_sim_data_image.comp")),
+VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize, SimAppProperties& props)
+    :
+    particleCount_specConstant(0, 0, sizeof(uint32_t)),
 
-      simBuffers_computeDescriptorLayout(device, {
-          vk::DescriptorSetLayoutBinding(
-              0,
-              vk::DescriptorType::eStorageBuffer,
-              1,
-              vk::ShaderStageFlagBits::eCompute
-          ),
-          vk::DescriptorSetLayoutBinding(
-                  1,
-                  vk::DescriptorType::eStorageBuffer,
-                  1,
-                  vk::ShaderStageFlagBits::eCompute
-          ),
-          vk::DescriptorSetLayoutBinding(
-                  2,
-                  vk::DescriptorType::eStorageBuffer,
-                  1,
-                  vk::ShaderStageFlagBits::eCompute
-          ),
-          vk::DescriptorSetLayoutBinding(
-                  3,
-                  vk::DescriptorType::eStorageBuffer,
-                  1,
-                  vk::ShaderStageFlagBits::eCompute
-          ),
-          vk::DescriptorSetLayoutBinding(
-              4,
-              vk::DescriptorType::eStorageImage,
-              1,
-              vk::ShaderStageFlagBits::eCompute
-          )
-      }),
-      simBuffersImage_fragmentDescriptorLayout(device, {
-          vk::DescriptorSetLayoutBinding(
-              0,
-              vk::DescriptorType::eCombinedImageSampler,
-              1,
-              vk::ShaderStageFlagBits::eFragment
-          )
-      }),
-      simBuffers_computePushConstantRange(
-              vk::ShaderStageFlagBits::eCompute,
-              0,
-              sizeof(Shaders::SimDataBufferStats)
-              ),
+    simDataSampler_comp_ds(device, {
+            vk::DescriptorSetLayoutBinding(
+                    0,
+                    vk::DescriptorType::eCombinedImageSampler,
+                    1,
+                    vk::ShaderStageFlagBits::eCompute
+            )
+    }),
+    simDataSampler_frag_ds(device, {
+            vk::DescriptorSetLayoutBinding(
+                    0,
+                    vk::DescriptorType::eCombinedImageSampler,
+                    1,
+                    vk::ShaderStageFlagBits::eFragment
+            )
+    }),
+    simBuffers_comp_ds(device, {
+            vk::DescriptorSetLayoutBinding(
+                    0,
+                    vk::DescriptorType::eStorageBuffer,
+                    1,
+                    vk::ShaderStageFlagBits::eCompute
+            ),
+            vk::DescriptorSetLayoutBinding(
+                    1,
+                    vk::DescriptorType::eStorageBuffer,
+                    1,
+                    vk::ShaderStageFlagBits::eCompute
+            ),
+            vk::DescriptorSetLayoutBinding(
+                    2,
+                    vk::DescriptorType::eStorageBuffer,
+                    1,
+                    vk::ShaderStageFlagBits::eCompute
+            ),
+            vk::DescriptorSetLayoutBinding(
+                    3,
+                    vk::DescriptorType::eStorageBuffer,
+                    1,
+                    vk::ShaderStageFlagBits::eCompute
+            ),
+            vk::DescriptorSetLayoutBinding(
+                    4,
+                    vk::DescriptorType::eStorageImage,
+                    1,
+                    vk::ShaderStageFlagBits::eCompute
+            )
+    }),
+    particleInputBuffer_comp_ds(device, {
+            vk::DescriptorSetLayoutBinding(
+                    0,
+                    vk::DescriptorType::eStorageBuffer,
+                    1,
+                    vk::ShaderStageFlagBits::eCompute
+            )
+    }),
+    particleInputBuffer_vert_ds(device, {
+            vk::DescriptorSetLayoutBinding(
+                    0,
+                    vk::DescriptorType::eStorageBuffer,
+                    1,
+                    vk::ShaderStageFlagBits::eVertex
+            )
+    }),
+    particleOutputBuffer_comp_ds(device, {
+            vk::DescriptorSetLayoutBinding(
+                    0,
+                    vk::DescriptorType::eStorageBuffer,
+                    1,
+                    vk::ShaderStageFlagBits::eCompute
+            )
+    }),
 
-      redTriangle(device, renderPass, viewportSize, triVert, redFrag),
-      redQuad(device, renderPass, viewportSize, fullscreenQuadVert, uvFrag),
-      fullscreenPressure(device, renderPass, {
-              viewportSize.x*2,
-              viewportSize.y*2
-      }, fullscreenQuadVert, simPressure, &*simBuffersImage_fragmentDescriptorLayout),
-      computeSimDataImage(device, computeSimDataImage_shader, &*simBuffers_computeDescriptorLayout, &simBuffers_computePushConstantRange)
+    quantityScalar_vert(VertexShader::from_file(device, "quantity_scalar.vert")),
+    quantityScalar_frag(FragmentShader::from_file(device, "quantity_scalar.frag")),
+    particle_vert(VertexShader::from_file(device, "particle.vert")),
+    particle_frag(FragmentShader::from_file(device, "particle.frag")),
+    computeSimDataImage_shader(ComputeShader::from_file(device, "compute_sim_data_image.comp")),
+    computeUpdateParticles_shader(ComputeShader::from_file(device, "compute_update_particles.comp")),
+
+    quantityScalar(
+            device,
+            renderPass,
+            {
+                viewportSize.x*2,
+                viewportSize.y*2
+            },
+            quantityScalar_vert, quantityScalar_frag,
+            {*simDataSampler_frag_ds}
+    ),
+    particle(
+            device,
+            renderPass,
+            {
+                    viewportSize.x*2,
+                    viewportSize.y*2
+            },
+            particle_vert, particle_frag,
+            {*simDataSampler_frag_ds},
+            sizeof(Shaders::InstancedParticleParams),
+            {
+                1,
+                &particleCount_specConstant,
+                sizeof(uint32_t),
+                &props.maxParticles
+            }
+    ),
+    computeSimDataImage(
+            device,
+            computeSimDataImage_shader,
+            {*simBuffers_comp_ds},
+            sizeof(Shaders::SimDataBufferStats)
+    ),
+    computeSimUpdateParticles(
+            device,
+            computeUpdateParticles_shader,
+            {
+                *particleInputBuffer_comp_ds,
+                *particleOutputBuffer_comp_ds,
+                *simDataSampler_comp_ds,
+            },
+            sizeof(Shaders::ParticleStepParams),
+            {
+                    1,
+                    &particleCount_specConstant,
+                    sizeof(uint32_t),
+                    &props.maxParticles
+            }
+    )
 {}
 
 vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimDataSampler_ds(VulkanContext& context, VulkanImageSampler& simBuffersImageSampler) {

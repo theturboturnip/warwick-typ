@@ -4,6 +4,7 @@
 
 #include <imgui_impl_vulkan.h>
 #include "VulkanSimAppData.h"
+#include "rendering/shaders/global_structures.h"
 
 VulkanSimAppData::VulkanSimAppData(VulkanSimAppData::Global&& globalData,
                                    std::vector<VulkanSimFrameData>& bufferList,
@@ -24,7 +25,7 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
     : index(index),
       buffers(buffers),
 
-      simBuffersImage(
+      simDataImage(
           context,
           vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
           {
@@ -34,13 +35,38 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
           vk::Format::eR32G32B32A32Sfloat,
           true
       ),
-      simBuffersSampler(context, simBuffersImage),
-      simBuffersImageDescriptorSet(
-              globalData.pipelines.buildSimDataSampler_frag_ds(context, simBuffersSampler)
+      simDataSampler(context, simDataImage),
+
+      simDataSampler_comp_ds(
+              globalData.pipelines.buildSimDataSampler_comp_ds(context, simDataSampler)
       ),
-      simBuffersComputeDescriptorSet(
-              globalData.pipelines.buildSimBuffers_comp_ds(globalData.context, *buffers, *simBuffersImage,
-                                                           simBuffersSampler)
+      simDataSampler_frag_ds(
+              globalData.pipelines.buildSimDataSampler_frag_ds(context, simDataSampler)
+      ),
+      simBuffers_comp_ds(
+              globalData.pipelines.buildSimBuffers_comp_ds(globalData.context, *buffers,
+                                                           *simDataImage, simDataSampler)
+      ),
+
+      particleBuffer(context,
+                     vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eVertexBuffer,
+                     globalData.props.maxParticles * sizeof(Shaders::Particle),
+                     true // Shared between graphics and compute
+      ),
+      particleInputBuffer_comp_ds(
+          globalData.pipelines.buildParticleInputBuffer_comp_ds(
+              context, particleBuffer.asDescriptor()
+          )
+      ),
+      particleInputBuffer_vert_ds(
+          globalData.pipelines.buildParticleInputBuffer_vert_ds(
+              context, particleBuffer.asDescriptor()
+          )
+      ),
+      particleOutputBuffer_comp_ds(
+          globalData.pipelines.buildParticleOutputBuffer_comp_ds(
+              context, particleBuffer.asDescriptor()
+          )
       ),
 
       vizFramebuffer(

@@ -23,7 +23,7 @@ public:
     static VulkanShader from_file(vk::Device device, std::string shader_name);
 
     vk::UniqueShaderModule shaderModule;
-    vk::PipelineShaderStageCreateInfo shaderStage;
+    vk::PipelineShaderStageCreateInfo getShaderStage(vk::SpecializationInfo* specInfo = nullptr) const;
 
 private:
     VulkanShader(vk::Device device, const std::vector<char>& data);

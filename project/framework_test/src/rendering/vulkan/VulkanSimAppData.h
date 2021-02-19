@@ -11,6 +11,7 @@
 #include <rendering/vulkan/helpers/VulkanSemaphore.h>
 #include <rendering/vulkan/helpers/VulkanFence.h>
 #include <rendering/vulkan/helpers/VulkanSwapchain.h>
+#include <rendering/vulkan/helpers/VulkanBackedBuffer.h>
 #include "VulkanContext.h"
 #include "VulkanSimPipelineSet.h"
 
@@ -19,6 +20,7 @@ public:
     struct Global {
         VulkanContext& context;
         ImGuiContext* imguiContext;
+        SimAppProperties props;
 
         SimSize simSize;
 
@@ -50,7 +52,7 @@ public:
         // SimBuffers descriptor set containing the buffers + a writable simBuffersImage, used in compute shader
         vk::UniqueDescriptorSet simBuffers_comp_ds;
         // TODO comment these lol
-        VulkanBackedBuffer particleBuffer;
+        VulkanBackedBuffer particleBuffer; // TODO we'll need a hostCoherent staging buffer?
         vk::UniqueDescriptorSet particleInputBuffer_comp_ds;
         vk::UniqueDescriptorSet particleInputBuffer_vert_ds;
         vk::UniqueDescriptorSet particleOutputBuffer_comp_ds;

@@ -37,16 +37,16 @@ public:
     VulkanPipeline computeSimDataImage;
     VulkanPipeline computeSimUpdateParticles;
 
-    VulkanSimPipelineSet(VulkanContext& context, SimAppProperties& properties);
+    VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize, SimAppProperties& properties);
     VulkanSimPipelineSet(VulkanSimPipelineSet &&) noexcept = default;
 
     vk::UniqueDescriptorSet buildSimDataSampler_comp_ds(
-            VulkanContext& context,
-            VulkanImageSampler& simBuffersImageSampler
+        VulkanContext& context,
+        VulkanImageSampler& simBuffersImageSampler
     );
     vk::UniqueDescriptorSet buildSimDataSampler_frag_ds(
-            VulkanContext& context,
-            VulkanImageSampler& simBuffersImageSampler
+        VulkanContext& context,
+        VulkanImageSampler& simBuffersImageSampler
     );
     vk::UniqueDescriptorSet buildSimBuffers_comp_ds(
         VulkanContext& context,
@@ -58,8 +58,8 @@ public:
         vk::DescriptorBufferInfo buffer// TODO is this right?
     );
     vk::UniqueDescriptorSet buildParticleInputBuffer_vert_ds(
-            VulkanContext& context,
-            vk::DescriptorBufferInfo buffer// TODO is this right?
+        VulkanContext& context,
+        vk::DescriptorBufferInfo buffer// TODO is this right?
     );
     vk::UniqueDescriptorSet buildParticleOutputBuffer_comp_ds(
         VulkanContext& context,

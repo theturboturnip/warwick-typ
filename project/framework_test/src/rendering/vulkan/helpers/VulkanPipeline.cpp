@@ -5,15 +5,27 @@
 #include "VulkanPipeline.h"
 
 
-VulkanPipeline::VulkanPipeline(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize,
-                               const VertexShader &vertex, const FragmentShader &fragment,
-                               const vk::DescriptorSetLayout* descriptorSetLayout, const vk::PushConstantRange* pushConstantRange) {
+VulkanPipeline::VulkanPipeline(
+        vk::Device device, vk::RenderPass renderPass,
+        Size<uint32_t> viewportSize,
+        const VertexShader &vertex, const FragmentShader &fragment,
+        const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
+        size_t pushConstantSize,
+        vk::SpecializationInfo specInfo) {
+    {
+        pushConstantRange = vk::PushConstantRange();
+        pushConstantRange.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        pushConstantRange.size = pushConstantSize;
+        pushConstantRange.offset = 0;
+    }
+
     {
         auto pipelineLayoutInfo = vk::PipelineLayoutCreateInfo();
-        pipelineLayoutInfo.setLayoutCount = (descriptorSetLayout ? 1 : 0);// Descriptor sets
-        pipelineLayoutInfo.pSetLayouts = descriptorSetLayout;
-        pipelineLayoutInfo.pushConstantRangeCount = (pushConstantRange ? 1 : 0);// Push constants
-        pipelineLayoutInfo.pPushConstantRanges = pushConstantRange;
+        pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();// Descriptor sets
+        pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+
+        pipelineLayoutInfo.pushConstantRangeCount = (pushConstantSize ? 1 : 0);// Push constants
+        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
         layout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
     }
@@ -86,8 +98,8 @@ VulkanPipeline::VulkanPipeline(vk::Device device, vk::RenderPass renderPass, Siz
     colorBlending.blendConstants[3] = 0.0f; // Optional
 
     auto shaderStages = std::vector<vk::PipelineShaderStageCreateInfo>({
-            vertex.shaderStage,
-            fragment.shaderStage,
+            vertex.getShaderStage(&specInfo),
+            fragment.getShaderStage(&specInfo),
     });
 
     // TODO - make these derive from a common base pipeline? Not worth it right now
@@ -111,22 +123,33 @@ VulkanPipeline::VulkanPipeline(vk::Device device, vk::RenderPass renderPass, Siz
     pipeline = device.createGraphicsPipelineUnique(nullptr, {pipelineInfo});
 }
 
-VulkanPipeline::VulkanPipeline(vk::Device device, const ComputeShader &compute,
-                               const vk::DescriptorSetLayout *descriptorSetLayout,
-                               const vk::PushConstantRange *pushConstantRange) {
+VulkanPipeline::VulkanPipeline(
+        vk::Device device,
+        const ComputeShader &compute,
+        const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
+        size_t pushConstantSize,
+        vk::SpecializationInfo specInfo) {
+    {
+        pushConstantRange = vk::PushConstantRange();
+        pushConstantRange.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        pushConstantRange.size = pushConstantSize;
+        pushConstantRange.offset = 0;
+    }
+
     {
         auto pipelineLayoutInfo = vk::PipelineLayoutCreateInfo();
-        pipelineLayoutInfo.setLayoutCount = (descriptorSetLayout ? 1 : 0);// Descriptor sets
-        pipelineLayoutInfo.pSetLayouts = descriptorSetLayout;
-        pipelineLayoutInfo.pushConstantRangeCount = (pushConstantRange ? 1 : 0);// Push constants
-        pipelineLayoutInfo.pPushConstantRanges = pushConstantRange;
+        pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();// Descriptor sets
+        pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+
+        pipelineLayoutInfo.pushConstantRangeCount = (pushConstantSize ? 1 : 0);// Push constants
+        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
         layout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
     }
 
     auto pipelineInfo = vk::ComputePipelineCreateInfo();
     pipelineInfo.layout = *layout;
-    pipelineInfo.stage = compute.shaderStage;
+    pipelineInfo.stage = compute.getShaderStage(&specInfo);
     pipelineInfo.basePipelineHandle = nullptr; // Optional
     pipelineInfo.basePipelineIndex = -1; // Optional
 
