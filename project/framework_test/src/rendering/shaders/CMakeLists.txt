@@ -35,12 +35,11 @@ function(compile_glsl out_var)
 endfunction()
 
 compile_glsl(shader_files
-        red.frag
-        sim_pressure.frag
-        uv.frag
-        triangle.vert
-        fullscreen_quad.vert
+        quantity_scalar.vert
+        quantity_scalar.frag
         compute_sim_data_image.comp
         compute_update_particles.comp
+        particle.vert
+        particle.frag
         )
 add_library(shaders OBJECT ${PROJECT_SHADER_DIR} ${shader_files})

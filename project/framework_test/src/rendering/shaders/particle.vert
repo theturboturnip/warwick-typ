@@ -1,27 +1,24 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+#include "global_descriptor_sets.glsl"
 #include "global_structures.glsl"
 
-layout (constant_id = 0) const uint particleBufferLength = 0;
+SPEC_CONST_PARTICLE_COUNT()
 
-layout(push_constant) uniform pushConstants {
-    InstancedParticleParams params;
-};
+PUSH_CONSTANTS(InstancedParticleParams)
 
-layout(std140, set = 0, binding = 0) uniform ParticleBuffer {
-    Particle particles[particleBufferLength];
-};
+DS_PARTICLE_INPUT_BUFFER(0, particles)
 
-in vec4 v_pos;
-in vec2 v_uv;
+layout(location = 0) in vec4 v_pos;
+layout(location = 1) in vec2 v_uv;
 
-out vec2 f_uv;
+layout(location = 0) out vec2 f_uv;
 
 void main() {
-    const Particle particleData = particles[gl_InstanceIndex];
-    if (particleEnabled(particleData)) {
-        vec2 finalPos = (v_pos * params.baseScale) + particlePos(particleData);
+    const Particle particle = particles[gl_InstanceIndex];
+    if (particleEnabled(particle.data)) {
+        vec2 finalPos = (v_pos.xy * pConsts.baseScale) + particlePos(particle.data);
         gl_Position = vec4(finalPos.x, finalPos.y, 0, 1);
     } else {
         gl_Position = vec4(-5, -5, 0, 0);

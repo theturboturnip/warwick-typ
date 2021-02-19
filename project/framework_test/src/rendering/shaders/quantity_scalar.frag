@@ -7,7 +7,7 @@ layout(location = 0) in vec2 uv;
 
 layout(location = 0) out vec4 outColor;
 
-SIM_DATA_SAMPLER(0, simBufferDataSampler)
+DS_SIM_DATA_SAMPLER(0, simBufferDataSampler)
 
 void main() {
     // TODO - offset by 1/2 pixel

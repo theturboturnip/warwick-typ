@@ -1,7 +1,9 @@
 #version 450
 
-in f_uv;
+layout(location = 0) in vec2 f_uv;
+
+layout(location = 0) out vec4 outColor;
 
 void main() {
-    gl_FragColor = vec4(f_uv.x, f_uv.y, 0.0, 1.0);
+    outColor = vec4(f_uv.x, f_uv.y, 0.0, 1.0);
 }

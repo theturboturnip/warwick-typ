@@ -6,16 +6,13 @@
 
 layout (local_size_x = 256) in;
 
-layout (constant_id = 0) const uint particleBufferLength = 0;
+SPEC_CONST_PARTICLE_COUNT()
 
-layout(push_constant) uniform pushConstants {
-    ParticleStepParams params;
-};
+PUSH_CONSTANTS(ParticleStepParams)
 
-layout (set=0, binding=0, std140) buffer ParticleBuffer {
-    Particle particles[];
-};
-SIM_DATA_SAMPLER(1, simBufferDataSampler)
+DS_PARTICLE_INPUT_BUFFER(0, old_particles)
+DS_PARTICLE_OUTPUT_BUFFER(1, new_particles)
+DS_SIM_DATA_SAMPLER(2, simBufferDataSampler)
 //layout (set=2, binding=0, r32f) uniform image2D turbulenceImage;
 
 void main() {
@@ -24,12 +21,12 @@ void main() {
     // Don't try to write beyond particle count
     if (index >= particleBufferLength)
         return;
-    const vec4 oldParticleData = particles[index].data;
-    if (!particleEnabled(oldParticleData))
+    Particle particle = old_particles[index];
+    if (!particleEnabled(particle.data))
         return;
 
-    vec2 pos = particlePos(oldParticleData);
-    float rot = particleRot(oldParticleData);
+    vec2 pos = particlePos(particle.data);
+    float rot = particleRot(particle.data);
 
     for (int i = 0; i < 4; i++) {
         //     TODO - offset by 1/2 pixel?
@@ -38,9 +35,9 @@ void main() {
         if (fluidData.w > 0.5) break;
 
         // xy are in m/s, timestep in s,
-        pos += (fluidData.xy * params.timestep / 4) / vec2(params.xLength, params.yLength);
+        pos += (fluidData.xy * pConsts.timestep / 4) / vec2(pConsts.xLength, pConsts.yLength);
     }
 
-
-    particles[index].data.xy = pos;
+    particle.data = vec4(pos, rot, 1);
+    new_particles[index] = particle;
 }
