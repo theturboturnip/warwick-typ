@@ -98,6 +98,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                 viewportSize.y*2
             },
             quantityScalar_vert, quantityScalar_frag,
+            VulkanVertexInformation::Kind::None,
             {*simDataSampler_frag_ds}
     ),
     // TODO This needs vertex inputs
@@ -109,14 +110,9 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                     viewportSize.y*2
             },
             particle_vert, particle_frag,
-            {*particleInputBuffer_vert_ds},
-            sizeof(Shaders::InstancedParticleParams),
-            {
-                1,
-                &particleCount_specConstant,
-                sizeof(uint32_t),
-                &props.maxParticles
-            }
+            VulkanVertexInformation::Kind::Particle,
+            {},
+            sizeof(Shaders::InstancedParticleParams)
     ),
     computeSimDataImage(
             device,

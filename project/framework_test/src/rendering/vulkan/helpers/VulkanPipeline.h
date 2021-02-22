@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include "VulkanVertexInformation.h"
 #include "VulkanShader.h"
 #include "util/Size.h"
 
@@ -18,6 +19,7 @@ public:
     VulkanPipeline(vk::Device device, vk::RenderPass renderPass,
                    Size<uint32_t> viewportSize,
                    const VertexShader& vertex, const FragmentShader& fragment,
+                   VulkanVertexInformation::Kind vertexInfoKind,
                    const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts = {},
                    size_t pushConstantSize=0,
                    vk::SpecializationInfo specInfo={0, nullptr, 0, nullptr});

@@ -60,6 +60,13 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanRenderPass.h
         rendering/vulkan/helpers/VulkanSwapchain.cpp
         rendering/vulkan/helpers/VulkanSwapchain.h
+        rendering/vulkan/helpers/VulkanVertexInformation.cpp
+        rendering/vulkan/helpers/VulkanVertexInformation.h
+        rendering/vulkan/mesh/particle_instance.h
+        rendering/vulkan/mesh/particle_instance.cpp
+        rendering/vulkan/mesh/vertex.h
+        rendering/vulkan/mesh/vertex.cpp
+        rendering/vulkan/mesh/vk_format.h
         rendering/vulkan/VulkanSimApp.cpp
         rendering/vulkan/VulkanSimApp.h
         rendering/vulkan/VulkanContext.cpp
@@ -108,6 +115,7 @@ target_sources(generic_sources INTERFACE
         util/HostVisibleArray.h
         util/LegacyCompat2DBackingArray.h
         util/selectors.h
+        util/glm.h
         validation/SimDumpDifferenceData.cpp
         validation/SimDumpDifferenceData.h
         main.cpp

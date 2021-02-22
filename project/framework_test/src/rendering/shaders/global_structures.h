@@ -2,7 +2,7 @@
 // Created by samuel on 19/02/2021.
 //
 
-#include <glm/glm.hpp>
+#include "util/glm.h"
 
 namespace Shaders {
     using vec2 = glm::vec2;

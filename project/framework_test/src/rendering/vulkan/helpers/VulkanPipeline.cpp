@@ -9,6 +9,7 @@ VulkanPipeline::VulkanPipeline(
         vk::Device device, vk::RenderPass renderPass,
         Size<uint32_t> viewportSize,
         const VertexShader &vertex, const FragmentShader &fragment,
+        VulkanVertexInformation::Kind vertexInfoKind,
         const std::vector<vk::DescriptorSetLayout>& descriptorSetLayouts,
         size_t pushConstantSize,
         vk::SpecializationInfo specInfo) {
@@ -22,7 +23,7 @@ VulkanPipeline::VulkanPipeline(
     {
         auto pipelineLayoutInfo = vk::PipelineLayoutCreateInfo();
         pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();// Descriptor sets
-        pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+        pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.empty() ? nullptr : descriptorSetLayouts.data();
 
         pipelineLayoutInfo.pushConstantRangeCount = (pushConstantSize ? 1 : 0);// Push constants
         pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
@@ -30,12 +31,13 @@ VulkanPipeline::VulkanPipeline(
         layout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
     }
 
+    auto vertexInfo = VulkanVertexInformation::getInfo(vertexInfoKind);
+
     auto vertexInput = vk::PipelineVertexInputStateCreateInfo();
-    // Assume vertices are hardcoded - TODO make this VertexInputStateCreateInfo a static value with a name like "hardcodedVertexInput"
-    vertexInput.vertexBindingDescriptionCount = 0;
-    vertexInput.pVertexBindingDescriptions = nullptr;
-    vertexInput.vertexAttributeDescriptionCount = 0;
-    vertexInput.pVertexAttributeDescriptions = nullptr;
+    vertexInput.vertexBindingDescriptionCount = vertexInfo.bindings.size();
+    vertexInput.pVertexBindingDescriptions = vertexInfo.bindings.empty() ? nullptr : vertexInfo.bindings.data();
+    vertexInput.vertexAttributeDescriptionCount = vertexInfo.attributes.size();
+    vertexInput.pVertexAttributeDescriptions = vertexInfo.attributes.empty() ? nullptr : vertexInfo.attributes.data();
 
     auto inputAssembly = vk::PipelineInputAssemblyStateCreateInfo();
     inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
@@ -102,7 +104,6 @@ VulkanPipeline::VulkanPipeline(
             fragment.getShaderStage(&specInfo),
     });
 
-    // TODO - make these derive from a common base pipeline? Not worth it right now
     auto pipelineInfo = vk::GraphicsPipelineCreateInfo();
     pipelineInfo.stageCount = shaderStages.size();
     pipelineInfo.pStages = shaderStages.data();
