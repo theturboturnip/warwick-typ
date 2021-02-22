@@ -4,7 +4,7 @@
 
 #include "VulkanBackedBuffer.h"
 
-VulkanBackedBuffer::VulkanBackedBuffer(VulkanContext& context, vk::BufferUsageFlags usage, size_t size, bool shared)
+VulkanBackedBuffer::VulkanBackedBuffer(VulkanContext& context, vk::MemoryPropertyFlags memoryProperties, vk::BufferUsageFlags usage, size_t size, bool shared)
     : size(size)
 {
     {
@@ -35,7 +35,7 @@ VulkanBackedBuffer::VulkanBackedBuffer(VulkanContext& context, vk::BufferUsageFl
         bufferMemory = VulkanDeviceMemory(
                 context,
                 memRequirements,
-                vk::MemoryPropertyFlagBits::eDeviceLocal
+                memoryProperties
         );
     }
 

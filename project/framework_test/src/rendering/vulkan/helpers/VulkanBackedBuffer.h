@@ -9,11 +9,12 @@
 
 class VulkanBackedBuffer {
     vk::UniqueBuffer buffer;
-    size_t size;
     VulkanDeviceMemory bufferMemory;
 
 public:
-    VulkanBackedBuffer(VulkanContext& context, vk::BufferUsageFlags usage, size_t size, bool shared=false);
+    size_t size;
+
+    VulkanBackedBuffer(VulkanContext& context, vk::MemoryPropertyFlags memoryProperties, vk::BufferUsageFlags usage, size_t size, bool shared=false);
     VulkanBackedBuffer(VulkanBackedBuffer&&) noexcept = default;
     VulkanBackedBuffer(const VulkanBackedBuffer&) = delete;
 

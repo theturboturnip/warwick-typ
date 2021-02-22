@@ -33,6 +33,8 @@ target_sources(generic_sources INTERFACE
         rendering/threads/work/SystemWorker.h
         rendering/vulkan/helpers/VulkanBackedBuffer.cpp
         rendering/vulkan/helpers/VulkanBackedBuffer.h
+        rendering/vulkan/helpers/VulkanBackedGPUBuffer_WithStaging.cpp
+        rendering/vulkan/helpers/VulkanBackedGPUBuffer_WithStaging.h
         rendering/vulkan/helpers/VulkanBackedGPUImage.cpp
         rendering/vulkan/helpers/VulkanBackedGPUImage.h
         rendering/vulkan/helpers/VulkanBackedFramebuffer.cpp

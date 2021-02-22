@@ -288,8 +288,10 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         {
             // We need to make sure the compute waits for the render to finish.
             //  example
-            //    | sim1 | compute1 | sim2 | compute2 |  <- overlaps with render, race condition
+            //    | sim1 | compute1 | sim2 | compute2 |  <- overlaps with render, race condition if compute2 and render1 use the same resources
             //                      |   render1   |
+            //   NOTE this^ is ok IF compute2 and render1 are using different "sim frames", i.e. different buffers
+            //     however it's always possible for same-resource compute/render to overlap, and using the semaphore prevents this.
             //  with the semaphore:
             //    | sim1 | compute1 | sim2 |      | compute2 |  <- no overlap
             //                      |   render1   |
