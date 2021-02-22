@@ -50,7 +50,7 @@ public:
     );
     vk::UniqueDescriptorSet buildSimBuffers_comp_ds(
         VulkanContext& context,
-        VulkanSimFrameData& buffers, vk::Image simBuffersImage,
+        VulkanSimFrameData& buffers,
         VulkanImageSampler& simBuffersImageSampler
     );
     vk::UniqueDescriptorSet buildParticleInputBuffer_comp_ds(

@@ -93,7 +93,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
     const size_t maxFramesInFlight = 2;
 
     auto pipelines = VulkanSimPipelineSet(
-            device, *vizRenderPass, snapshot.simSize.padded_pixel_size
+        device, *vizRenderPass, snapshot.simSize.padded_pixel_size, props
     );
 
 //    fprintf(stderr, "Created pipelines\n");
@@ -108,6 +108,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
     VulkanSimAppData data(VulkanSimAppData::Global{
         .context = context,
         .imguiContext = imContext,
+        .props = props,
 
         .simSize = snapshot.simSize,
 

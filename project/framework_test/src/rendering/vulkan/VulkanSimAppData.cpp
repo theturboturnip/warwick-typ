@@ -44,8 +44,7 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
               globalData.pipelines.buildSimDataSampler_frag_ds(context, simDataSampler)
       ),
       simBuffers_comp_ds(
-              globalData.pipelines.buildSimBuffers_comp_ds(globalData.context, *buffers,
-                                                           *simDataImage, simDataSampler)
+              globalData.pipelines.buildSimBuffers_comp_ds(globalData.context, *buffers, simDataSampler)
       ),
 
       particleBuffer(context,

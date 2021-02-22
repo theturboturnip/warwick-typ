@@ -131,7 +131,7 @@ VulkanPipeline::VulkanPipeline(
         vk::SpecializationInfo specInfo) {
     {
         pushConstantRange = vk::PushConstantRange();
-        pushConstantRange.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        pushConstantRange.stageFlags = vk::ShaderStageFlagBits::eCompute;
         pushConstantRange.size = pushConstantSize;
         pushConstantRange.offset = 0;
     }

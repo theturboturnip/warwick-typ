@@ -4,7 +4,9 @@
 
 #include "VulkanBackedBuffer.h"
 
-VulkanBackedBuffer::VulkanBackedBuffer(VulkanContext& context, vk::BufferUsageFlags usage, size_t size, bool shared) {
+VulkanBackedBuffer::VulkanBackedBuffer(VulkanContext& context, vk::BufferUsageFlags usage, size_t size, bool shared)
+    : size(size)
+{
     {
         auto bufferCreateInfo = vk::BufferCreateInfo();
         bufferCreateInfo.flags = vk::BufferCreateFlagBits(0);

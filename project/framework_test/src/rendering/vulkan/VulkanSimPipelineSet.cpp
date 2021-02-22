@@ -100,6 +100,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
             quantityScalar_vert, quantityScalar_frag,
             {*simDataSampler_frag_ds}
     ),
+    // TODO This needs vertex inputs
     particle(
             device,
             renderPass,
@@ -108,7 +109,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                     viewportSize.y*2
             },
             particle_vert, particle_frag,
-            {*simDataSampler_frag_ds},
+            {*particleInputBuffer_vert_ds},
             sizeof(Shaders::InstancedParticleParams),
             {
                 1,
@@ -141,6 +142,43 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
     )
 {}
 
+struct Descriptor {
+    vk::DescriptorType type;
+    std::optional<vk::DescriptorBufferInfo> bufferInfo;
+    std::optional<vk::DescriptorImageInfo> imageInfo;
+};
+
+vk::UniqueDescriptorSet buildDescriptorSet(VulkanContext& context,
+                                           VulkanDescriptorSetLayout& layout,
+                                           const std::vector<Descriptor>& descriptors) {
+    auto allocInfo = vk::DescriptorSetAllocateInfo{};
+    allocInfo.descriptorPool = *context.descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &(*layout);
+    auto descriptorSet = std::move(context.device->allocateDescriptorSetsUnique(allocInfo)[0]);
+
+    auto writes = std::vector<vk::WriteDescriptorSet>();
+    size_t i = 0;
+    for (const auto& descriptor : descriptors) {
+        auto descriptorWrite = vk::WriteDescriptorSet{};
+        descriptorWrite.dstSet = *descriptorSet;
+        descriptorWrite.dstBinding = i;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = descriptor.type;
+        descriptorWrite.descriptorCount = 1;
+
+        descriptorWrite.pBufferInfo = descriptor.bufferInfo.has_value() ? &descriptor.bufferInfo.value() : nullptr;
+        descriptorWrite.pImageInfo = descriptor.imageInfo.has_value() ? &descriptor.imageInfo.value() : nullptr;
+        descriptorWrite.pTexelBufferView = nullptr;
+        writes.push_back(descriptorWrite);
+        i++;
+    }
+
+    context.device->updateDescriptorSets(writes, {});
+    return descriptorSet;
+}
+
+/*
 vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimDataSampler_ds(VulkanContext& context, VulkanImageSampler& simBuffersImageSampler) {
     auto allocInfo = vk::DescriptorSetAllocateInfo{};
     allocInfo.descriptorPool = *context.descriptorPool;
@@ -215,4 +253,135 @@ VulkanSimPipelineSet::buildSimBuffersDescriptors(VulkanContext &context, VulkanS
     }
 
     return descriptorSet;
+}
+ */
+
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimDataSampler_comp_ds(
+        VulkanContext& context,
+        VulkanImageSampler& simBuffersImageSampler
+){
+    return buildDescriptorSet(
+        context,
+        simDataSampler_comp_ds,
+        {
+            Descriptor{
+                .type = vk::DescriptorType::eCombinedImageSampler,
+                .bufferInfo = std::nullopt,
+                .imageInfo = vk::DescriptorImageInfo(
+                    *simBuffersImageSampler.sampler,
+                    *simBuffersImageSampler.imageView,
+                    vk::ImageLayout::eShaderReadOnlyOptimal
+                )
+            }
+        }
+    );
+}
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimDataSampler_frag_ds(
+        VulkanContext& context,
+        VulkanImageSampler& simBuffersImageSampler
+){
+    return buildDescriptorSet(
+        context,
+        simDataSampler_frag_ds,
+        {
+            Descriptor{
+                .type = vk::DescriptorType::eCombinedImageSampler,
+                .bufferInfo = std::nullopt,
+                .imageInfo = vk::DescriptorImageInfo(
+                    *simBuffersImageSampler.sampler,
+                    *simBuffersImageSampler.imageView,
+                    vk::ImageLayout::eShaderReadOnlyOptimal
+                )
+            }
+        }
+    );
+}
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimBuffers_comp_ds(
+        VulkanContext& context,
+        VulkanSimFrameData& buffers,
+        VulkanImageSampler& simBuffersImageSampler
+){
+    return buildDescriptorSet(
+        context,
+        simBuffers_comp_ds,
+        {
+            Descriptor{
+                .type = vk::DescriptorType::eStorageBuffer,
+                .bufferInfo = buffers.u,
+                .imageInfo = std::nullopt
+            },
+            Descriptor{
+                .type = vk::DescriptorType::eStorageBuffer,
+                .bufferInfo = buffers.v,
+                .imageInfo = std::nullopt
+            },
+            Descriptor{
+                .type = vk::DescriptorType::eStorageBuffer,
+                .bufferInfo = buffers.p,
+                .imageInfo = std::nullopt
+            },
+            Descriptor{
+                .type = vk::DescriptorType::eStorageBuffer,
+                .bufferInfo = buffers.fluidmask,
+                .imageInfo = std::nullopt
+            },
+            Descriptor{
+                .type = vk::DescriptorType::eStorageImage,
+                .bufferInfo = std::nullopt,
+                .imageInfo = vk::DescriptorImageInfo(
+                    nullptr, // No sampler, this image isn't being sampled
+                    *simBuffersImageSampler.imageView,
+                    vk::ImageLayout::eGeneral
+                )
+            }
+        }
+    );
+}
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildParticleInputBuffer_comp_ds(
+        VulkanContext& context,
+        vk::DescriptorBufferInfo buffer
+){
+    return buildDescriptorSet(
+        context,
+        particleInputBuffer_comp_ds,
+        {
+            Descriptor{
+                .type = vk::DescriptorType::eStorageBuffer,
+                .bufferInfo = buffer,
+                .imageInfo = std::nullopt
+            },
+        }
+    );
+}
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildParticleInputBuffer_vert_ds(
+        VulkanContext& context,
+        vk::DescriptorBufferInfo buffer
+){
+    return buildDescriptorSet(
+        context,
+        particleInputBuffer_vert_ds,
+        {
+            Descriptor{
+                .type = vk::DescriptorType::eStorageBuffer,
+                .bufferInfo = buffer,
+                .imageInfo = std::nullopt
+            },
+        }
+    );
+}
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildParticleOutputBuffer_comp_ds(
+        VulkanContext& context,
+        vk::DescriptorBufferInfo buffer
+){
+    return buildDescriptorSet(
+        context,
+        particleOutputBuffer_comp_ds,
+        {
+            Descriptor{
+                .type = vk::DescriptorType::eStorageBuffer,
+                .bufferInfo = buffer,
+                .imageInfo = std::nullopt
+            },
+        }
+    );
 }

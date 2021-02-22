@@ -9,6 +9,7 @@
 
 class VulkanBackedBuffer {
     vk::UniqueBuffer buffer;
+    size_t size;
     VulkanDeviceMemory bufferMemory;
 
 public:
@@ -17,7 +18,7 @@ public:
     VulkanBackedBuffer(const VulkanBackedBuffer&) = delete;
 
     vk::DescriptorBufferInfo asDescriptor() {
-        return vk::DescriptorBufferInfo (*buffer, 0, 0);
+        return vk::DescriptorBufferInfo (*buffer, 0, size);
     }
     vk::DeviceMemory asDeviceMemory() {
         return *bufferMemory;

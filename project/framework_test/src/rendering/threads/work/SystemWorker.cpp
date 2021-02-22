@@ -185,7 +185,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             // Transfer the simBuffersImage to eGeneral so it can be written next frame.
             transferImageLayout(
                     computeCmdBuffer,
-                    *simFrameData.simBuffersImage,
+                    *simFrameData.simDataImage,
                     vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral,
                     vk::AccessFlagBits(0), vk::AccessFlagBits::eShaderWrite,
                     vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eComputeShader
@@ -210,13 +210,13 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             // i.e. (size + 15) / 16
             //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
             //  otherwise (size + 15)/16 === (size / 16) + 1
-            computeCmdBuffer.dispatch((simFrameData.simBuffersImage.size.x + 15)/16, (simFrameData.simBuffersImage.size.y+15)/16, 1);
+            computeCmdBuffer.dispatch((simFrameData.simDataImage.size.x + 15)/16, (simFrameData.simDataImage.size.y+15)/16, 1);
         }
         {
             // Transfer the simBuffersImage layout so that the shader can read it
             transferImageLayout(
-                    graphicsCmdBuffer,
-                    *simFrameData.simBuffersImage,
+                    computeCmdBuffer,
+                    *simFrameData.simDataImage,
                     vk::ImageLayout::eGeneral,vk::ImageLayout::eShaderReadOnlyOptimal,
                     vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead,
                     vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader
@@ -246,10 +246,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             simRenderPassInfo.clearValueCount = 1;
             simRenderPassInfo.pClearValues = &clearColor;
             graphicsCmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
-            graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.fullscreenPressure);
+            graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.quantityScalar);
             graphicsCmdBuffer.bindDescriptorSets(
                     vk::PipelineBindPoint::eGraphics,
-                    *global.pipelines.fullscreenPressure.layout,
+                    *global.pipelines.quantityScalar.layout,
                     0,
                     {*simFrameData.simDataSampler_frag_ds},
                     {});
