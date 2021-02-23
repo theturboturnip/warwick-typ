@@ -40,7 +40,7 @@ VulkanPipeline::VulkanPipeline(
     vertexInput.pVertexAttributeDescriptions = vertexInfo.attributes.empty() ? nullptr : vertexInfo.attributes.data();
 
     auto inputAssembly = vk::PipelineInputAssemblyStateCreateInfo();
-    inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
+    inputAssembly.topology = vk::PrimitiveTopology::eTriangleStrip;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     auto rasterizer = vk::PipelineRasterizationStateCreateInfo();
