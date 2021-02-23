@@ -19,16 +19,6 @@ struct ParticleInstanceData : public Shaders::Particle {
         return data.z;
     }
 
-    inline bool enabled() {
-        return data.w != 0.0;
-    }
-    inline void set_enabled(bool enabled) {
-        if (enabled) {
-            data.w = 1.0;
-        } else {
-            data.w = 0.0;
-        }
-    }
 
     static const vk::VertexInputBindingDescription bindingDescription;
     static const std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions;

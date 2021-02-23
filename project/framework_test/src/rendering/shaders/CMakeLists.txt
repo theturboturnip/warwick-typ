@@ -38,7 +38,9 @@ compile_glsl(shader_files
         quantity_scalar.vert
         quantity_scalar.frag
         compute_sim_data_image.comp
-        compute_update_particles.comp
+        compute_particle_emit.comp
+        compute_particle_simulate.comp
+        compute_particle_kickoff.comp
         particle.vert
         particle.frag
         )

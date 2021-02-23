@@ -1,4 +1,6 @@
-#define SPEC_CONST_PARTICLE_COUNT() layout (constant_id = 0) const uint particleBufferLength = 1;
+#define SPEC_CONST_MAX_PARTICLE_COUNT() layout (constant_id = 0) const uint particleBufferLength = 1;
+#define SPEC_CONST_MAX_PARTICLES_TO_EMIT_COUNT() layout (constant_id = 1) const uint particleToEmitBufferLength = 1;
+#define SPEC_CONST_MAX_PARTICLE_EMITTER_COUNT() layout (constant_id = 2) const uint particleEmitterCount = 1;
 
 
 #define PUSH_CONSTANTS(TYPE) \
@@ -22,8 +24,8 @@
     layout (set=SET, binding=3) buffer readonly buf_fluidmask { \
         int fluidmask[]; \
     };
-#define DS_SIM_BUFFER_COPY_OUTPUT(SET) \
-    layout (set=SET, binding=0, rgba32f) uniform writeonly image2D resultImage;
+#define DS_SIM_BUFFER_COPY_OUTPUT(SET, NAME) \
+    layout (set=SET, binding=0, rgba32f) uniform writeonly image2D NAME;
 
 #define DS_PARTICLE_INPUT_BUFFER(SET, NAME) \
     layout (set=SET, binding=0, std140) readonly buffer ParticleInBuffer { \
@@ -33,4 +35,36 @@
 #define DS_PARTICLE_OUTPUT_BUFFER(SET, NAME) \
     layout (set=SET, binding=0, std140) buffer ParticleOutBuffer { \
         Particle NAME[particleBufferLength]; \
+    };
+
+#define DS_PARTICLE_MUTABLE_INDEX_LIST(SET, NAME) \
+    layout (set=SET, binding=0, std140) buffer NAME##_Buffer { \
+        uint NAME##_length; \
+        uint NAME[particleBufferLength]; \
+    };
+
+#define DS_PARTICLE_IMMUTABLE_INDEX_LIST(SET, NAME) \
+    layout (set=SET, binding=0, std140) readonly buffer NAME##_Buffer { \
+        uint NAME##_length; \
+        uint NAME[particleBufferLength]; \
+    };
+
+#define DS_PARTICLE_INDIRECT_CMDS(SET, NAME) \
+    layout (set=SET, binding=0, std140) buffer ParticleIndirectCallsBuffer { \
+        ParticleIndirectCommands NAME; \
+    };
+
+#define DS_PARTICLE_EMITTERS_DATA(SET, NAME) \
+    layout (set=SET, binding=0, std140) readonly buffer ParticleEmittersBuffer { \
+        ParticleEmitter NAME[particleEmitterCount]; \
+    };
+
+#define DS_PARTICLES_TO_EMIT_INPUT_DATA(SET, NAME) \
+    layout (set=SET, binding=0, std140) readonly buffer ParticlesToEmitBuffer { \
+        ParticleToEmitData NAME[particleToEmitBufferLength]; \
+    };
+
+#define DS_PARTICLES_TO_EMIT_OUTPUT_DATA(SET, NAME) \
+    layout (set=SET, binding=0, std140) writeonly buffer ParticlesToEmitBuffer { \
+        ParticleToEmitData NAME[particleToEmitBufferLength]; \
     };

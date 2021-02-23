@@ -4,24 +4,24 @@
 #include "global_descriptor_sets.glsl"
 #include "global_structures.glsl"
 
+SPEC_CONST_MAX_PARTICLE_COUNT()
+
 PUSH_CONSTANTS(InstancedParticleParams)
+
+DS_PARTICLE_IMMUTABLE_INDEX_LIST(0, particlesToDrawIndexList)
+DS_PARTICLE_INPUT_BUFFER(1, particleDatas)
 
 // Per-vertex data
 layout(location = 0) in vec2 v_pos;
 layout(location = 1) in vec2 v_uv;
 
-// Per-instance data
-layout(location = 2) in vec4 particle_data;
-layout(location = 3) in vec4 particle_color;
-
 layout(location = 0) out vec2 f_uv;
 
 void main() {
-    if (particleEnabled(particle_data)) {
-        vec2 finalPos = (v_pos.xy * pConsts.baseScale) + particlePos(particle_data);
-        gl_Position = vec4(finalPos.x, finalPos.y, 0, 1);
-    } else {
-        gl_Position = vec4(-5, -5, 0, 0);
-    }
+    const uint particleIdx = particlesToDrawIndexList[gl_InstanceIndex.x];
+    Particle particle = particleDatas[particleIdx];
+
+    vec2 finalPos = (v_pos.xy * pConsts.baseScale) + particlePos(particle.data);
+    gl_Position = vec4(finalPos.x, finalPos.y, 0, 1);
     f_uv = v_uv;
 }

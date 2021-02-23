@@ -13,5 +13,8 @@ namespace Shaders {
     using uvec2 = glm::uvec2;
     using uvec4 = glm::uvec4;
 
+    // We don't need to preserve the "atomic" element of atomic_uint on the CPU side
+    using atomic_uint = uint;
+
 #include "global_structures.glsl"
 }

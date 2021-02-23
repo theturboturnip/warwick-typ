@@ -1,7 +1,7 @@
 
 struct Particle {
-// vec4(posX, posY, rot, enabled)
-// pos in [0,1], rot in [0,2pi]?, enabled = 0 if not enabled, otherwise anything
+// vec4(posX, posY, rot, none)
+// pos in [0,1], rot in [0,2pi]?
     vec4 data;
 // TODO other particle state
 // Color?
@@ -9,8 +9,19 @@ struct Particle {
 };
 #define particlePos(data) data.xy
 #define particleRot(data) data.z
-#define particleEnabled(data) (data.w != 0)
 
+struct ParticleToEmitData {
+    uint emitterIdx;
+};
+
+struct ParticleEmitter {
+    vec2 position;
+    vec4 color;
+};
+
+/**
+* Push Constants
+*/
 struct SimDataBufferStats {
     uint sim_pixelWidth;
     uint sim_pixelHeight;
@@ -18,11 +29,50 @@ struct SimDataBufferStats {
     uint sim_totalPixels;
 };
 
-struct ParticleStepParams {
+struct ParticleSimulateParams {
     float timestep;
     float xLength, yLength;
 };
 
 struct InstancedParticleParams {
     float baseScale;
+};
+
+struct ParticleKickoffParams {
+    uint emitterCount;
+};
+
+/**
+* Indirect commands
+*/
+// Indirect compute command
+struct VkDispatchIndirectCommand {
+    uint    x;
+    uint    y;
+    uint    z;
+};
+
+// Indirect indexed draw
+struct VkDrawIndexedIndirectCommand {
+    uint    indexCount;
+    uint    instanceCount;
+    uint    firstIndex;
+    int     vertexOffset;
+    uint    firstInstance;
+};
+
+struct VkDrawIndirectCommand {
+    uint    vertexCount;
+    uint    instanceCount;
+    uint    firstVertex;
+    uint    firstInstance;
+};
+
+struct ParticleIndirectCommands {
+    VkDispatchIndirectCommand particleEmitCmd;
+    VkDispatchIndirectCommand particleSimCmd;
+    VkDrawIndirectCommand particleDrawCmd;
+
+    uint particlesToEmitCount;
+    uint particlesToSimCount;
 };

@@ -1,0 +1,56 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
+#include "global_descriptor_sets.glsl"
+#include "global_structures.glsl"
+
+layout (local_size_x = 32) in;
+
+SPEC_CONST_MAX_PARTICLE_COUNT()
+
+PUSH_CONSTANTS(ParticleSimulateParams)
+
+DS_PARTICLE_IMMUTABLE_INDEX_LIST(0, particlesToSimIndexList)
+DS_SIM_DATA_SAMPLER(1, simBufferDataSampler)
+
+DS_PARTICLE_MUTABLE_INDEX_LIST(2, particlesToDrawIndexList)
+DS_PARTICLE_MUTABLE_INDEX_LIST(3, inactiveParticleIndexList)
+DS_PARTICLE_INDIRECT_CMDS(4, indirectCmds)
+DS_PARTICLE_OUTPUT_BUFFER(5, particleDatas)
+//layout (set=2, binding=0, r32f) uniform image2D turbulenceImage;
+
+void main() {
+    // Current SSBO index
+    uint index = gl_GlobalInvocationID.x;
+    // Don't try to write beyond particle count
+    if (index >= indirectCmds.particlesToSimCount)
+        return;
+    const uint particleDataIdx = particlesToSimIndexList[index];
+    Particle particle = particleDatas[particleDataIdx];
+
+    vec2 pos = particlePos(particle.data);
+    float rot = particleRot(particle.data);
+
+    for (int i = 0; i < 4; i++) {
+        //     TODO - offset by 1/2 pixel?
+        vec2 offset = vec2(0,0);
+        vec4 fluidData = texture(simBufferDataSampler, pos + offset);
+        if (fluidData.w > 0.5) break;
+
+        // xy are in m/s, timestep in s,
+        pos += (fluidData.xy * pConsts.timestep / 4) / vec2(pConsts.xLength, pConsts.yLength);
+    }
+
+    // TODO
+    // if pos < 0 or pos > 1
+    //     add particleDataIdx to inactive particle list
+    //     SUBTRACT ONE FROM THE INDIRECT DRAW COMMAND COUNT
+    //     *don't* push it to the particlesToDraw list
+
+    // Update the data
+    particle.data = vec4(pos, rot, 1);
+    particleDatas[particleDataIdx] = particle;
+
+    // Push the index to the particlesToDraw list
+    particlesToDrawIndexList[atomicAdd(particlesToDrawIndexList_length, 1)] = particleDataIdx;
+}
