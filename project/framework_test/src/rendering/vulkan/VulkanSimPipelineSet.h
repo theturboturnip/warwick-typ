@@ -20,7 +20,8 @@ public:
 
     VulkanDescriptorSetLayout simDataSampler_comp_ds;
     VulkanDescriptorSetLayout simDataSampler_frag_ds;
-    VulkanDescriptorSetLayout simBuffers_comp_ds;
+    VulkanDescriptorSetLayout simBufferCopyInput_comp_ds;
+    VulkanDescriptorSetLayout simBufferCopyOutput_comp_ds;
     VulkanDescriptorSetLayout particleInputBuffer_comp_ds;
     VulkanDescriptorSetLayout particleInputBuffer_vert_ds;
     VulkanDescriptorSetLayout particleOutputBuffer_comp_ds;
@@ -48,9 +49,12 @@ public:
         VulkanContext& context,
         VulkanImageSampler& simBuffersImageSampler
     );
-    vk::UniqueDescriptorSet buildSimBuffers_comp_ds(
+    vk::UniqueDescriptorSet buildSimBufferCopyInput_comp_ds(
         VulkanContext& context,
-        VulkanSimFrameData& buffers,
+        VulkanSimFrameData& buffers
+    );
+    vk::UniqueDescriptorSet buildSimBufferCopyOutput_comp_ds(
+        VulkanContext& context,
         VulkanImageSampler& simBuffersImageSampler
     );
     vk::UniqueDescriptorSet buildParticleInputBuffer_comp_ds(

@@ -110,6 +110,9 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         .imguiContext = imContext,
         .props = props,
 
+        .device = *context.device,
+        .swapchain = swapchain,
+
         .simSize = snapshot.simSize,
 
         .finalCompositeRenderPass = *finalCompositeRenderPass,
@@ -133,8 +136,6 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
     // Index of the simulation frame buffer to use
     uint32_t simFrameIdx = 0;
-    // Index of the swapchain image to use
-    uint32_t swapchainImageIdx = 0;
 
     // User Input Values
     bool wantsRunSim = false;
@@ -177,27 +178,10 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         lastFrameStartTime = frameStartTime;
 
         // Get a new sim frame
-        auto& simFrame = data.frameData[simFrameIdx];
+        auto& simFrame = data.perFrameData[simFrameIdx];
         // If we haven't yet kicked off a render job on this frame, it's considered "fresh".
         // That means we shouldn't wait on semaphores etc.
         const bool simFrameIsFresh = (renderedFrameNum < maxFramesInFlight);
-
-        // Get a new swapchain image
-        device.acquireNextImageKHR(
-            *swapchain,
-            UINT64_MAX,
-            *simFrame.imageAcquired, nullptr,
-            &swapchainImageIdx
-        );
-//        fprintf(stderr, "told to get swapchain image %d\n", swapchainImageIdx);
-        auto& swapchainImage = data.swapchainImageData[swapchainImageIdx];
-        // Wait for the last "sim frame" that was rendering this swapchain image to finish
-        if (swapchainImage.inFlight) {
-            device.waitForFences({swapchainImage.inFlight}, true, UINT64_MAX);
-        }
-        // We are now trying to render this image, so make the swapchain fence point to the simframe fence.
-        swapchainImage.inFlight = *simFrame.inFlight;
-//        fprintf(stderr, "got sim frame and swapchain image\n");
 
         // Decide on the next simulation tick length.
         float simTickLength;
@@ -244,7 +228,6 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
 
         // Enqueue work for the SystemWorker
         systemWorker.giveNextWork(SystemWorkerIn{
-                .swapchainImageIndex = swapchainImageIdx,
                 .simFrameIndex = simFrameIdx,
                 .shouldSimParticles = actuallyRanSim,
                 .perf = {
@@ -283,79 +266,6 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
             wantsQuit = true;
         wantsRunSim = systemOutput.wantsRunSim;
 //        fprintf(stderr, "got output\n");
-
-        // Send the compute work
-        {
-            // We need to make sure the compute waits for the render to finish.
-            //  example
-            //    | sim1 | compute1 | sim2 | compute2 |  <- overlaps with render, race condition if compute2 and render1 use the same resources
-            //                      |   render1   |
-            //   NOTE this^ is ok IF compute2 and render1 are using different "sim frames", i.e. different buffers
-            //     however it's always possible for same-resource compute/render to overlap, and using the semaphore prevents this.
-            //  with the semaphore:
-            //    | sim1 | compute1 | sim2 |      | compute2 |  <- no overlap
-            //                      |   render1   |
-            vk::SubmitInfo submitInfo{};
-            std::vector<vk::Semaphore> waitSemaphores = {*simFrame.simFinished};
-            std::vector<vk::PipelineStageFlags> waitStages = {vk::PipelineStageFlagBits::eComputeShader};
-            if (!simFrameIsFresh) {
-                waitSemaphores.push_back(*simFrame.renderFinishedShouldCompute);
-                waitStages.push_back(vk::PipelineStageFlagBits::eComputeShader);
-            }
-            submitInfo.waitSemaphoreCount = waitSemaphores.size();
-            submitInfo.pWaitSemaphores = waitSemaphores.data();
-            submitInfo.pWaitDstStageMask = waitStages.data();
-
-            vk::CommandBuffer cmdBuffers[] = {
-                    systemOutput.computeCmdBuffer
-            };
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = cmdBuffers;
-
-            vk::Semaphore signalSemaphores[] = {*simFrame.computeFinished, *simFrame.computeFinishedShouldSim};
-            submitInfo.signalSemaphoreCount = 2;
-            submitInfo.pSignalSemaphores = signalSemaphores;
-
-            context.computeQueue.submit({submitInfo}, nullptr);
-        }
-
-        // Send the graphics work
-        {
-            vk::SubmitInfo submitInfo{};
-            vk::Semaphore waitSemaphores[] = {*simFrame.imageAcquired, *simFrame.computeFinished};
-            vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTopOfPipe};
-            submitInfo.waitSemaphoreCount = 2;
-            submitInfo.pWaitSemaphores = waitSemaphores;
-            submitInfo.pWaitDstStageMask = waitStages;
-
-            vk::CommandBuffer cmdBuffers[] = {
-                systemOutput.graphicsCmdBuffer
-            };
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = cmdBuffers;
-
-            vk::Semaphore signalSemaphores[] = {*simFrame.renderFinishedShouldPresent, *simFrame.renderFinishedShouldCompute};
-            submitInfo.signalSemaphoreCount = 2;
-            submitInfo.pSignalSemaphores = signalSemaphores;
-
-            // Reset this frame's fence before we submit
-            device.resetFences({*simFrame.inFlight});
-            // and tell the graphics queue to re-open the fence once it's done with this submission
-            context.graphicsQueue.submit({submitInfo}, *simFrame.inFlight);
-        }
-
-        // Send the Present work
-        {
-            vk::PresentInfoKHR presentInfo{};
-            vk::Semaphore presentWaitSemaphores[] = {*simFrame.renderFinishedShouldPresent};
-            presentInfo.waitSemaphoreCount = 1;
-            presentInfo.pWaitSemaphores = presentWaitSemaphores;
-            presentInfo.swapchainCount = 1;
-            presentInfo.pSwapchains = &(*swapchain);
-            presentInfo.pImageIndices = &swapchainImageIdx;
-            presentInfo.pResults = nullptr;
-            context.presentQueue.presentKHR(presentInfo);
-        }
 
         // Increment renderedFrameNum without bounding
         renderedFrameNum++;

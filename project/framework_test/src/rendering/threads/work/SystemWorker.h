@@ -14,7 +14,6 @@
 
 
 struct SystemWorkerIn {
-    uint32_t swapchainImageIndex;
     uint32_t simFrameIndex;
     bool shouldSimParticles;
 
@@ -35,8 +34,6 @@ struct SystemWorkerIn {
 struct SystemWorkerOut {
     bool wantsQuit = false;
     bool wantsRunSim = false;
-    vk::CommandBuffer graphicsCmdBuffer;
-    vk::CommandBuffer computeCmdBuffer;
 };
 
 struct VizValueRange {

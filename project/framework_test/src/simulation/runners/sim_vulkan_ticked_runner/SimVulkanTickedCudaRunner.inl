@@ -22,12 +22,12 @@ class SimVulkanTickedCudaRunner : public ISimVulkanTickedRunner {
 
     VulkanContext& context;
     struct Sync {
-        CudaVulkanSemaphore renderFinished;
+        CudaVulkanSemaphore buffersAvailable;
         CudaVulkanSemaphore simFinished;
 
         Sync(vk::Device device, const VulkanSimAppData::PerFrameData& data)
-            : renderFinished(device, *data.computeFinishedShouldSim),
-                simFinished(device, *data.simFinished) {}
+            : buffersAvailable(device, *data.bufferCopyFinishedCanSim),
+              simFinished(device, *data.simFinishedCanBufferCopy) {}
     };
     std::vector<Sync> frameSemaphores;
 
@@ -50,8 +50,8 @@ public:
 
     void prepareSemaphores(VulkanSimAppData& data) override {
         frameSemaphores.clear();
-        frameSemaphores.reserve(data.frameData.size());
-        for (const auto& frame : data.frameData) {
+        frameSemaphores.reserve(data.perFrameData.size());
+        for (const auto& frame : data.perFrameData) {
             frameSemaphores.emplace_back(*context.device, frame);
         }
     }
@@ -60,7 +60,7 @@ public:
         auto& semaphores = frameSemaphores[frameIdx];
         if (waitForRender) {
 //            fprintf(stderr, "Waiting on renderFinishedShouldSim\n");
-            semaphores.renderFinished.waitForAsync(backend->stream);
+            semaphores.buffersAvailable.waitForAsync(backend->stream);
         }
 
         if (doSim) {

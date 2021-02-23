@@ -26,7 +26,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                     vk::ShaderStageFlagBits::eFragment
             )
     }),
-    simBuffers_comp_ds(device, {
+    simBufferCopyInput_comp_ds(device, {
             vk::DescriptorSetLayoutBinding(
                     0,
                     vk::DescriptorType::eStorageBuffer,
@@ -50,13 +50,15 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                     vk::DescriptorType::eStorageBuffer,
                     1,
                     vk::ShaderStageFlagBits::eCompute
-            ),
-            vk::DescriptorSetLayoutBinding(
-                    4,
-                    vk::DescriptorType::eStorageImage,
-                    1,
-                    vk::ShaderStageFlagBits::eCompute
             )
+    }),
+    simBufferCopyOutput_comp_ds(device, {
+        vk::DescriptorSetLayoutBinding(
+            0,
+            vk::DescriptorType::eStorageImage,
+            1,
+            vk::ShaderStageFlagBits::eCompute
+        )
     }),
     particleInputBuffer_comp_ds(device, {
             vk::DescriptorSetLayoutBinding(
@@ -101,7 +103,6 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
             VulkanVertexInformation::Kind::None,
             {*simDataSampler_frag_ds}
     ),
-    // TODO This needs vertex inputs
     particle(
             device,
             renderPass,
@@ -117,7 +118,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
     computeSimDataImage(
             device,
             computeSimDataImage_shader,
-            {*simBuffers_comp_ds},
+            {*simBufferCopyInput_comp_ds, *simBufferCopyOutput_comp_ds},
             sizeof(Shaders::SimDataBufferStats)
     ),
     computeSimUpdateParticles(
@@ -292,14 +293,13 @@ vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimDataSampler_frag_ds(
         }
     );
 }
-vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimBuffers_comp_ds(
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimBufferCopyInput_comp_ds(
         VulkanContext& context,
-        VulkanSimFrameData& buffers,
-        VulkanImageSampler& simBuffersImageSampler
+        VulkanSimFrameData& buffers
 ){
     return buildDescriptorSet(
         context,
-        simBuffers_comp_ds,
+        simBufferCopyInput_comp_ds,
         {
             Descriptor{
                 .type = vk::DescriptorType::eStorageBuffer,
@@ -320,17 +320,28 @@ vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimBuffers_comp_ds(
                 .type = vk::DescriptorType::eStorageBuffer,
                 .bufferInfo = buffers.fluidmask,
                 .imageInfo = std::nullopt
-            },
-            Descriptor{
-                .type = vk::DescriptorType::eStorageImage,
-                .bufferInfo = std::nullopt,
-                .imageInfo = vk::DescriptorImageInfo(
-                    nullptr, // No sampler, this image isn't being sampled
-                    *simBuffersImageSampler.imageView,
-                    vk::ImageLayout::eGeneral
-                )
             }
         }
+    );
+}
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimBufferCopyOutput_comp_ds(
+        VulkanContext& context,
+        VulkanImageSampler& simBuffersImageSampler
+){
+    return buildDescriptorSet(
+            context,
+            simBufferCopyOutput_comp_ds,
+            {
+                    Descriptor{
+                            .type = vk::DescriptorType::eStorageImage,
+                            .bufferInfo = std::nullopt,
+                            .imageInfo = vk::DescriptorImageInfo(
+                                    nullptr, // No sampler, this image isn't being sampled
+                                    *simBuffersImageSampler.imageView,
+                                    vk::ImageLayout::eGeneral
+                            )
+                    }
+            }
     );
 }
 vk::UniqueDescriptorSet VulkanSimPipelineSet::buildParticleInputBuffer_comp_ds(

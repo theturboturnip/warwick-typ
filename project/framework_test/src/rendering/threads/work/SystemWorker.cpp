@@ -42,9 +42,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             ImGui_ImplSDL2_ProcessEvent(&event);
     }
 
-    auto& simFrameData = data.frameData[input.simFrameIndex];
-    auto& swImageData = data.swapchainImageData[input.swapchainImageIndex];
-
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplSDL2_NewFrame(global.context.window);
     ImGui::NewFrame();
@@ -159,11 +156,31 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     //ImGui::SetNextWindowSize(ImVec2(simSize.pixel_size.x+2, simSize.pixel_size.y+2));
     ImGui::Begin("Simulation", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Image(
-            (ImTextureID)*simFrameData.vizFramebufferDescriptorSet,
+            (ImTextureID)*data.sharedFrameData.vizFramebufferDescriptorSet,
             ImVec2(global.simSize.padded_pixel_size.x*1.5, global.simSize.padded_pixel_size.y*1.5)
     );
     ImGui::End();
     ImGui::Render();
+
+    auto& simFrameData = data.perFrameData[input.simFrameIndex];
+
+    // Get a new swapchain image
+    uint32_t swapchainImageIdx = 0;
+    global.device.acquireNextImageKHR(
+            *global.swapchain,
+            UINT64_MAX,
+            *simFrameData.imageAcquiredCanRender, nullptr,
+            &swapchainImageIdx
+    );
+    auto& swImageData = data.swapchainImageData[swapchainImageIdx];
+//        fprintf(stderr, "told to get swapchain image %d\n", swapchainImageIdx);
+
+
+    // Wait for this frame's command buffers to become available
+//    fprintf(stderr, "Waiting for cmdbuffer fence\n");
+    global.device.waitForFences({*simFrameData.frameCmdBuffersInUse}, true, UINT64_MAX);
+
+//        fprintf(stderr, "got sim frame and swapchain image\n");
 
     auto simBuffersPushConstants = Shaders::SimDataBufferStats{
         .sim_pixelWidth=global.simSize.padded_pixel_size.x,
@@ -172,20 +189,21 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         .sim_totalPixels=(uint32_t)global.simSize.pixel_count()
     };
 
-    const auto& graphicsCmdBuffer = *simFrameData.threadOutputs.graphicsCommandBuffer;
-    const auto& computeCmdBuffer = *simFrameData.threadOutputs.computeCommandBuffer;
+    const auto& bufferCopyCmdBuffer = *simFrameData.bufferCopyCmdBuffer;
+    const auto& computeCmdBuffer = *simFrameData.computeCmdBuffer;
+    const auto& graphicsCmdBuffer = *simFrameData.renderCmdBuffer;
 
     {
-        computeCmdBuffer.reset({});
+        bufferCopyCmdBuffer.reset({});
 
         auto beginInfo = vk::CommandBufferBeginInfo();
-        computeCmdBuffer.begin(beginInfo);
+        bufferCopyCmdBuffer.begin(beginInfo);
 
         {
             // Transfer the simBuffersImage to eGeneral so it can be written next frame.
             transferImageLayout(
-                    computeCmdBuffer,
-                    *simFrameData.simDataImage,
+                    bufferCopyCmdBuffer,
+                    *data.sharedFrameData.simDataImage,
                     vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral,
                     vk::AccessFlagBits(0), vk::AccessFlagBits::eShaderWrite,
                     vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eComputeShader
@@ -194,38 +212,52 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
         {
             // Run the compute shader
-            computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeSimDataImage);
-            computeCmdBuffer.pushConstants(
+            bufferCopyCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeSimDataImage);
+            bufferCopyCmdBuffer.pushConstants(
                                         *global.pipelines.computeSimDataImage.layout,
                                         vk::ShaderStageFlagBits::eCompute,
                                         0,
                                         vk::ArrayProxy<const Shaders::SimDataBufferStats>{simBuffersPushConstants});
-            computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+            bufferCopyCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
                                                 *global.pipelines.computeSimDataImage.layout,
                                                 0,
-                                                {*simFrameData.simBuffers_comp_ds},
+                                                vk::ArrayProxy<const vk::DescriptorSet>{
+                                                    *simFrameData.simBufferCopyInput_comp_ds,
+                                                    *data.sharedFrameData.simBufferCopyOutput_comp_ds
+                                                },
                                                 {});
             // Group size of 16 -> group count in each direction is size/16
             // If size isn't a multiple of 16, get extra group to cover the remainder
             // i.e. (size + 15) / 16
             //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
             //  otherwise (size + 15)/16 === (size / 16) + 1
-            computeCmdBuffer.dispatch((simFrameData.simDataImage.size.x + 15)/16, (simFrameData.simDataImage.size.y+15)/16, 1);
+            bufferCopyCmdBuffer.dispatch((data.sharedFrameData.simDataImage.size.x + 15)/16, (data.sharedFrameData.simDataImage.size.y+15)/16, 1);
         }
         {
             // Transfer the simBuffersImage layout so that the shader can read it
             transferImageLayout(
-                    computeCmdBuffer,
-                    *simFrameData.simDataImage,
+                    bufferCopyCmdBuffer,
+                    *data.sharedFrameData.simDataImage,
                     vk::ImageLayout::eGeneral,vk::ImageLayout::eShaderReadOnlyOptimal,
                     vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead,
                     vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader
             );
         }
+        bufferCopyCmdBuffer.end();
+    }
+
+    {
+        // Compute Buffer
+        computeCmdBuffer.reset({});
+
+        auto beginInfo = vk::CommandBufferBeginInfo();
+        computeCmdBuffer.begin(beginInfo);
+
         // Particle Update
         {
 
         }
+
         computeCmdBuffer.end();
     }
 
@@ -241,7 +273,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         {
             auto simRenderPassInfo = vk::RenderPassBeginInfo();
             simRenderPassInfo.renderPass = global.vizRenderPass;
-            simRenderPassInfo.framebuffer = *simFrameData.vizFramebuffer;
+            simRenderPassInfo.framebuffer = *data.sharedFrameData.vizFramebuffer;
             simRenderPassInfo.renderArea = global.vizRect;
             simRenderPassInfo.clearValueCount = 1;
             simRenderPassInfo.pClearValues = &clearColor;
@@ -251,7 +283,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                     vk::PipelineBindPoint::eGraphics,
                     *global.pipelines.quantityScalar.layout,
                     0,
-                    {*simFrameData.simDataSampler_frag_ds},
+                    {*data.sharedFrameData.simDataSampler_frag_ds},
                     {});
             graphicsCmdBuffer.draw(6, 1, 0, 0);
             graphicsCmdBuffer.endRenderPass();
@@ -277,11 +309,101 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         graphicsCmdBuffer.end();
     }
 
+    // Submit the command buffers
+    // Send the buffercopy compute work
+    {
+        vk::SubmitInfo submitInfo{};
+        std::vector<vk::Semaphore> waitSemaphores = {*simFrameData.simFinishedCanBufferCopy};
+        std::vector<vk::PipelineStageFlags> waitStages = {vk::PipelineStageFlagBits::eComputeShader};
+        if (input.perf.currentFrameNum > 0) {
+            // Find previous frame idx, use to check that the previous render has finished
+            // Do (i + size - 1) % size instead of just (i - 1) % size because idk how C modulo works with negatives
+            const auto nextFrameIdx = (input.simFrameIndex + data.perFrameData.size() - 1) % data.perFrameData.size();
+            const auto& previousFrameData = data.perFrameData[nextFrameIdx];
+            waitSemaphores.push_back(*previousFrameData.renderFinishedNextFrameCanBufferCopy);
+            waitStages.push_back(vk::PipelineStageFlagBits::eComputeShader);
+        }
+
+        submitInfo.waitSemaphoreCount = waitSemaphores.size();
+        submitInfo.pWaitSemaphores = waitSemaphores.data();
+        submitInfo.pWaitDstStageMask = waitStages.data();
+
+        vk::CommandBuffer cmdBuffers[] = {
+            bufferCopyCmdBuffer
+        };
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = cmdBuffers;
+
+        vk::Semaphore signalSemaphores[] = {*simFrameData.bufferCopyFinishedCanCompute, *simFrameData.bufferCopyFinishedCanSim};
+        submitInfo.signalSemaphoreCount = 2;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        global.context.computeQueue.submit({submitInfo}, nullptr);
+    }
+    // Send the compute work
+    {
+        vk::SubmitInfo submitInfo{};
+        std::vector<vk::Semaphore> waitSemaphores = {*simFrameData.bufferCopyFinishedCanCompute};
+        std::vector<vk::PipelineStageFlags> waitStages = {vk::PipelineStageFlagBits::eComputeShader};
+
+        submitInfo.waitSemaphoreCount = waitSemaphores.size();
+        submitInfo.pWaitSemaphores = waitSemaphores.data();
+        submitInfo.pWaitDstStageMask = waitStages.data();
+
+        vk::CommandBuffer cmdBuffers[] = {
+            computeCmdBuffer
+        };
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = cmdBuffers;
+
+        vk::Semaphore signalSemaphores[] = {*simFrameData.computeFinishedCanRender};
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        global.context.computeQueue.submit({submitInfo}, nullptr);
+    }
+
+    // Send the graphics work
+    {
+        vk::SubmitInfo submitInfo{};
+        vk::Semaphore waitSemaphores[] = {*simFrameData.imageAcquiredCanRender, *simFrameData.computeFinishedCanRender};
+        vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTopOfPipe};
+        submitInfo.waitSemaphoreCount = 2;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = waitStages;
+
+        vk::CommandBuffer cmdBuffers[] = {
+            graphicsCmdBuffer
+        };
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = cmdBuffers;
+
+        vk::Semaphore signalSemaphores[] = {*simFrameData.renderFinishedCanPresent, *simFrameData.renderFinishedNextFrameCanBufferCopy};
+        submitInfo.signalSemaphoreCount = 2;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        // We are now using these command buffers to execute - don't record over them
+        global.device.resetFences({*simFrameData.frameCmdBuffersInUse});
+        // Tell the graphics queue to re-open the fence once it's done with this submission
+        global.context.graphicsQueue.submit({submitInfo}, *simFrameData.frameCmdBuffersInUse);
+    }
+
+    // Send the Present work
+    {
+        vk::PresentInfoKHR presentInfo{};
+        vk::Semaphore presentWaitSemaphores[] = {*simFrameData.renderFinishedCanPresent};
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = presentWaitSemaphores;
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = &(*global.swapchain);
+        presentInfo.pImageIndices = &swapchainImageIdx;
+        presentInfo.pResults = nullptr;
+        global.context.presentQueue.presentKHR(presentInfo);
+    }
+
     return SystemWorkerOut{
-            .wantsQuit = wantsQuit,
-            .wantsRunSim = wantsRunSim,
-            .graphicsCmdBuffer = graphicsCmdBuffer,
-            .computeCmdBuffer = computeCmdBuffer,
+        .wantsQuit = wantsQuit,
+        .wantsRunSim = wantsRunSim
     };
 }
 

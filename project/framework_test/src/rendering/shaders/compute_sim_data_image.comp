@@ -9,7 +9,8 @@ layout (local_size_x = 16, local_size_y = 16) in;
 PUSH_CONSTANTS(SimDataBufferStats)
 
 // Declare the descriptor sets
-DS_SIM_BUFFERS(0)
+DS_SIM_BUFFER_COPY_INPUT(0)
+DS_SIM_BUFFER_COPY_OUTPUT(1)
 
 // Index of the cell in a buffer corresponding to the 2d coordinate
 int simIdx(ivec2 sim2DIdx) {

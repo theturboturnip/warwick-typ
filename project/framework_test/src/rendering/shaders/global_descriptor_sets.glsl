@@ -9,7 +9,7 @@
 
 #define DS_SIM_DATA_SAMPLER(SET, NAME) layout(set = SET, binding = 0) uniform sampler2D NAME;
 
-#define DS_SIM_BUFFERS(SET) \
+#define DS_SIM_BUFFER_COPY_INPUT(SET) \
     layout (set=SET, binding=0) buffer readonly buf_u { \
         float velocity_x[]; \
     }; \
@@ -21,8 +21,9 @@
     }; \
     layout (set=SET, binding=3) buffer readonly buf_fluidmask { \
         int fluidmask[]; \
-    }; \
-    layout (set=SET, binding=4, rgba32f) uniform writeonly image2D resultImage;
+    };
+#define DS_SIM_BUFFER_COPY_OUTPUT(SET) \
+    layout (set=SET, binding=0, rgba32f) uniform writeonly image2D resultImage;
 
 #define DS_PARTICLE_INPUT_BUFFER(SET, NAME) \
     layout (set=SET, binding=0, std140) readonly buffer ParticleInBuffer { \
