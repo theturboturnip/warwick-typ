@@ -252,12 +252,120 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         // Particle Update
         const bool updateParticle = true;
         if (updateParticle) {
-            // MAKE SURE TO COPY INDEXDRAWLIST -> INDEXSIMULATELIST
-            auto copy = vk::BufferCopy{};
-            copy.srcOffset = 0;
-            copy.dstOffset = 0;
-            copy.size = data.sharedFrameData.particleIndexDrawList.size;
-            computeCmdBuffer.copyBuffer(*data.sharedFrameData.particleIndexDrawList, *data.sharedFrameData.particleIndexSimulateList, {copy});
+            {
+                // MAKE SURE TO COPY INDEXDRAWLIST -> INDEXSIMULATELIST
+                auto copy = vk::BufferCopy{};
+                copy.srcOffset = 0;
+                copy.dstOffset = 0;
+                copy.size = data.sharedFrameData.particleIndexDrawList.size;
+                computeCmdBuffer.copyBuffer(*data.sharedFrameData.particleIndexDrawList,
+                                            *data.sharedFrameData.particleIndexSimulateList, {copy});
+            }
+
+            // Setup the emitter points
+            {
+                {
+                    DASSERT(global.props.maxParicleEmitters >= 4);
+                    auto memory = simFrameData.particleEmitters.mapCPUMemory(*global.context.device);
+                    auto* emitterData = (Shaders::ParticleEmitter*)(*memory);
+                    emitterData[0] = Shaders::ParticleEmitter {
+                        .position = glm::vec2(0.5, 0.1),
+                        .color = glm::vec4(1, 0, 0, 1)
+                    };
+                    emitterData[1] = Shaders::ParticleEmitter {
+                        .position = glm::vec2(0.5, 0.4),
+                        .color = glm::vec4(0, 1, 0, 1)
+                    };
+                    emitterData[2] = Shaders::ParticleEmitter {
+                        .position = glm::vec2(0.5, 0.6),
+                        .color = glm::vec4(0, 0, 1, 1)
+                    };
+                    emitterData[3] = Shaders::ParticleEmitter {
+                        .position = glm::vec2(0.5, 0.9),
+                        .color = glm::vec4(1, 1, 1, 1)
+                    };
+
+                    // Auto unmapped
+                }
+                simFrameData.particleEmitters.scheduleCopyToGPU(computeCmdBuffer);
+            }
+
+            // Run the kickoff shader
+            {
+                auto particleKickoff = Shaders::ParticleKickoffParams{
+                        .emitterCount = 4
+                };
+                computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
+                                              *global.pipelines.computeParticleKickoff);
+                computeCmdBuffer.pushConstants(
+                        *global.pipelines.computeParticleKickoff.layout,
+                        vk::ShaderStageFlagBits::eCompute,
+                        0,
+                        vk::ArrayProxy<const Shaders::ParticleKickoffParams>{particleKickoff});
+                computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                    *global.pipelines.computeParticleKickoff.layout,
+                                                    0,
+                                                    vk::ArrayProxy<const vk::DescriptorSet>{
+                                                            //particlesSimmedLastFrame
+                                                            //particlesToEmit
+                                                            //indirectCmds
+                                                    },
+                                                    {});
+                computeCmdBuffer.dispatch(1, 1, 1);
+            }
+
+            // Run the emit shader
+            {
+                computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
+                                              *global.pipelines.computeParticleEmit);
+                computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                    *global.pipelines.computeParticleEmit.layout,
+                                                    0,
+                                                    vk::ArrayProxy<const vk::DescriptorSet>{
+                                                            //emitters
+                                                            //particlesToEmit
+                                                            //particlesToSimIndexList
+                                                            //inactiveParticleIndexList
+                                                            //particleDatas
+                                                    },
+                                                    {});
+                computeCmdBuffer.dispatchIndirect(
+                    *data.sharedFrameData.particleIndirectCommands,
+                    offsetof(Shaders::ParticleIndirectCommands, particleEmitCmd)
+                );
+            }
+
+            // Run the simulate shader
+            {
+                auto particleSimParams = Shaders::ParticleSimulateParams{
+                        .timestep = 1.0/120.0f,
+                        .xLength = global.simSize.physical_size.x,
+                        .yLength = global.simSize.physical_size.y
+                };
+                computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
+                                              *global.pipelines.computeParticleSimulate);
+                computeCmdBuffer.pushConstants(
+                        *global.pipelines.computeParticleEmit.layout,
+                        vk::ShaderStageFlagBits::eCompute,
+                        0,
+                        vk::ArrayProxy<const Shaders::ParticleSimulateParams>{particleSimParams});
+                computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                    *global.pipelines.computeParticleSimulate.layout,
+                                                    0,
+                                                    vk::ArrayProxy<const vk::DescriptorSet>{
+                                                            //particlesToSimIndexList
+                                                            //simBufferDataSampler
+                                                            //particlesToDrawIndexList
+                                                            //inactiveParticleIndexList
+                                                            //indirectCmds
+                                                            //particleDatas
+                                                    },
+                                                    {});
+                computeCmdBuffer.dispatchIndirect(
+                        *data.sharedFrameData.particleIndirectCommands,
+                        offsetof(Shaders::ParticleIndirectCommands, particleSimCmd)
+                );
+            }
         }
 
         computeCmdBuffer.end();
@@ -291,6 +399,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             simRenderPassInfo.clearValueCount = 1;
             simRenderPassInfo.pClearValues = &clearColor;
             graphicsCmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
+
             graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.quantityScalar);
             graphicsCmdBuffer.bindDescriptorSets(
                     vk::PipelineBindPoint::eGraphics,
@@ -298,7 +407,37 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                     0,
                     {*data.sharedFrameData.simDataSampler_frag_ds},
                     {});
-            graphicsCmdBuffer.draw(6, 1, 0, 0);
+            graphicsCmdBuffer.draw(4, 1, 0, 0);
+
+            {
+                auto particlePushConsts = Shaders::InstancedParticleParams{
+                    .baseScale = 0.05,
+                };
+
+                graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.particle);
+                graphicsCmdBuffer.pushConstants(
+                    *global.pipelines.particle.layout,
+                    vk::ShaderStageFlagBits::eVertex,
+                    0,
+                    vk::ArrayProxy<const Shaders::InstancedParticleParams>{particlePushConsts}
+                );
+                graphicsCmdBuffer.bindVertexBuffers(0, {data.sharedFrameData.particleVertexData.getGpuBuffer()}, {0});
+                graphicsCmdBuffer.bindDescriptorSets(
+                        vk::PipelineBindPoint::eGraphics,
+                        *global.pipelines.quantityScalar.layout,
+                        0,
+                        {
+                            // particlesToDrawIndexList
+                            // particleDatas
+                            },
+                        {});
+                graphicsCmdBuffer.drawIndirect(
+                    *data.sharedFrameData.particleIndirectCommands,
+                    offsetof(Shaders::ParticleIndirectCommands, particleDrawCmd),
+                    1, 0
+                );
+            }
+
             graphicsCmdBuffer.endRenderPass();
         }
 
