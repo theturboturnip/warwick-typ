@@ -250,8 +250,14 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         }
 
         // Particle Update
-        {
-
+        const bool updateParticle = true;
+        if (updateParticle) {
+            // MAKE SURE TO COPY INDEXDRAWLIST -> INDEXSIMULATELIST
+            auto copy = vk::BufferCopy{};
+            copy.srcOffset = 0;
+            copy.dstOffset = 0;
+            copy.size = data.sharedFrameData.particleIndexDrawList.size;
+            computeCmdBuffer.copyBuffer(*data.sharedFrameData.particleIndexDrawList, *data.sharedFrameData.particleIndexSimulateList, {copy});
         }
 
         computeCmdBuffer.end();

@@ -3,6 +3,7 @@
 //
 
 #include <imgui_impl_vulkan.h>
+#include <rendering/vulkan/mesh/vertex.h>
 #include "VulkanSimAppData.h"
 #include "rendering/shaders/global_structures.h"
 
@@ -28,6 +29,8 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
       simBufferCopyInput_comp_ds(
               globalData.pipelines.buildSimBufferCopyInput_comp_ds(globalData.context, *buffers)
       ),
+
+      particleEmitters(context, vk::BufferUsageFlagBits::eStorageBuffer, globalData.props.maxParicleEmitters * sizeof(Shaders::ParticleEmitter)),
 
       simFinishedCanCompute(*context.device),
       computeFinishedCanSim(*context.device),
@@ -71,27 +74,67 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
             globalData.pipelines.buildSimBufferCopyOutput_comp_ds(globalData.context, simDataSampler)
         ),
 
-        particleBuffer(context,
+        particlesToEmit(
+            context,
             vk::MemoryPropertyFlagBits::eDeviceLocal,
-            vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eVertexBuffer,
+            vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+            globalData.props.maxParticlesEmittedPerFrame * sizeof(Shaders::ParticleToEmitData),
+            true
+        ),
+        particleDataArray(context,
+            vk::MemoryPropertyFlagBits::eDeviceLocal,
+            vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
             globalData.props.maxParticles * sizeof(Shaders::Particle),
             true // Shared between graphics and compute
         ),
-        particleInputBuffer_comp_ds(
-               globalData.pipelines.buildParticleInputBuffer_comp_ds(
-                       context, particleBuffer.asDescriptor()
-               )
+        inactiveParticleIndexList(
+            context,
+            vk::BufferUsageFlagBits::eStorageBuffer,
+            (1 + globalData.props.maxParticles) * sizeof(uint32_t),
+            false
         ),
-        particleInputBuffer_vert_ds(
-               globalData.pipelines.buildParticleInputBuffer_vert_ds(
-                       context, particleBuffer.asDescriptor()
-               )
+        particleIndexSimulateList(
+            context,
+            vk::MemoryPropertyFlagBits::eDeviceLocal,
+            vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+            (1 + globalData.props.maxParticles) * sizeof(uint32_t),
+            false // not shared
         ),
-        particleOutputBuffer_comp_ds(
-               globalData.pipelines.buildParticleOutputBuffer_comp_ds(
-                       context, particleBuffer.asDescriptor()
-               )
+        particleIndexDrawList(
+           context,
+           vk::MemoryPropertyFlagBits::eDeviceLocal,
+           vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,
+           (1 + globalData.props.maxParticles) * sizeof(uint32_t),
+           false // not shared
         ),
+        particleIndirectCommands(
+           context,
+           vk::MemoryPropertyFlagBits::eDeviceLocal,
+           vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+           sizeof(Shaders::ParticleIndirectCommands),
+           true // shared
+        ),
+        particleVertexData(
+           context,
+           vk::BufferUsageFlagBits::eVertexBuffer,
+           sizeof(Vertex) * 4,
+           false // not shared
+        ),
+//        particleInputBuffer_comp_ds(
+//               globalData.pipelines.buildParticleInputBuffer_comp_ds(
+//                       context, particleBuffer.asDescriptor()
+//               )
+//        ),
+//        particleInputBuffer_vert_ds(
+//               globalData.pipelines.buildParticleInputBuffer_vert_ds(
+//                       context, particleBuffer.asDescriptor()
+//               )
+//        ),
+//        particleOutputBuffer_comp_ds(
+//               globalData.pipelines.buildParticleOutputBuffer_comp_ds(
+//                       context, particleBuffer.asDescriptor()
+//               )
+//        ),
 
         vizFramebuffer(
                context,
@@ -107,4 +150,68 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
                // TODO - technically this is the incorrect pool
                vk::PoolFree(*context.device, *context.descriptorPool, VULKAN_HPP_DEFAULT_DISPATCHER)
        )
-{}
+{
+    // Alloc a command buffer to init data (auto deleted)
+    vk::UniqueCommandBuffer buf = std::move(globalData.context.allocateCommandBuffers(globalData.context.computeCmdPool, vk::CommandBufferLevel::ePrimary, 1)[0]);
+
+    const auto beginInfo = vk::CommandBufferBeginInfo{};
+    buf->begin(&beginInfo);
+
+    // INITIALIZE VERTEX BUFFER
+    {
+        auto memory = particleVertexData.mapCPUMemory(*globalData.context.device);
+        auto* vData = (Vertex*)(*memory);
+        vData[0] = Vertex{
+            .pos = glm::vec2(0, -1),
+            .uv = glm::vec2(0, -1)/2.0f + 0.5f,
+        };
+        vData[1] = Vertex{
+                .pos = glm::vec2(-1, 0),
+                .uv = glm::vec2(-1, 0)/2.0f + 0.5f,
+        };
+        vData[2] = Vertex{
+                .pos = glm::vec2(1, 0),
+                .uv = glm::vec2(1, 0)/2.0f + 0.5f,
+        };
+        vData[3] = Vertex{
+                .pos = glm::vec2(0, 1),
+                .uv = glm::vec2(0, 1)/2.0f + 0.5f,
+        };
+
+        // Auto unmapped
+    }
+    particleVertexData.scheduleCopyToGPU(*buf);
+
+    // INITIALIZE INACTIVE LIST WITH ALL PARTICLES
+    {
+        const auto maxParticles = globalData.props.maxParticles;
+        auto inactiveNumbers = std::vector<uint32_t>(1 + maxParticles);
+        inactiveNumbers[0] = maxParticles;
+        // Populate indices in reverse order so the first element popped off is 0
+        for (uint32_t i = 0; i < maxParticles; i++) {
+            inactiveNumbers[i + 1] = maxParticles - 1 - i;
+        }
+
+        // Map memory
+        auto memory = particleVertexData.mapCPUMemory(*globalData.context.device);
+        memcpy(*memory, inactiveNumbers.data(), sizeof(uint32_t) * inactiveNumbers.size());
+        // Auto unmap memory
+    }
+    inactiveParticleIndexList.scheduleCopyToGPU(*buf);
+
+    // Zero out other buffers
+    buf->fillBuffer(*particlesToEmit, 0, VK_WHOLE_SIZE, 0);
+    buf->fillBuffer(*particleDataArray, 0, VK_WHOLE_SIZE, 0);
+    buf->fillBuffer(*particleIndexSimulateList, 0, VK_WHOLE_SIZE, 0);
+    buf->fillBuffer(*particleIndexDrawList, 0, VK_WHOLE_SIZE, 0);
+    buf->fillBuffer(*particleIndirectCommands, 0, VK_WHOLE_SIZE, 0);
+
+    buf->end();
+
+    auto submitInfo = vk::SubmitInfo{};
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &*buf;
+    globalData.context.computeQueue.submit({submitInfo}, nullptr);
+
+    globalData.context.device->waitIdle();
+}

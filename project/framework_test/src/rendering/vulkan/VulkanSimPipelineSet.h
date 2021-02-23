@@ -16,27 +16,40 @@
 
 class VulkanSimPipelineSet {
 public:
-    vk::SpecializationMapEntry particleCount_specConstant;
+    vk::SpecializationMapEntry particleBufferLength_specConstant;
+    vk::SpecializationMapEntry particleToEmitBufferLength_specConstant;
+    vk::SpecializationMapEntry particleEmitterCount_specConstant;
+    std::vector<vk::SpecializationMapEntry> specConstants;
+    struct SpecConstantsData {
+        uint32_t particleBufferLength;
+        uint32_t particleToEmitBufferLength;
+        uint32_t particleEmitterCount;
+    } specConstantsData;
 
     VulkanDescriptorSetLayout simDataSampler_comp_ds;
     VulkanDescriptorSetLayout simDataSampler_frag_ds;
     VulkanDescriptorSetLayout simBufferCopyInput_comp_ds;
     VulkanDescriptorSetLayout simBufferCopyOutput_comp_ds;
-    VulkanDescriptorSetLayout particleInputBuffer_comp_ds;
-    VulkanDescriptorSetLayout particleInputBuffer_vert_ds;
-    VulkanDescriptorSetLayout particleOutputBuffer_comp_ds;
+
+    VulkanDescriptorSetLayout buffer_comp_ds;
+    VulkanDescriptorSetLayout buffer_vert_ds;
 
     VertexShader quantityScalar_vert;
     FragmentShader quantityScalar_frag;
     VertexShader particle_vert;
     FragmentShader particle_frag;
     ComputeShader computeSimDataImage_shader;
-    ComputeShader computeUpdateParticles_shader;
+
+    ComputeShader computeParticleKickoff_shader;
+    ComputeShader computeParticleEmit_shader;
+    ComputeShader computeParticleSimulate_shader;
 
     VulkanPipeline quantityScalar;
     VulkanPipeline particle;
     VulkanPipeline computeSimDataImage;
-    VulkanPipeline computeSimUpdateParticles;
+    VulkanPipeline computeParticleKickoff;
+    VulkanPipeline computeParticleEmit;
+    VulkanPipeline computeParticleSimulate;
 
     VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize, SimAppProperties& properties);
     VulkanSimPipelineSet(VulkanSimPipelineSet &&) noexcept = default;
@@ -57,16 +70,12 @@ public:
         VulkanContext& context,
         VulkanImageSampler& simBuffersImageSampler
     );
-    vk::UniqueDescriptorSet buildParticleInputBuffer_comp_ds(
+    vk::UniqueDescriptorSet buildBuffer_comp_ds(
         VulkanContext& context,
-        vk::DescriptorBufferInfo buffer// TODO is this right?
+        vk::DescriptorBufferInfo buffer
     );
-    vk::UniqueDescriptorSet buildParticleInputBuffer_vert_ds(
-        VulkanContext& context,
-        vk::DescriptorBufferInfo buffer// TODO is this right?
-    );
-    vk::UniqueDescriptorSet buildParticleOutputBuffer_comp_ds(
-        VulkanContext& context,
-        vk::DescriptorBufferInfo buffer// TODO is this right?
+    vk::UniqueDescriptorSet buildBuffer_vert_ds(
+            VulkanContext& context,
+            vk::DescriptorBufferInfo buffer
     );
 };

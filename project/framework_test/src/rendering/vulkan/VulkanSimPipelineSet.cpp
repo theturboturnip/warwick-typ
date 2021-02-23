@@ -8,7 +8,19 @@
 
 VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize, SimAppProperties& props)
     :
-    particleCount_specConstant(0, 0, sizeof(uint32_t)),
+        particleBufferLength_specConstant(0, 0, sizeof(uint32_t)),
+        particleToEmitBufferLength_specConstant(1, sizeof(uint32_t), sizeof(uint32_t)),
+        particleEmitterCount_specConstant(2, sizeof(uint32_t) * 2, sizeof(uint32_t)),
+        specConstants({
+            particleBufferLength_specConstant,
+            particleToEmitBufferLength_specConstant,
+            particleEmitterCount_specConstant
+        }),
+        specConstantsData({
+            .particleBufferLength=props.maxParticles,
+            .particleToEmitBufferLength=props.maxParticlesEmittedPerFrame,
+            .particleEmitterCount=props.maxParicleEmitters
+        }),
 
     simDataSampler_comp_ds(device, {
             vk::DescriptorSetLayoutBinding(
@@ -60,7 +72,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
             vk::ShaderStageFlagBits::eCompute
         )
     }),
-    particleInputBuffer_comp_ds(device, {
+    buffer_comp_ds(device, {
             vk::DescriptorSetLayoutBinding(
                     0,
                     vk::DescriptorType::eStorageBuffer,
@@ -68,20 +80,12 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                     vk::ShaderStageFlagBits::eCompute
             )
     }),
-    particleInputBuffer_vert_ds(device, {
+    buffer_vert_ds(device, {
             vk::DescriptorSetLayoutBinding(
                     0,
                     vk::DescriptorType::eStorageBuffer,
                     1,
                     vk::ShaderStageFlagBits::eVertex
-            )
-    }),
-    particleOutputBuffer_comp_ds(device, {
-            vk::DescriptorSetLayoutBinding(
-                    0,
-                    vk::DescriptorType::eStorageBuffer,
-                    1,
-                    vk::ShaderStageFlagBits::eCompute
             )
     }),
 
@@ -90,7 +94,9 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
     particle_vert(VertexShader::from_file(device, "particle.vert")),
     particle_frag(FragmentShader::from_file(device, "particle.frag")),
     computeSimDataImage_shader(ComputeShader::from_file(device, "compute_sim_data_image.comp")),
-    computeUpdateParticles_shader(ComputeShader::from_file(device, "compute_update_particles.comp")),
+    computeParticleKickoff_shader(ComputeShader::from_file(device, "compute_particle_kickoff.comp")),
+    computeParticleEmit_shader(ComputeShader::from_file(device, "compute_particle_emit.comp")),
+    computeParticleSimulate_shader(ComputeShader::from_file(device, "compute_particle_simulate.comp")),
 
     quantityScalar(
             device,
@@ -111,8 +117,11 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                     viewportSize.y*2
             },
             particle_vert, particle_frag,
-            VulkanVertexInformation::Kind::Particle,
-            {},
+            VulkanVertexInformation::Kind::Vertex,
+            {
+                *buffer_vert_ds,
+                *buffer_vert_ds,
+            },
             sizeof(Shaders::InstancedParticleParams)
     ),
     computeSimDataImage(
@@ -121,20 +130,57 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
             {*simBufferCopyInput_comp_ds, *simBufferCopyOutput_comp_ds},
             sizeof(Shaders::SimDataBufferStats)
     ),
-    computeSimUpdateParticles(
+    computeParticleKickoff(
             device,
-            computeUpdateParticles_shader,
+            computeParticleKickoff_shader,
             {
-                *particleInputBuffer_comp_ds,
-                *particleOutputBuffer_comp_ds,
-                *simDataSampler_comp_ds,
+                *buffer_comp_ds,
+                *buffer_comp_ds,
+                *buffer_comp_ds,
             },
-            sizeof(Shaders::ParticleStepParams),
+            sizeof(Shaders::ParticleKickoffParams),
             {
-                    1,
-                    &particleCount_specConstant,
-                    sizeof(uint32_t),
-                    &props.maxParticles
+                    (uint32_t)specConstants.size(),
+                    specConstants.data(),
+                    sizeof(specConstantsData),
+                    &specConstantsData
+            }
+    ),
+    computeParticleEmit(
+            device,
+            computeParticleEmit_shader,
+            {
+                    *buffer_comp_ds,
+                    *buffer_comp_ds,
+                    *buffer_comp_ds,
+                    *buffer_comp_ds,
+                    *buffer_comp_ds,
+            },
+            0,
+            {
+                    (uint32_t)specConstants.size(),
+                    specConstants.data(),
+                    sizeof(specConstantsData),
+                    &specConstantsData
+            }
+    ),
+    computeParticleSimulate(
+            device,
+            computeParticleSimulate_shader,
+            {
+                    *buffer_comp_ds,
+                    *simDataSampler_comp_ds,
+                    *buffer_comp_ds,
+                    *buffer_comp_ds,
+                    *buffer_comp_ds,
+                    *buffer_comp_ds,
+            },
+            sizeof(Shaders::ParticleSimulateParams),
+            {
+                    (uint32_t)specConstants.size(),
+                    specConstants.data(),
+                    sizeof(specConstantsData),
+                    &specConstantsData
             }
     )
 {}
@@ -344,13 +390,13 @@ vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimBufferCopyOutput_comp_ds(
             }
     );
 }
-vk::UniqueDescriptorSet VulkanSimPipelineSet::buildParticleInputBuffer_comp_ds(
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildBuffer_comp_ds(
         VulkanContext& context,
         vk::DescriptorBufferInfo buffer
 ){
     return buildDescriptorSet(
         context,
-        particleInputBuffer_comp_ds,
+        buffer_comp_ds,
         {
             Descriptor{
                 .type = vk::DescriptorType::eStorageBuffer,
@@ -360,29 +406,13 @@ vk::UniqueDescriptorSet VulkanSimPipelineSet::buildParticleInputBuffer_comp_ds(
         }
     );
 }
-vk::UniqueDescriptorSet VulkanSimPipelineSet::buildParticleInputBuffer_vert_ds(
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildBuffer_vert_ds(
         VulkanContext& context,
         vk::DescriptorBufferInfo buffer
 ){
     return buildDescriptorSet(
         context,
-        particleInputBuffer_vert_ds,
-        {
-            Descriptor{
-                .type = vk::DescriptorType::eStorageBuffer,
-                .bufferInfo = buffer,
-                .imageInfo = std::nullopt
-            },
-        }
-    );
-}
-vk::UniqueDescriptorSet VulkanSimPipelineSet::buildParticleOutputBuffer_comp_ds(
-        VulkanContext& context,
-        vk::DescriptorBufferInfo buffer
-){
-    return buildDescriptorSet(
-        context,
-        particleOutputBuffer_comp_ds,
+        buffer_vert_ds,
         {
             Descriptor{
                 .type = vk::DescriptorType::eStorageBuffer,

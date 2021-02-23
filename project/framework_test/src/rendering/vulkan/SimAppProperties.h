@@ -23,5 +23,7 @@ struct SimAppProperties {
     bool matchFrequencyToRealTime;
 
     // Maximum amount of particles that could be rendered
-    size_t maxParticles = 1000;
+    uint32_t maxParticles = 1024;
+    uint32_t maxParticlesEmittedPerFrame = 16;
+    uint32_t maxParicleEmitters = 16;
 };

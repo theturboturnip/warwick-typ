@@ -46,6 +46,9 @@ public:
         // SimBuffers descriptor set containing the buffers, used in compute shader
         vk::UniqueDescriptorSet simBufferCopyInput_comp_ds;
 
+        // ParticleEmitters[props.maxParticleEmitters] array
+        VulkanBackedGPUBuffer_WithStaging particleEmitters;
+
         // Synchronization
 
         // Signalled when the Sim relinquishes this frame's buffers to the Compute phase.
@@ -89,12 +92,19 @@ public:
         // SimBuffers descriptor set containing a writable simBuffersImage, used in compute shader
         vk::UniqueDescriptorSet simBufferCopyOutput_comp_ds;
 
-        // TODO comment these lol
-        VulkanBackedBuffer particleBuffer;
-        vk::UniqueDescriptorSet particleInputBuffer_comp_ds;
-        vk::UniqueDescriptorSet particleInputBuffer_vert_ds;
-        vk::UniqueDescriptorSet particleOutputBuffer_comp_ds;
-
+        // ParticleEmitData[props.maxParticlesEmittedPerFrame] array
+        // tells the compute_particle_emit shader where to put emitted particles
+        VulkanBackedBuffer particlesToEmit;
+        // Particle[props.maxParticles] array
+        VulkanBackedBuffer particleDataArray;
+        // Growable/Shrinkable list of particle indices into particleDataArray, listing inactive particles.
+        VulkanBackedGPUBuffer_WithStaging inactiveParticleIndexList;
+        // Growable list of particle indices, with an extra atomic uint32_t size.
+        VulkanBackedBuffer particleIndexSimulateList, particleIndexDrawList;
+        // ParticleIndirectCommands
+        VulkanBackedBuffer particleIndirectCommands;
+        // Vertex[] of particle data (triangle strip)
+        VulkanBackedGPUBuffer_WithStaging particleVertexData;
 
         // The framebuffer to render the visualization into, and a descriptor set that samples it for ImGui.
         VulkanBackedFramebuffer vizFramebuffer;
