@@ -48,13 +48,11 @@ public:
 
         // Synchronization
 
-        // Signalled when the Sim relinquishes this frame's buffers to the BufferCopy phase.
-        VulkanSemaphore simFinishedCanBufferCopy;
-        // Signalled when the BufferCopy phase finishes, and relinquishes the sim buffers back to the Sim.
-        // The image created by BufferCopy can now be used in the Compute phase.
-        VulkanSemaphore bufferCopyFinishedCanSim, bufferCopyFinishedCanCompute;
-        // Signalled when the Compute phase is finished, and the Render phase could now use the computed data to render.
-        VulkanSemaphore computeFinishedCanRender;
+        // Signalled when the Sim relinquishes this frame's buffers to the Compute phase.
+        VulkanSemaphore simFinishedCanCompute;
+        // Signalled when the Compute phase is finished, and relinquishes the sim buffers back to the Sim.
+        // The Render phase could now use the computed data to render.
+        VulkanSemaphore computeFinishedCanSim, computeFinishedCanRender;
         // Signalled when the specified swapchain image is ready for the Render phase to start rendering.
         // TODO - This prevents even the normal visualization from rendering until the image is acquired.
         //  in theory this could be slower than we want.
@@ -63,13 +61,12 @@ public:
         VulkanSemaphore imageAcquiredCanRender;
         // Signalled when the Render phase finishes.
         // The next frame can start their BufferCopy phase, and we can Present the new image.
-        VulkanSemaphore renderFinishedNextFrameCanBufferCopy, renderFinishedCanPresent;
+        VulkanSemaphore renderFinishedNextFrameCanCompute, renderFinishedCanPresent;
 
         // Closed while the command buffers are being recorded and executing.
         // Used to stop us from trying to re-record data while this is happening.
         VulkanFence frameCmdBuffersInUse;
 
-        vk::UniqueCommandBuffer bufferCopyCmdBuffer;
         vk::UniqueCommandBuffer computeCmdBuffer;
         vk::UniqueCommandBuffer renderCmdBuffer;
 
@@ -115,8 +112,7 @@ public:
 
         VulkanFramebuffer* framebuffer;
         // Reference to the VulkanFence of the Sim Frame that is currently rendering to this.
-        // TODO This is unused
-//        vk::Fence inFlight;
+        vk::Fence inFlight;
 
         PerSwapchainImageData(uint32_t index, VulkanFramebuffer* framebuffer);
         PerSwapchainImageData(PerSwapchainImageData&&) noexcept = default;

@@ -29,24 +29,22 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
               globalData.pipelines.buildSimBufferCopyInput_comp_ds(globalData.context, *buffers)
       ),
 
-      simFinishedCanBufferCopy(*context.device),
-      bufferCopyFinishedCanSim(*context.device),
-      bufferCopyFinishedCanCompute(*context.device),
+      simFinishedCanCompute(*context.device),
+      computeFinishedCanSim(*context.device),
       computeFinishedCanRender(*context.device),
       imageAcquiredCanRender(*context.device),
-      renderFinishedNextFrameCanBufferCopy(*context.device),
+      renderFinishedNextFrameCanCompute(*context.device),
       renderFinishedCanPresent(*context.device),
       frameCmdBuffersInUse(context, true),
 
-      bufferCopyCmdBuffer(std::move(context.allocateCommandBuffers(context.computeCmdPool, vk::CommandBufferLevel::ePrimary, 1)[0])),
       computeCmdBuffer(std::move(context.allocateCommandBuffers(context.computeCmdPool, vk::CommandBufferLevel::ePrimary, 1)[0])),
-      renderCmdBuffer(std::move(context.allocateCommandBuffers(context.computeCmdPool, vk::CommandBufferLevel::ePrimary, 1)[0]))
+      renderCmdBuffer(std::move(context.allocateCommandBuffers(context.graphicsCmdPool, vk::CommandBufferLevel::ePrimary, 1)[0]))
     {}
 
 VulkanSimAppData::PerSwapchainImageData::PerSwapchainImageData(uint32_t index, VulkanFramebuffer* framebuffer)
     : index(index),
-        framebuffer(framebuffer)//,
-//        inFlight(nullptr)
+        framebuffer(framebuffer),
+        inFlight(nullptr)
 {}
 
 VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &globalData, VulkanContext &context)
