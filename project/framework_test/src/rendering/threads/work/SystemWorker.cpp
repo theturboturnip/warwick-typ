@@ -89,7 +89,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
     bool shouldResetParticles = false;
 
-    ImGui::Begin("Visualization", nullptr, 0);
+    ImGui::Begin("Visualization", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     {
         ImGui::Text("Scalar Quantity");
         // From https://github.com/ocornut/imgui/issues/1658
@@ -144,6 +144,8 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 ImGui::SliderFloat("Size", &particleGlyphSize, 0.01, 0.1, "%.5f", 2.0f);
             }
 
+            ImGui::SliderFloat("Spawn Speed", &particleSpawnFreq, 1, 100, "%.1f", 2.0f);
+
             ImGui::Checkbox("Lock to Sim", &lockParticleToSimulation);
             if (!lockParticleToSimulation) {
                 ImGui::Indent();
@@ -193,6 +195,13 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     auto& swImageData = data.swapchainImageData[swapchainImageIdx];
 //        fprintf(stderr, "told to get swapchain image %d\n", swapchainImageIdx);
 
+
+    bool spawnNewParticleThisTick = false;
+    particleSpawnTimer += input.thisSimTickLength;
+    if (particleSpawnTimer > (1.0f / particleSpawnFreq)) {
+        spawnNewParticleThisTick = true;
+        particleSpawnTimer = 0;
+    }
 
     // Wait for this frame's command buffers to become available
 //    fprintf(stderr, "Waiting for cmdbuffer fence\n");
@@ -329,7 +338,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 // particleIndirectCommands is an output, we don't care
 
                 auto particleKickoff = Shaders::ParticleKickoffParams{
-                        .emitterCount = 6
+                        .emitterCount = (spawnNewParticleThisTick ? 6u : 0u)
                 };
                 computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
                                               *global.pipelines.computeParticleKickoff);

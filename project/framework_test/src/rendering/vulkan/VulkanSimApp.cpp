@@ -231,6 +231,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
                 .simFrameIndex = simFrameIdx,
                 .shouldSimParticles = actuallyRanSim,
                 .thisSimTickLength = simTickLength,
+                .lastFrameTime = (float)lastFrameTime,
                 .perf = {
                         .frameTimes = frameTimes,
                         .currentFrameNum = renderedFrameNum,

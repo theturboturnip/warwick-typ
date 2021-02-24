@@ -17,6 +17,7 @@ struct SystemWorkerIn {
     uint32_t simFrameIndex;
     bool shouldSimParticles;
     float thisSimTickLength;
+    float lastFrameTime;
 
     struct PerfData {
         std::array<float, 32> frameTimes;
@@ -77,11 +78,13 @@ class SystemWorker {
     VectorQuantity vizVector = VectorQuantity::None;
     VizValueRange vizVectorMagnitudeRange;
     // Particle Options
-    bool simulateParticles = false;
+    bool simulateParticles = true;
     bool renderParticleGlyphs = true;
     float particleGlyphSize = 0.01;
     bool lockParticleToSimulation = true;
     float particleUnlockedSimFreq = 120;
+    float particleSpawnFreq = 10;
+    float particleSpawnTimer = 0;
     enum class ParticleTrailType : size_t {
         None=0,
         Streakline=1,
