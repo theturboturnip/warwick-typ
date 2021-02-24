@@ -34,7 +34,8 @@ VulkanBackedGPUBuffer_WithStaging::VulkanBackedGPUBuffer_WithStaging(
                        vk::BufferUsageFlagBits::eTransferSrc,
                        size,
                        // Make it shared so it can be used for copies in both the Graphics and Compute command buffers.
-                       true){}
+                       true),
+       size(size){}
 
 VulkanMappedMemory VulkanBackedGPUBuffer_WithStaging::mapCPUMemory(vk::Device device) {
     return VulkanMappedMemory(device, cpuStagingBuffer.asDeviceMemory());

@@ -32,26 +32,37 @@ void main() {
     vec2 pos = particlePos(particle.data);
     float rot = particleRot(particle.data);
 
+    bool shouldMakeParticleInactive = false;
     for (int i = 0; i < 4; i++) {
         //     TODO - offset by 1/2 pixel?
         vec2 offset = vec2(0,0);
         vec4 fluidData = texture(simBufferDataSampler, pos + offset);
-        if (fluidData.w < 0.5) break;
+        if (fluidData.w < 0.5) {
+            shouldMakeParticleInactive = true;
+            break;
+        }
 
         // xy are in m/s, timestep in s,
         pos += (fluidData.xy * pConsts.timestep / 4) / vec2(pConsts.xLength, pConsts.yLength);
     }
 
-    // TODO
-    // if pos < 0 or pos > 1
-    //     add particleDataIdx to inactive particle list
-    //     SUBTRACT ONE FROM THE INDIRECT DRAW COMMAND COUNT
-    //     *don't* push it to the particlesToDraw list
+    shouldMakeParticleInactive = shouldMakeParticleInactive || pos.x < 0 || pos.x > 1 || pos.y < 0 || pos.y > 1;
+    if (shouldMakeParticleInactive) {
+        // Particle is out-of-bounds, and inactive
 
-    // Update the data
-    particle.data = vec4(pos.x, pos.y, rot, 1);
-    particleDatas[particleDataIdx] = particle;
+        //     add particleDataIdx to inactive particle list
+        inactiveParticleIndexList[atomicAdd(inactiveParticleIndexList_length, 1)] = particleDataIdx;
+        //     SUBTRACT ONE FROM THE INDIRECT DRAW COMMAND COUNT
+        atomicAdd(indirectCmds.particleDrawCmd.instanceCount, -1);
+        //     *don't* push it to the particlesToDraw list
+    } else {
+        // Particle is in-bounds and still active
 
-    // Push the index to the particlesToDraw list
-    particlesToDrawIndexList[atomicAdd(particlesToDrawIndexList_length, 1)] = particleDataIdx;
+        // Update the data
+        particle.data = vec4(pos.x, pos.y, rot, 1);
+        particleDatas[particleDataIdx] = particle;
+
+        // Push the index to the particlesToDraw list
+        particlesToDrawIndexList[atomicAdd(particlesToDrawIndexList_length, 1)] = particleDataIdx;
+    }
 }

@@ -230,6 +230,7 @@ void VulkanSimApp::main_loop(SimulationBackendEnum backendType, const FluidParam
         systemWorker.giveNextWork(SystemWorkerIn{
                 .simFrameIndex = simFrameIdx,
                 .shouldSimParticles = actuallyRanSim,
+                .thisSimTickLength = simTickLength,
                 .perf = {
                         .frameTimes = frameTimes,
                         .currentFrameNum = renderedFrameNum,

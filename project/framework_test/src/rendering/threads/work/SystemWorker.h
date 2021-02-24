@@ -16,6 +16,7 @@
 struct SystemWorkerIn {
     uint32_t simFrameIndex;
     bool shouldSimParticles;
+    float thisSimTickLength;
 
     struct PerfData {
         std::array<float, 32> frameTimes;
@@ -40,7 +41,7 @@ struct VizValueRange {
     // If true, the threshold is set to the minimum/maximum values present.
     // If false, the threshold is using min/max. Any values outside the range are disabled.
     bool autoRange = true;
-    float min=0, max=1;
+    float min=-1, max=1;
 };
 
 /**
@@ -76,8 +77,11 @@ class SystemWorker {
     VectorQuantity vizVector = VectorQuantity::None;
     VizValueRange vizVectorMagnitudeRange;
     // Particle Options
-    bool showParticles = false;
+    bool simulateParticles = false;
     bool renderParticleGlyphs = true;
+    float particleGlyphSize = 0.01;
+    bool lockParticleToSimulation = true;
+    float particleUnlockedSimFreq = 120;
     enum class ParticleTrailType : size_t {
         None=0,
         Streakline=1,

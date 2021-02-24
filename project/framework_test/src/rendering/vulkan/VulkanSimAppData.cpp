@@ -102,11 +102,17 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
         particleDataArray_vert_ds(bufferDescSet_vert(globalData, particleDataArray.asDescriptor())),
         inactiveParticleIndexList(
             context,
-            vk::BufferUsageFlagBits::eStorageBuffer,
+            vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
             (1 + globalData.props.maxParticles) * sizeof(uint32_t),
             false
         ),
         inactiveParticleIndexList_comp_ds(bufferDescSet_comp(globalData, inactiveParticleIndexList.getGpuDescriptor())),
+        inactiveParticleIndexList_resetData(
+               context,
+               vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
+               (1 + globalData.props.maxParticles) * sizeof(uint32_t),
+               false
+        ),
         particleIndexSimulateList(
             context,
             vk::MemoryPropertyFlagBits::eDeviceLocal,
@@ -213,9 +219,16 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
         // Map memory
         auto memory = inactiveParticleIndexList.mapCPUMemory(*globalData.context.device);
         memcpy(*memory, inactiveNumbers.data(), sizeof(uint32_t) * inactiveNumbers.size());
+
+        // Map "reset buffer" memory
+        auto resetMemory = inactiveParticleIndexList_resetData.mapCPUMemory(*globalData.context.device);
+        memcpy(*resetMemory, inactiveNumbers.data(), sizeof(uint32_t) * inactiveNumbers.size());
+
         // Auto unmap memory
+        // Auto unmap reset buffer memory
     }
     inactiveParticleIndexList.scheduleCopyToGPU(*buf);
+    inactiveParticleIndexList_resetData.scheduleCopyToGPU(*buf);
 
     // Zero out other buffers
     buf->fillBuffer(*particlesToEmit, 0, VK_WHOLE_SIZE, 0);

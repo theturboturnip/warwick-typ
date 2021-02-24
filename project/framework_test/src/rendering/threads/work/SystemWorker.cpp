@@ -87,6 +87,8 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     }
     ImGui::End();
 
+    bool shouldResetParticles = false;
+
     ImGui::Begin("Visualization", nullptr, 0);
     {
         ImGui::Text("Scalar Quantity");
@@ -127,11 +129,27 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         ImGui::Checkbox("Streamline Overlay", &overlayStreamlines);
 
         ImGui::NewLine();
-        ImGui::Checkbox("Particles", &showParticles);
-        if (showParticles) {
+        if (ImGui::Checkbox("Particles", &simulateParticles)) {
+            // Particles have been toggled
+            if (!simulateParticles) {
+                shouldResetParticles = true;
+                fprintf(stdout, "resetting particles\n");
+            }
+        }
+        if (simulateParticles) {
             ImGui::Indent();
 
             ImGui::Checkbox("Render as Glyphs", &renderParticleGlyphs);
+            if (renderParticleGlyphs) {
+                ImGui::SliderFloat("Size", &particleGlyphSize, 0.01, 0.1, "%.5f", 2.0f);
+            }
+
+            ImGui::Checkbox("Lock to Sim", &lockParticleToSimulation);
+            if (!lockParticleToSimulation) {
+                ImGui::Indent();
+                ImGui::InputFloat("Hz Timestep", &particleUnlockedSimFreq);
+                ImGui::Unindent();
+            }
 
             ImGui::NewLine();
             ImGui::Text("Particle Trail Type");
@@ -253,8 +271,9 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         }
 
         // Particle Update
-        const bool updateParticle = true;
-        if (updateParticle) {
+        // If we're not locking the particle sim to the actual sim, always run the particle sim.
+        // If we are locking the sims together, only run the particle sim if the input ran the sim.
+        if (simulateParticles && (!lockParticleToSimulation || input.shouldSimParticles)) {
             // Copy index draw list -> index simulate list for the emit shader to add to
             {
                 auto copy = vk::BufferCopy{};
@@ -268,24 +287,32 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             // Setup the emitter points
             {
                 {
-                    DASSERT(global.props.maxParicleEmitters >= 4);
+                    DASSERT(global.props.maxParicleEmitters >= 6);
                     auto memory = simFrameData.particleEmitters.mapCPUMemory(*global.context.device);
                     auto* emitterData = (Shaders::ParticleEmitter*)(*memory);
                     emitterData[0] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0.03, 0.1, 0, 0),
+                        .position = glm::vec4(0, 0.1, 0, 0),
                         .color = glm::vec4(1, 0, 0, 1)
                     };
                     emitterData[1] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0.03, 0.4, 0, 0),
+                        .position = glm::vec4(0, 0.4, 0, 0),
                         .color = glm::vec4(0, 1, 0, 1)
                     };
                     emitterData[2] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0.03, 0.6, 0, 0),
+                        .position = glm::vec4(0, 0.6, 0, 0),
                         .color = glm::vec4(0, 0, 1, 1)
                     };
                     emitterData[3] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0.03, 0.9, 0, 0),
+                        .position = glm::vec4(0, 0.9, 0, 0),
                         .color = glm::vec4(1, 1, 1, 1)
+                    };
+                    emitterData[4] = Shaders::ParticleEmitter {
+                            .position = glm::vec4(0, 0.3, 0, 0),
+                            .color = glm::vec4(0, 0, 1, 1)
+                    };
+                    emitterData[5] = Shaders::ParticleEmitter {
+                            .position = glm::vec4(0, 0.7, 0, 0),
+                            .color = glm::vec4(1, 1, 1, 1)
                     };
 
                     // Auto unmapped
@@ -302,7 +329,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 // particleIndirectCommands is an output, we don't care
 
                 auto particleKickoff = Shaders::ParticleKickoffParams{
-                        .emitterCount = 4
+                        .emitterCount = 6
                 };
                 computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
                                               *global.pipelines.computeParticleKickoff);
@@ -325,8 +352,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                                                     {});
                 computeCmdBuffer.dispatch(1, 1, 1);
             }
-
-            // TODO pipeline barrier between kickoff and emit
 
             // Run the emit shader
             {
@@ -384,7 +409,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                                   vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead);
 
                 auto particleSimParams = Shaders::ParticleSimulateParams{
-                        .timestep = 1.0/120.0f,
+                        .timestep = lockParticleToSimulation ? input.thisSimTickLength : (1.0f/particleUnlockedSimFreq),
                         .xLength = global.simSize.physical_size.x,
                         .yLength = global.simSize.physical_size.y
                 };
@@ -420,6 +445,20 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 // Don't need to sync writes to the particleIndirectCommands/particleDataArray
                 // because that's done on the graphics pipeline after a semaphore.
             }
+        } else if (shouldResetParticles) {
+            // Reset the particles:
+            // Zero out the "to draw list", which is used as a base for the simulation normally
+            computeCmdBuffer.fillBuffer(*data.sharedFrameData.particleIndexDrawList, 0, data.sharedFrameData.particleIndexDrawList.size, 0);
+            // Copy the reset data into the inactiveParticleIndexList
+            auto copy = vk::BufferCopy{};
+            copy.srcOffset = 0;
+            copy.dstOffset = 0;
+            copy.size = data.sharedFrameData.inactiveParticleIndexList.size;
+            computeCmdBuffer.copyBuffer(
+                data.sharedFrameData.inactiveParticleIndexList_resetData.getGpuBuffer(),
+                data.sharedFrameData.inactiveParticleIndexList.getGpuBuffer(),
+                {copy}
+            );
         }
 
         computeCmdBuffer.end();
@@ -463,9 +502,9 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                     {});
             graphicsCmdBuffer.draw(4, 1, 0, 0);
 
-            {
+            if (simulateParticles && renderParticleGlyphs){
                 auto particlePushConsts = Shaders::InstancedParticleParams{
-                    .baseScale = 0.01,
+                    .baseScale = particleGlyphSize,
                     .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
                 };
 

@@ -104,6 +104,8 @@ public:
         // Growable/Shrinkable list of particle indices into particleDataArray, listing inactive particles.
         VulkanBackedGPUBuffer_WithStaging inactiveParticleIndexList;
         vk::UniqueDescriptorSet inactiveParticleIndexList_comp_ds;
+        // Data to reset the inactiveParticleIndexList with if necessary
+        VulkanBackedGPUBuffer_WithStaging inactiveParticleIndexList_resetData;
         // Growable list of particle indices, with an extra atomic uint32_t size.
         VulkanBackedBuffer particleIndexSimulateList, particleIndexDrawList;
         vk::UniqueDescriptorSet particleIndexSimulateList_comp_ds;

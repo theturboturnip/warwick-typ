@@ -43,6 +43,8 @@ class VulkanBackedGPUBuffer_WithStaging {
     VulkanBackedBuffer cpuStagingBuffer;
 
 public:
+    size_t size;
+
     VulkanBackedGPUBuffer_WithStaging(VulkanContext& context, vk::BufferUsageFlags gpuUsage, size_t size, bool gpuShared=false);
     VulkanBackedGPUBuffer_WithStaging(VulkanBackedGPUBuffer_WithStaging&&) = default;
     VulkanBackedGPUBuffer_WithStaging(const VulkanBackedGPUBuffer_WithStaging&) = delete;
