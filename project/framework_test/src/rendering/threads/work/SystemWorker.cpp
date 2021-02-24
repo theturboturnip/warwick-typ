@@ -314,6 +314,8 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 computeCmdBuffer.dispatch(1, 1, 1);
             }
 
+            // TODO pipeline barrier between kickoff and emit
+
             // Run the emit shader
             {
                 computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
@@ -334,6 +336,8 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                     offsetof(Shaders::ParticleIndirectCommands, particleEmitCmd)
                 );
             }
+
+            // TODO pipeline barrier between emit and simulate
 
             // Run the simulate shader
             {
