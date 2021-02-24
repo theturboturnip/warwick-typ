@@ -29,12 +29,14 @@ void main() {
     ParticleEmitter emitter = emitters[emitterIdx];
 
     // Remove a particle idx from the dead list
-    const uint newParticleIndex = inactiveParticleIndexList[atomicAdd(inactiveParticleIndexList_length, -1)];
+    const uint newParticleIndex = inactiveParticleIndexList[atomicAdd(inactiveParticleIndexList_length, -1) - 1];
     // Set up this index with data
-    particleDatas[newParticleIndex] = Particle(
-        vec4(emitter.position.x, emitter.position.y, 0, 1),
-        emitter.color
-    );
+    particleDatas[newParticleIndex].data = vec4(emitter.position.x, emitter.position.y, 0, 1);
+    particleDatas[newParticleIndex].color = emitter.color;
+
     // Add this particle to the particlesToSimIndexList
+    // TODO - using atomicexchange here in case this has caching issues
+    //   if the array element and the length are in the same cache line, atomically writing to one part and not the other could cause issues.
+//    atomicExchange(particlesToSimIndexList[atomicAdd(particlesToSimIndexList_length, 1)], newParticleIndex);
     particlesToSimIndexList[atomicAdd(particlesToSimIndexList_length, 1)] = newParticleIndex;
 }

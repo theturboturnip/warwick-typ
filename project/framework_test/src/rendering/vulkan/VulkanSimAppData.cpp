@@ -180,19 +180,19 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
         auto* vData = (Vertex*)(*memory);
         vData[0] = Vertex{
             .pos = glm::vec2(0, -1),
-            .uv = glm::vec2(0, -1)/2.0f + 0.5f,
+            .uv = glm::vec2(0, 0),
         };
         vData[1] = Vertex{
                 .pos = glm::vec2(-1, 0),
-                .uv = glm::vec2(-1, 0)/2.0f + 0.5f,
+                .uv = glm::vec2(0, 1),
         };
         vData[2] = Vertex{
                 .pos = glm::vec2(1, 0),
-                .uv = glm::vec2(1, 0)/2.0f + 0.5f,
+                .uv = glm::vec2(1, 0),
         };
         vData[3] = Vertex{
                 .pos = glm::vec2(0, 1),
-                .uv = glm::vec2(0, 1)/2.0f + 0.5f,
+                .uv = glm::vec2(1, 1),
         };
 
         // Auto unmapped
@@ -210,7 +210,7 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
         }
 
         // Map memory
-        auto memory = particleVertexData.mapCPUMemory(*globalData.context.device);
+        auto memory = inactiveParticleIndexList.mapCPUMemory(*globalData.context.device);
         memcpy(*memory, inactiveNumbers.data(), sizeof(uint32_t) * inactiveNumbers.size());
         // Auto unmap memory
     }

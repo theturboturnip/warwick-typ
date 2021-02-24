@@ -21,7 +21,9 @@ void main() {
     const uint particleIdx = particlesToDrawIndexList[gl_InstanceIndex.x];
     Particle particle = particleDatas[particleIdx];
 
-    vec2 finalPos = (v_pos.xy * pConsts.baseScale) + particlePos(particle.data);
+    vec2 aspectRatio_scale = vec2(pConsts.render_heightDivWidth, 1);
+    vec2 pos_01space = (v_pos.xy * pConsts.baseScale * aspectRatio_scale) + particlePos(particle.data);
+    vec2 finalPos = (pos_01space * 2) - 1;
     gl_Position = vec4(finalPos.x, finalPos.y, 0, 1);
     f_uv = v_uv;
 }

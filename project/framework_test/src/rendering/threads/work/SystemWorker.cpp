@@ -239,7 +239,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             computeCmdBuffer.dispatch((data.sharedFrameData.simDataImage.size.x + 15)/16, (data.sharedFrameData.simDataImage.size.y+15)/16, 1);
         }
         {
-            // Transfer the simBuffersImage layout so that the shader can read it
+            // Transfer the simBuffersImage layout so that the next shaders can read it
+            // Make ShaderWrites to a General-layout image in the ComputeShader
+            //   available + visible to ShaderReads from a ShaderReadOnlyOptimal-layout image in the ComputeShader.
+            // Even if we're not updating the particles this frame, transitioning the layout is required.
             transferImageLayout(
                     computeCmdBuffer,
                     *data.sharedFrameData.simDataImage,
@@ -252,8 +255,8 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         // Particle Update
         const bool updateParticle = true;
         if (updateParticle) {
+            // Copy index draw list -> index simulate list for the emit shader to add to
             {
-                // MAKE SURE TO COPY INDEXDRAWLIST -> INDEXSIMULATELIST
                 auto copy = vk::BufferCopy{};
                 copy.srcOffset = 0;
                 copy.dstOffset = 0;
@@ -269,19 +272,19 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                     auto memory = simFrameData.particleEmitters.mapCPUMemory(*global.context.device);
                     auto* emitterData = (Shaders::ParticleEmitter*)(*memory);
                     emitterData[0] = Shaders::ParticleEmitter {
-                        .position = glm::vec2(0.5, 0.1),
+                        .position = glm::vec4(0.5, 0.1, 0, 0),
                         .color = glm::vec4(1, 0, 0, 1)
                     };
                     emitterData[1] = Shaders::ParticleEmitter {
-                        .position = glm::vec2(0.5, 0.4),
+                        .position = glm::vec4(0.5, 0.4, 0, 0),
                         .color = glm::vec4(0, 1, 0, 1)
                     };
                     emitterData[2] = Shaders::ParticleEmitter {
-                        .position = glm::vec2(0.5, 0.6),
+                        .position = glm::vec4(0.5, 0.6, 0, 0),
                         .color = glm::vec4(0, 0, 1, 1)
                     };
                     emitterData[3] = Shaders::ParticleEmitter {
-                        .position = glm::vec2(0.5, 0.9),
+                        .position = glm::vec4(0.5, 0.9, 0, 0),
                         .color = glm::vec4(1, 1, 1, 1)
                     };
 
@@ -292,6 +295,12 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
             // Run the kickoff shader
             {
+                // Initial pipeline barrier
+                // particleIndexDrawList is in input.
+                //      was written last frame, multiple semaphores inbetween => writes are available and visible
+                // particlesToEmit is an output, we don't care what's in there
+                // particleIndirectCommands is an output, we don't care
+
                 auto particleKickoff = Shaders::ParticleKickoffParams{
                         .emitterCount = 4
                 };
@@ -306,7 +315,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                                                     *global.pipelines.computeParticleKickoff.layout,
                                                     0,
                                                     {
+                                                        // Input
                                                         *data.sharedFrameData.particleIndexDrawList_comp_ds, //particlesDrawnLastFrame
+
+                                                        // Output
                                                         *data.sharedFrameData.particlesToEmit_comp_ds, //particlesToEmit
                                                         *data.sharedFrameData.particleIndirectCommands_comp_ds, //indirectCmds
                                                     },
@@ -318,16 +330,40 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
             // Run the emit shader
             {
+                // particleEmitters, particleIndexSimulate list are inputs, need to wait for the transfers to finish
+                // particlesToEmit is an input, need to wait for the previous compute to finish
+                // Reads from particleIndirectCommands, need to wait for previous compute to finish BEFORE DrawIndirectBit
+
+                // So full-memory barrier from Compute->DrawIndirect
+                // and full-memory barrier from Transfer->Compute?
+
+                // Make ShaderWrites from the ComputeShader stage available + visible to IndirectCommandReads in the DrawIndirect stage
+                fullMemoryBarrier(computeCmdBuffer,
+                                  vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eDrawIndirect,
+                                  vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eIndirectCommandRead);
+//                fullMemoryBarrier(computeCmdBuffer,
+//                                  vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader,
+//                                  vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead);
+                // Make TransferWrites from the Transfer stage available + visible to the ShaderReads in the ComputeShader phase.
+                fullMemoryBarrier(computeCmdBuffer,
+                                  vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader,
+                                  vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead);
+
                 computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
                                               *global.pipelines.computeParticleEmit);
                 computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
                                                     *global.pipelines.computeParticleEmit.layout,
                                                     0,
                                                     {
+                                                        // Input
                                                         *simFrameData.particleEmitters_comp_ds, //emitters
                                                         *data.sharedFrameData.particlesToEmit_comp_ds, //particlesToEmit
+
+                                                        // Input/output
                                                         *data.sharedFrameData.particleIndexSimulateList_comp_ds, //particlesToSimIndexList
                                                         *data.sharedFrameData.inactiveParticleIndexList_comp_ds, //inactiveParticleIndexList
+
+                                                        // Output
                                                         *data.sharedFrameData.particleDataArray_comp_ds, //particleDatas
                                                     },
                                                     {});
@@ -337,10 +373,16 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 );
             }
 
-            // TODO pipeline barrier between emit and simulate
-
             // Run the simulate shader
             {
+                // particleIndexSimulateList is an input from the emit shader.
+                // the indirect draw is an input from the kickoff shader, but the emit shader has already waited so we don't have to.
+
+                // Make ShaderWrites from the ComputeShader stage available + visible to the ShaderReads in the ComputeShader phase.
+                fullMemoryBarrier(computeCmdBuffer,
+                                  vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader,
+                                  vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead);
+
                 auto particleSimParams = Shaders::ParticleSimulateParams{
                         .timestep = 1.0/120.0f,
                         .xLength = global.simSize.physical_size.x,
@@ -357,18 +399,26 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                                                     *global.pipelines.computeParticleSimulate.layout,
                                                     0,
                                                     {
+                                                        // Inputs
                                                         *data.sharedFrameData.particleIndexSimulateList_comp_ds, //particlesToSimIndexList
                                                         *data.sharedFrameData.simDataSampler_comp_ds,    //simBufferDataSampler
+
+                                                        // Input/Outputs
                                                         *data.sharedFrameData.particleIndexDrawList_comp_ds, //particlesToDrawIndexList
                                                         *data.sharedFrameData.inactiveParticleIndexList_comp_ds, //inactiveParticleIndexList
+
+                                                        // Outputs
                                                         *data.sharedFrameData.particleIndirectCommands_comp_ds, //indirectCmds
                                                         *data.sharedFrameData.particleDataArray_comp_ds, //particleDatas
                                                     },
                                                     {});
                 computeCmdBuffer.dispatchIndirect(
-                        *data.sharedFrameData.particleIndirectCommands,
-                        offsetof(Shaders::ParticleIndirectCommands, particleSimCmd)
+                    *data.sharedFrameData.particleIndirectCommands,
+                    offsetof(Shaders::ParticleIndirectCommands, particleSimCmd)
                 );
+
+                // Don't need to sync writes to the particleIndirectCommands/particleDataArray
+                // because that's done on the graphics pipeline after a semaphore.
             }
         }
 
@@ -416,6 +466,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             {
                 auto particlePushConsts = Shaders::InstancedParticleParams{
                     .baseScale = 0.1,
+                    .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
                 };
 
                 graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.particle);
@@ -578,4 +629,16 @@ void SystemWorker::showRange(VizValueRange* range) {
         range->max = rangeValue[1];
     }
     ImGui::PopID();
+}
+
+void SystemWorker::fullMemoryBarrier(vk::CommandBuffer cmdBuffer,
+                                     vk::PipelineStageFlags oldStage, vk::PipelineStageFlags newStage,
+                                     vk::AccessFlags oldAccess, vk::AccessFlags newAccess) {
+    auto memoryBarrier = vk::MemoryBarrier{};
+    memoryBarrier.srcAccessMask = oldAccess;
+    memoryBarrier.dstAccessMask = newAccess;
+
+    cmdBuffer.pipelineBarrier(
+            oldStage, newStage, vk::DependencyFlagBits(0), {memoryBarrier}, {}, {}
+    );
 }

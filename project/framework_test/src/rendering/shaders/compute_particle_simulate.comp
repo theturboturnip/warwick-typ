@@ -4,7 +4,8 @@
 #include "global_descriptor_sets.glsl"
 #include "global_structures.glsl"
 
-layout (local_size_x = 32) in;
+// tODO - change this to 32, make kickoff account for it
+layout (local_size_x = 1) in;
 
 SPEC_CONST_MAX_PARTICLE_COUNT()
 
@@ -35,7 +36,7 @@ void main() {
         //     TODO - offset by 1/2 pixel?
         vec2 offset = vec2(0,0);
         vec4 fluidData = texture(simBufferDataSampler, pos + offset);
-        if (fluidData.w > 0.5) break;
+        if (fluidData.w < 0.5) break;
 
         // xy are in m/s, timestep in s,
         pos += (fluidData.xy * pConsts.timestep / 4) / vec2(pConsts.xLength, pConsts.yLength);

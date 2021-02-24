@@ -18,5 +18,5 @@ struct VulkanFormat<glm::vec4> {
 
 template<>
 struct VulkanFormat<glm::vec2> {
-    constexpr static vk::Format Fmt = vk::Format::eR32G32B32A32Sfloat;
+    constexpr static vk::Format Fmt = vk::Format::eR32G32Sfloat;
 };

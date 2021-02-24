@@ -15,7 +15,7 @@ struct ParticleToEmitData {
 };
 
 struct ParticleEmitter {
-    vec2 position;
+    vec4 position;
     vec4 color;
 };
 
@@ -36,6 +36,7 @@ struct ParticleSimulateParams {
 
 struct InstancedParticleParams {
     float baseScale;
+    float render_heightDivWidth;
 };
 
 struct ParticleKickoffParams {
@@ -50,6 +51,8 @@ struct VkDispatchIndirectCommand {
     uint    x;
     uint    y;
     uint    z;
+
+    uint padding;
 };
 
 // Indirect indexed draw
@@ -69,8 +72,12 @@ struct VkDrawIndirectCommand {
 };
 
 struct ParticleIndirectCommands {
+    // Add padding to the indirect dispatch commands so they have even length - RenderDoc doesn't like them otherwise
+
     VkDispatchIndirectCommand particleEmitCmd;
+
     VkDispatchIndirectCommand particleSimCmd;
+
     VkDrawIndirectCommand particleDrawCmd;
 
     uint particlesToEmitCount;

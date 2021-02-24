@@ -28,43 +28,43 @@
     layout (set=SET, binding=0, rgba32f) uniform writeonly image2D NAME;
 
 #define DS_PARTICLE_INPUT_BUFFER(SET, NAME) \
-    layout (set=SET, binding=0, std140) readonly buffer ParticleInBuffer { \
+    layout (set=SET, binding=0, std430) readonly buffer ParticleInBuffer { \
         Particle NAME[particleBufferLength]; \
     };
 
 #define DS_PARTICLE_OUTPUT_BUFFER(SET, NAME) \
-    layout (set=SET, binding=0, std140) buffer ParticleOutBuffer { \
+    layout (set=SET, binding=0, std430) buffer ParticleOutBuffer { \
         Particle NAME[particleBufferLength]; \
     };
 
 #define DS_PARTICLE_MUTABLE_INDEX_LIST(SET, NAME) \
-    layout (set=SET, binding=0, std140) buffer NAME##_Buffer { \
+    layout (set=SET, binding=0, std430) buffer NAME##_Buffer { \
         uint NAME##_length; \
         uint NAME[particleBufferLength]; \
     };
 
 #define DS_PARTICLE_IMMUTABLE_INDEX_LIST(SET, NAME) \
-    layout (set=SET, binding=0, std140) readonly buffer NAME##_Buffer { \
+    layout (set=SET, binding=0, std430) readonly buffer NAME##_Buffer { \
         uint NAME##_length; \
         uint NAME[particleBufferLength]; \
     };
 
 #define DS_PARTICLE_INDIRECT_CMDS(SET, NAME) \
-    layout (set=SET, binding=0, std140) buffer ParticleIndirectCallsBuffer { \
+    layout (set=SET, binding=0, std430) buffer ParticleIndirectCallsBuffer { \
         ParticleIndirectCommands NAME; \
     };
 
 #define DS_PARTICLE_EMITTERS_DATA(SET, NAME) \
-    layout (set=SET, binding=0, std140) readonly buffer ParticleEmittersBuffer { \
+    layout (set=SET, binding=0, std430) readonly buffer ParticleEmittersBuffer { \
         ParticleEmitter NAME[particleEmitterCount]; \
     };
 
 #define DS_PARTICLES_TO_EMIT_INPUT_DATA(SET, NAME) \
-    layout (set=SET, binding=0, std140) readonly buffer ParticlesToEmitBuffer { \
+    layout (set=SET, binding=0, std430) readonly buffer ParticlesToEmitBuffer { \
         ParticleToEmitData NAME[particleToEmitBufferLength]; \
     };
 
 #define DS_PARTICLES_TO_EMIT_OUTPUT_DATA(SET, NAME) \
-    layout (set=SET, binding=0, std140) writeonly buffer ParticlesToEmitBuffer { \
+    layout (set=SET, binding=0, std430) writeonly buffer ParticlesToEmitBuffer { \
         ParticleToEmitData NAME[particleToEmitBufferLength]; \
     };

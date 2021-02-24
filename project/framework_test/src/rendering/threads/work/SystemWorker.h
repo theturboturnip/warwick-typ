@@ -94,6 +94,11 @@ class SystemWorker {
                              vk::AccessFlags oldAccess, vk::AccessFlags newAccess,
                              vk::PipelineStageFlags oldStage = vk::PipelineStageFlagBits::eTopOfPipe,
                              vk::PipelineStageFlags newStage = vk::PipelineStageFlagBits::eTopOfPipe);
+    void fullMemoryBarrier(
+        vk::CommandBuffer cmdBuffer,
+        vk::PipelineStageFlags oldStage, vk::PipelineStageFlags newStage,
+        vk::AccessFlags oldAccess, vk::AccessFlags newAccess
+    );
     void showRange(VizValueRange* range);
 
 public:

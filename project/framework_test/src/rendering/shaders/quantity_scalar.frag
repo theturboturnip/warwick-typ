@@ -19,7 +19,7 @@ void main() {
 
     if (data.w > 0.5) {
         // pixIdx is a valid fluid square, display pressure
-        outColor = vec4(data.zzz, 1);
+        outColor = vec4((data.xyz + 5) / 10, 1);
     } else {
         // pixIdx is a valid obstacle square, go green
         outColor = vec4(0, 1, 0, 1);

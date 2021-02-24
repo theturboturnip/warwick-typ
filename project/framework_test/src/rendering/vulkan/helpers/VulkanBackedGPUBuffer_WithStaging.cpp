@@ -11,6 +11,12 @@ VulkanMappedMemory::VulkanMappedMemory(vk::Device device, vk::DeviceMemory mappe
 
 VulkanMappedMemory::~VulkanMappedMemory() {
     if (data.has_value()) {
+//        auto memoryRange = vk::MappedMemoryRange(
+//                mappedMemory,
+//                0,
+//                VK_WHOLE_SIZE
+//        );
+//        device.flushMappedMemoryRanges({memoryRange});
         device.unmapMemory(mappedMemory);
         data.release();
     }
@@ -22,8 +28,8 @@ VulkanBackedGPUBuffer_WithStaging::VulkanBackedGPUBuffer_WithStaging(
         size_t size, bool gpuShared)
     : gpuBuffer(context, vk::MemoryPropertyFlagBits::eDeviceLocal, gpuUsage | vk::BufferUsageFlagBits::eTransferDst, size, gpuShared),
       cpuStagingBuffer(context,
-                       // Map host-visible (CPU can see), host cached (CPU can read effectively), host coherent (CPU can write without having to flush afterwards)
-                       vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCached | vk::MemoryPropertyFlagBits::eHostCoherent,
+                       // Map host-visible (CPU can see), host coherent (CPU can write without having to flush afterwards)
+                       vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                        // Just a transfer source, not used in any other way
                        vk::BufferUsageFlagBits::eTransferSrc,
                        size,

@@ -48,7 +48,7 @@ VulkanPipeline::VulkanPipeline(
     rasterizer.rasterizerDiscardEnable = VK_FALSE; // Don't just stop rasterizing
     rasterizer.polygonMode = vk::PolygonMode::eFill;
     rasterizer.lineWidth = 1.0f; // Pixel width of lines, if line rendering used.
-    rasterizer.cullMode = vk::CullModeFlagBits::eBack;
+    rasterizer.cullMode = vk::CullModeFlagBits::eNone;
     rasterizer.frontFace = vk::FrontFace::eClockwise;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f; // Optional
