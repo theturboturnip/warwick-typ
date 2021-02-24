@@ -305,10 +305,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
                                                     *global.pipelines.computeParticleKickoff.layout,
                                                     0,
-                                                    vk::ArrayProxy<const vk::DescriptorSet>{
-                                                            //particlesSimmedLastFrame
-                                                            //particlesToEmit
-                                                            //indirectCmds
+                                                    {
+                                                        *data.sharedFrameData.particleIndexDrawList_comp_ds, //particlesDrawnLastFrame
+                                                        *data.sharedFrameData.particlesToEmit_comp_ds, //particlesToEmit
+                                                        *data.sharedFrameData.particleIndirectCommands_comp_ds, //indirectCmds
                                                     },
                                                     {});
                 computeCmdBuffer.dispatch(1, 1, 1);
@@ -321,12 +321,12 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
                                                     *global.pipelines.computeParticleEmit.layout,
                                                     0,
-                                                    vk::ArrayProxy<const vk::DescriptorSet>{
-                                                            //emitters
-                                                            //particlesToEmit
-                                                            //particlesToSimIndexList
-                                                            //inactiveParticleIndexList
-                                                            //particleDatas
+                                                    {
+                                                        *simFrameData.particleEmitters_comp_ds, //emitters
+                                                        *data.sharedFrameData.particlesToEmit_comp_ds, //particlesToEmit
+                                                        *data.sharedFrameData.particleIndexSimulateList_comp_ds, //particlesToSimIndexList
+                                                        *data.sharedFrameData.inactiveParticleIndexList_comp_ds, //inactiveParticleIndexList
+                                                        *data.sharedFrameData.particleDataArray_comp_ds, //particleDatas
                                                     },
                                                     {});
                 computeCmdBuffer.dispatchIndirect(
@@ -345,20 +345,20 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
                                               *global.pipelines.computeParticleSimulate);
                 computeCmdBuffer.pushConstants(
-                        *global.pipelines.computeParticleEmit.layout,
+                        *global.pipelines.computeParticleSimulate.layout,
                         vk::ShaderStageFlagBits::eCompute,
                         0,
                         vk::ArrayProxy<const Shaders::ParticleSimulateParams>{particleSimParams});
                 computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
                                                     *global.pipelines.computeParticleSimulate.layout,
                                                     0,
-                                                    vk::ArrayProxy<const vk::DescriptorSet>{
-                                                            //particlesToSimIndexList
-                                                            //simBufferDataSampler
-                                                            //particlesToDrawIndexList
-                                                            //inactiveParticleIndexList
-                                                            //indirectCmds
-                                                            //particleDatas
+                                                    {
+                                                        *data.sharedFrameData.particleIndexSimulateList_comp_ds, //particlesToSimIndexList
+                                                        *data.sharedFrameData.simDataSampler_comp_ds,    //simBufferDataSampler
+                                                        *data.sharedFrameData.particleIndexDrawList_comp_ds, //particlesToDrawIndexList
+                                                        *data.sharedFrameData.inactiveParticleIndexList_comp_ds, //inactiveParticleIndexList
+                                                        *data.sharedFrameData.particleIndirectCommands_comp_ds, //indirectCmds
+                                                        *data.sharedFrameData.particleDataArray_comp_ds, //particleDatas
                                                     },
                                                     {});
                 computeCmdBuffer.dispatchIndirect(
@@ -411,26 +411,26 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
             {
                 auto particlePushConsts = Shaders::InstancedParticleParams{
-                    .baseScale = 0.05,
+                    .baseScale = 0.1,
                 };
 
                 graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.particle);
                 graphicsCmdBuffer.pushConstants(
                     *global.pipelines.particle.layout,
-                    vk::ShaderStageFlagBits::eVertex,
+                    vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
                     0,
                     vk::ArrayProxy<const Shaders::InstancedParticleParams>{particlePushConsts}
                 );
                 graphicsCmdBuffer.bindVertexBuffers(0, {data.sharedFrameData.particleVertexData.getGpuBuffer()}, {0});
                 graphicsCmdBuffer.bindDescriptorSets(
                         vk::PipelineBindPoint::eGraphics,
-                        *global.pipelines.quantityScalar.layout,
+                        *global.pipelines.particle.layout,
                         0,
                         {
-                            // particlesToDrawIndexList
-                            // particleDatas
-                            },
-                        {});
+                            *data.sharedFrameData.particleIndexDrawList_vert_ds, // particlesToDrawIndexList
+                            *data.sharedFrameData.particleDataArray_vert_ds // particleDatas
+                        },
+                {});
                 graphicsCmdBuffer.drawIndirect(
                     *data.sharedFrameData.particleIndirectCommands,
                     offsetof(Shaders::ParticleIndirectCommands, particleDrawCmd),

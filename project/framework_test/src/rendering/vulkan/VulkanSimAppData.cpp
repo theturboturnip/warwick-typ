@@ -7,6 +7,14 @@
 #include "VulkanSimAppData.h"
 #include "rendering/shaders/global_structures.h"
 
+vk::UniqueDescriptorSet bufferDescSet_comp(VulkanSimAppData::Global &globalData, vk::DescriptorBufferInfo info) {
+    return globalData.pipelines.buildBuffer_comp_ds(globalData.context, info);
+}
+vk::UniqueDescriptorSet bufferDescSet_vert(VulkanSimAppData::Global &globalData, vk::DescriptorBufferInfo info) {
+    return globalData.pipelines.buildBuffer_vert_ds(globalData.context, info);
+}
+
+
 VulkanSimAppData::VulkanSimAppData(VulkanSimAppData::Global&& globalData,
                                    std::vector<VulkanSimFrameData>& bufferList,
                                    VulkanSwapchain& swapchain) : globalData(globalData), sharedFrameData(globalData, globalData.context) {
@@ -31,6 +39,7 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
       ),
 
       particleEmitters(context, vk::BufferUsageFlagBits::eStorageBuffer, globalData.props.maxParicleEmitters * sizeof(Shaders::ParticleEmitter)),
+      particleEmitters_comp_ds(bufferDescSet_comp(globalData, particleEmitters.getGpuDescriptor())),
 
       simFinishedCanCompute(*context.device),
       computeFinishedCanSim(*context.device),
@@ -81,18 +90,22 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
             globalData.props.maxParticlesEmittedPerFrame * sizeof(Shaders::ParticleToEmitData),
             true
         ),
+        particlesToEmit_comp_ds(bufferDescSet_comp(globalData, particlesToEmit.asDescriptor())),
         particleDataArray(context,
             vk::MemoryPropertyFlagBits::eDeviceLocal,
             vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
             globalData.props.maxParticles * sizeof(Shaders::Particle),
             true // Shared between graphics and compute
         ),
+        particleDataArray_comp_ds(bufferDescSet_comp(globalData, particleDataArray.asDescriptor())),
+        particleDataArray_vert_ds(bufferDescSet_vert(globalData, particleDataArray.asDescriptor())),
         inactiveParticleIndexList(
             context,
             vk::BufferUsageFlagBits::eStorageBuffer,
             (1 + globalData.props.maxParticles) * sizeof(uint32_t),
             false
         ),
+        inactiveParticleIndexList_comp_ds(bufferDescSet_comp(globalData, inactiveParticleIndexList.getGpuDescriptor())),
         particleIndexSimulateList(
             context,
             vk::MemoryPropertyFlagBits::eDeviceLocal,
@@ -107,13 +120,17 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
            (1 + globalData.props.maxParticles) * sizeof(uint32_t),
            false // not shared
         ),
+        particleIndexSimulateList_comp_ds(bufferDescSet_comp(globalData, particleIndexSimulateList.asDescriptor())),
+        particleIndexDrawList_comp_ds(bufferDescSet_comp(globalData, particleIndexDrawList.asDescriptor())),
+        particleIndexDrawList_vert_ds(bufferDescSet_vert(globalData, particleIndexDrawList.asDescriptor())),
         particleIndirectCommands(
            context,
            vk::MemoryPropertyFlagBits::eDeviceLocal,
-           vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+           vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndirectBuffer,
            sizeof(Shaders::ParticleIndirectCommands),
            true // shared
         ),
+        particleIndirectCommands_comp_ds(bufferDescSet_comp(globalData, particleIndirectCommands.asDescriptor())),
         particleVertexData(
            context,
            vk::BufferUsageFlagBits::eVertexBuffer,

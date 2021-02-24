@@ -51,6 +51,9 @@ public:
 
     void scheduleCopyToGPU(vk::CommandBuffer cmdBuffer);
 
+    vk::DescriptorBufferInfo getGpuDescriptor() {
+        return gpuBuffer.asDescriptor();
+    }
     vk::Buffer getGpuBuffer() {
         return *gpuBuffer;
     }

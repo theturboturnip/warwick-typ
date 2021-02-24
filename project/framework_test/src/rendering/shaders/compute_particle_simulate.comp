@@ -48,7 +48,7 @@ void main() {
     //     *don't* push it to the particlesToDraw list
 
     // Update the data
-    particle.data = vec4(pos, rot, 1);
+    particle.data = vec4(pos.x, pos.y, rot, 1);
     particleDatas[particleDataIdx] = particle;
 
     // Push the index to the particlesToDraw list

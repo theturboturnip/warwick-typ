@@ -48,6 +48,7 @@ public:
 
         // ParticleEmitters[props.maxParticleEmitters] array
         VulkanBackedGPUBuffer_WithStaging particleEmitters;
+        vk::UniqueDescriptorSet particleEmitters_comp_ds;
 
         // Synchronization
 
@@ -95,14 +96,22 @@ public:
         // ParticleEmitData[props.maxParticlesEmittedPerFrame] array
         // tells the compute_particle_emit shader where to put emitted particles
         VulkanBackedBuffer particlesToEmit;
+        vk::UniqueDescriptorSet particlesToEmit_comp_ds;
         // Particle[props.maxParticles] array
         VulkanBackedBuffer particleDataArray;
+        vk::UniqueDescriptorSet particleDataArray_comp_ds;
+        vk::UniqueDescriptorSet particleDataArray_vert_ds;
         // Growable/Shrinkable list of particle indices into particleDataArray, listing inactive particles.
         VulkanBackedGPUBuffer_WithStaging inactiveParticleIndexList;
+        vk::UniqueDescriptorSet inactiveParticleIndexList_comp_ds;
         // Growable list of particle indices, with an extra atomic uint32_t size.
         VulkanBackedBuffer particleIndexSimulateList, particleIndexDrawList;
+        vk::UniqueDescriptorSet particleIndexSimulateList_comp_ds;
+        vk::UniqueDescriptorSet particleIndexDrawList_comp_ds;
+        vk::UniqueDescriptorSet particleIndexDrawList_vert_ds;
         // ParticleIndirectCommands
         VulkanBackedBuffer particleIndirectCommands;
+        vk::UniqueDescriptorSet particleIndirectCommands_comp_ds;
         // Vertex[] of particle data (triangle strip)
         VulkanBackedGPUBuffer_WithStaging particleVertexData;
 

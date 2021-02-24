@@ -15,13 +15,13 @@ layout (constant_id = 2) const uint particleEmitterCount = 1;
 
 PUSH_CONSTANTS(ParticleKickoffParams)
 
-DS_PARTICLE_IMMUTABLE_INDEX_LIST(0, particlesSimmedLastFrame)
+DS_PARTICLE_MUTABLE_INDEX_LIST(0, particlesDrawnLastFrame)
 
 DS_PARTICLES_TO_EMIT_OUTPUT_DATA(1, particlesToEmit)
 DS_PARTICLE_INDIRECT_CMDS(2, indirectCmds)
 
 void main() {
-    uint initialParticleCount = particlesSimmedLastFrame_length;
+    uint initialParticleCount = particlesDrawnLastFrame_length;
 
     // Try to emit one per emitter each tick, capped at the buffer length
     uint targetEmitCount = min(pConsts.emitterCount, particleToEmitBufferLength);
@@ -54,4 +54,7 @@ void main() {
 
     indirectCmds.particlesToEmitCount = particlesToEmitCount;
     indirectCmds.particlesToSimCount = particleCountAfterEmit;
+
+    // Reset the size to reset the "indices-to-draw" data
+    particlesDrawnLastFrame_length = 0;
 }
