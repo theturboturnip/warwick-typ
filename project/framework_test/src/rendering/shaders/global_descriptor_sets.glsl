@@ -39,13 +39,13 @@
 
 #define DS_PARTICLE_MUTABLE_INDEX_LIST(SET, NAME) \
     layout (set=SET, binding=0, std430) buffer NAME##_Buffer { \
-        uint NAME##_length; \
+        coherent uint NAME##_length; \
         uint NAME[particleBufferLength]; \
     };
 
 #define DS_PARTICLE_IMMUTABLE_INDEX_LIST(SET, NAME) \
     layout (set=SET, binding=0, std430) readonly buffer NAME##_Buffer { \
-        uint NAME##_length; \
+        coherent uint NAME##_length; \
         uint NAME[particleBufferLength]; \
     };
 

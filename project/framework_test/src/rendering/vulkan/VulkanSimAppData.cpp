@@ -64,8 +64,9 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
                 context,
                 vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
                 {
-                        globalData.simSize.padded_pixel_size.x * 2,
-                        globalData.simSize.padded_pixel_size.y * 2,
+                    // Subtract 1 because at the bottom/right ends we don't want double boundaries
+                    globalData.simSize.internal_pixel_size.x * 2 - 1,
+                    globalData.simSize.internal_pixel_size.y * 2 - 1,
                 },
                 vk::Format::eR32G32B32A32Sfloat,
                 true
@@ -230,5 +231,5 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
     submitInfo.pCommandBuffers = &*buf;
     globalData.context.computeQueue.submit({submitInfo}, nullptr);
 
-    globalData.context.device->waitIdle();
+    globalData.context.computeQueue.waitIdle();
 }

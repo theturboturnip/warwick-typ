@@ -236,7 +236,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             // i.e. (size + 15) / 16
             //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
             //  otherwise (size + 15)/16 === (size / 16) + 1
-            computeCmdBuffer.dispatch((data.sharedFrameData.simDataImage.size.x + 15)/16, (data.sharedFrameData.simDataImage.size.y+15)/16, 1);
+            computeCmdBuffer.dispatch((global.simSize.padded_pixel_size.x*2 + 15)/16, (global.simSize.padded_pixel_size.y*2+15)/16, 1);
         }
         {
             // Transfer the simBuffersImage layout so that the next shaders can read it
@@ -272,19 +272,19 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                     auto memory = simFrameData.particleEmitters.mapCPUMemory(*global.context.device);
                     auto* emitterData = (Shaders::ParticleEmitter*)(*memory);
                     emitterData[0] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0.5, 0.1, 0, 0),
+                        .position = glm::vec4(0.03, 0.1, 0, 0),
                         .color = glm::vec4(1, 0, 0, 1)
                     };
                     emitterData[1] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0.5, 0.4, 0, 0),
+                        .position = glm::vec4(0.03, 0.4, 0, 0),
                         .color = glm::vec4(0, 1, 0, 1)
                     };
                     emitterData[2] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0.5, 0.6, 0, 0),
+                        .position = glm::vec4(0.03, 0.6, 0, 0),
                         .color = glm::vec4(0, 0, 1, 1)
                     };
                     emitterData[3] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0.5, 0.9, 0, 0),
+                        .position = glm::vec4(0.03, 0.9, 0, 0),
                         .color = glm::vec4(1, 1, 1, 1)
                     };
 
@@ -465,7 +465,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
             {
                 auto particlePushConsts = Shaders::InstancedParticleParams{
-                    .baseScale = 0.1,
+                    .baseScale = 0.01,
                     .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
                 };
 

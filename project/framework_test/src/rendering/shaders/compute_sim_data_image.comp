@@ -39,8 +39,11 @@ float evaluate(ivec2 rel_pxIdx, TapData taps) {
     // rel_pxIdx.xy can be -1, if sampling u or v.
     // these cases should be identical to if they were 0.
 
-    if ((rel_pxIdx.x % 2 == 0) || (rel_pxIdx.x < 0)) {
-        if ((rel_pxIdx.y % 2 == 0) || (rel_pxIdx.y < 0)) {
+    bool xNotAveraged = (rel_pxIdx.x % 2 == 0) || (rel_pxIdx.x < 0) || (rel_pxIdx.x >= pConsts.sim_pixelWidth*2);
+    bool yNotAveraged = (rel_pxIdx.y % 2 == 0) || (rel_pxIdx.y < 0) || (rel_pxIdx.y >= pConsts.sim_pixelHeight*2);
+
+    if (xNotAveraged) {
+        if (yNotAveraged) {
             // p is exactly on top of a value
             return taps.tap00;
         } else {
@@ -48,7 +51,7 @@ float evaluate(ivec2 rel_pxIdx, TapData taps) {
             return avg2(taps.tap00, taps.tap01);
         }
     } else {
-        if ((rel_pxIdx.y % 2 == 0) || (rel_pxIdx.y < 0)) {
+        if (yNotAveraged) {
             // p is horizontally between two values
             return avg2(taps.tap00, taps.tap10);
         } else {
@@ -79,12 +82,13 @@ void main() {
     );
     float u = evaluate(u_pxIdx, uTaps);
 
+    // OpenGL/Vulkan coords are flipped relative to sim coords => flip velocity y
     ivec2 v_pxIdx = ivec2(pxIdx.x, pxIdx.y - 1);
     TapData vTaps = TapData(
-        velocity_y[simIdx(v_pxIdx/2)],
-        velocity_y[simIdx(ivec2(v_pxIdx.x/2, (v_pxIdx.y+1)/2))],
-        velocity_y[simIdx(ivec2((v_pxIdx.x+1)/2, v_pxIdx.y/2))],
-        velocity_y[simIdx(ivec2((v_pxIdx.x+1)/2, (v_pxIdx.y+1)/2))]
+        -velocity_y[simIdx(v_pxIdx/2)],
+        -velocity_y[simIdx(ivec2(v_pxIdx.x/2, (v_pxIdx.y+1)/2))],
+        -velocity_y[simIdx(ivec2((v_pxIdx.x+1)/2, v_pxIdx.y/2))],
+        -velocity_y[simIdx(ivec2((v_pxIdx.x+1)/2, (v_pxIdx.y+1)/2))]
     );
     float v = evaluate(v_pxIdx, vTaps);
 
@@ -115,5 +119,8 @@ void main() {
     float fluidmask = evaluate(pxIdx, fluidmaskTaps);
 
     vec4 value = vec4(u, v, p, fluidmask);
-    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), value);
+    // 2*res GPU threads are spawned.
+    // The actual image is smaller because 2 pixels on each side are the boundary, and are removed.
+    // => store in (pos - 2)
+    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy) - 2, value);
 }

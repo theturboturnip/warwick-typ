@@ -42,7 +42,7 @@ void main() {
         0// padding
     );
     indirectCmds.particleSimCmd = VkDispatchIndirectCommand(
-        particleCountAfterEmit,//uint((particleCountAfterEmit + 32u - 1u) / 32u),
+        uint((particleCountAfterEmit + 32u - 1u) / 32u),
         1u,
         1u,
         0// padding

@@ -5,7 +5,7 @@
 #include "global_structures.glsl"
 
 // tODO - change this to 32, make kickoff account for it
-layout (local_size_x = 1) in;
+layout (local_size_x = 32) in;
 
 SPEC_CONST_MAX_PARTICLE_COUNT()
 
