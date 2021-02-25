@@ -64,11 +64,11 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanSwapchain.h
         rendering/vulkan/helpers/VulkanVertexInformation.cpp
         rendering/vulkan/helpers/VulkanVertexInformation.h
-        rendering/vulkan/mesh/particle_instance.h
-        rendering/vulkan/mesh/particle_instance.cpp
-        rendering/vulkan/mesh/vertex.h
-        rendering/vulkan/mesh/vertex.cpp
-        rendering/vulkan/mesh/vk_format.h
+        rendering/vulkan/viz/particle_instance.h
+        rendering/vulkan/viz/particle_instance.cpp
+        rendering/vulkan/viz/vertex.h
+        rendering/vulkan/viz/vertex.cpp
+        rendering/vulkan/viz/vk_format.h
         rendering/vulkan/VulkanSimApp.cpp
         rendering/vulkan/VulkanSimApp.h
         rendering/vulkan/VulkanContext.cpp
