@@ -4,6 +4,8 @@
 
 #include "SystemWorker.h"
 
+#include "rendering/shaders/global_structures.h"
+
 std::array<const char*, 5> SystemWorker::scalarQuantity = {
         "None",
         "Velocity X [TODO]",
@@ -24,13 +26,7 @@ std::array<const char*, 4> SystemWorker::particleTrailType = {
 
 SystemWorker::SystemWorker(VulkanSimAppData &data)
         : data(data),
-          global(data.globalData),
-          simBuffersPushConstants({
-                                          .pixelWidth=global.simSize.padded_pixel_size.x,
-                                          .pixelHeight=global.simSize.padded_pixel_size.y,
-                                          .columnStride=global.simSize.padded_pixel_size.y, // TODO
-                                          .totalPixels=(uint32_t)global.simSize.pixel_count()
-                                  })
+          global(data.globalData)
 {
 }
 
@@ -45,9 +41,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         else
             ImGui_ImplSDL2_ProcessEvent(&event);
     }
-
-    auto& simFrameData = data.frameData[input.simFrameIndex];
-    auto& swImageData = data.swapchainImageData[input.swapchainImageIndex];
 
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplSDL2_NewFrame(global.context.window);
@@ -94,7 +87,9 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     }
     ImGui::End();
 
-    ImGui::Begin("Visualization", nullptr, 0);
+    bool shouldResetParticles = false;
+
+    ImGui::Begin("Visualization", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     {
         ImGui::Text("Scalar Quantity");
         // From https://github.com/ocornut/imgui/issues/1658
@@ -134,11 +129,29 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         ImGui::Checkbox("Streamline Overlay", &overlayStreamlines);
 
         ImGui::NewLine();
-        ImGui::Checkbox("Particles", &showParticles);
-        if (showParticles) {
+        if (ImGui::Checkbox("Particles", &simulateParticles)) {
+            // Particles have been toggled
+            if (!simulateParticles) {
+                shouldResetParticles = true;
+                fprintf(stdout, "resetting particles\n");
+            }
+        }
+        if (simulateParticles) {
             ImGui::Indent();
 
             ImGui::Checkbox("Render as Glyphs", &renderParticleGlyphs);
+            if (renderParticleGlyphs) {
+                ImGui::SliderFloat("Size", &particleGlyphSize, 0.01, 0.1, "%.5f", 2.0f);
+            }
+
+            ImGui::SliderFloat("Spawn Speed", &particleSpawnFreq, 1, 100, "%.1f", 2.0f);
+
+            ImGui::Checkbox("Lock to Sim", &lockParticleToSimulation);
+            if (!lockParticleToSimulation) {
+                ImGui::Indent();
+                ImGui::InputFloat("Hz Timestep", &particleUnlockedSimFreq);
+                ImGui::Unindent();
+            }
 
             ImGui::NewLine();
             ImGui::Text("Particle Trail Type");
@@ -163,14 +176,54 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     //ImGui::SetNextWindowSize(ImVec2(simSize.pixel_size.x+2, simSize.pixel_size.y+2));
     ImGui::Begin("Simulation", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Image(
-            (ImTextureID)*simFrameData.vizFramebufferDescriptorSet,
+            (ImTextureID)*data.sharedFrameData.vizFramebufferDescriptorSet,
             ImVec2(global.simSize.padded_pixel_size.x*1.5, global.simSize.padded_pixel_size.y*1.5)
     );
     ImGui::End();
     ImGui::Render();
 
-    const auto& graphicsCmdBuffer = *simFrameData.threadOutputs.graphicsCommandBuffer;
-    const auto& computeCmdBuffer = *simFrameData.threadOutputs.computeCommandBuffer;
+    auto& simFrameData = data.perFrameData[input.simFrameIndex];
+
+    // Get a new swapchain image
+    uint32_t swapchainImageIdx = 0;
+    global.device.acquireNextImageKHR(
+            *global.swapchain,
+            UINT64_MAX,
+            *simFrameData.imageAcquiredCanRender, nullptr,
+            &swapchainImageIdx
+    );
+    auto& swImageData = data.swapchainImageData[swapchainImageIdx];
+//        fprintf(stderr, "told to get swapchain image %d\n", swapchainImageIdx);
+
+
+    bool spawnNewParticleThisTick = false;
+    particleSpawnTimer += input.thisSimTickLength;
+    if (particleSpawnTimer > (1.0f / particleSpawnFreq)) {
+        spawnNewParticleThisTick = true;
+        particleSpawnTimer = 0;
+    }
+
+    // Wait for this frame's command buffers to become available
+//    fprintf(stderr, "Waiting for cmdbuffer fence\n");
+    // TODO waiting for swapchain image data is unnecessary
+    if (swImageData.inFlight != (vk::Fence)nullptr && swImageData.inFlight != *simFrameData.frameCmdBuffersInUse) {
+        global.device.waitForFences({*simFrameData.frameCmdBuffersInUse, swImageData.inFlight}, true, UINT64_MAX);
+    } else {
+        global.device.waitForFences({*simFrameData.frameCmdBuffersInUse}, true, UINT64_MAX);
+    }
+    swImageData.inFlight = *simFrameData.frameCmdBuffersInUse;
+
+//        fprintf(stderr, "got sim frame and swapchain image\n");
+
+    auto simBuffersPushConstants = Shaders::SimDataBufferStats{
+        .sim_pixelWidth=global.simSize.padded_pixel_size.x,
+        .sim_pixelHeight=global.simSize.padded_pixel_size.y,
+        .sim_columnStride=global.simSize.padded_pixel_size.y,
+        .sim_totalPixels=(uint32_t)global.simSize.pixel_count()
+    };
+
+    const auto& computeCmdBuffer = *simFrameData.computeCmdBuffer;
+    const auto& graphicsCmdBuffer = *simFrameData.renderCmdBuffer;
 
     {
         computeCmdBuffer.reset({});
@@ -182,7 +235,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             // Transfer the simBuffersImage to eGeneral so it can be written next frame.
             transferImageLayout(
                     computeCmdBuffer,
-                    *simFrameData.simBuffersImage,
+                    *data.sharedFrameData.simDataImage,
                     vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral,
                     vk::AccessFlagBits(0), vk::AccessFlagBits::eShaderWrite,
                     vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eComputeShader
@@ -196,19 +249,227 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                                         *global.pipelines.computeSimDataImage.layout,
                                         vk::ShaderStageFlagBits::eCompute,
                                         0,
-                                        vk::ArrayProxy<const VulkanSimPipelineSet::SimFragPushConstants>{simBuffersPushConstants});
+                                        vk::ArrayProxy<const Shaders::SimDataBufferStats>{simBuffersPushConstants});
             computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
                                                 *global.pipelines.computeSimDataImage.layout,
                                                 0,
-                                                {*simFrameData.simBuffersComputeDescriptorSet},
+                                                vk::ArrayProxy<const vk::DescriptorSet>{
+                                                    *simFrameData.simBufferCopyInput_comp_ds,
+                                                    *data.sharedFrameData.simBufferCopyOutput_comp_ds
+                                                },
                                                 {});
             // Group size of 16 -> group count in each direction is size/16
             // If size isn't a multiple of 16, get extra group to cover the remainder
             // i.e. (size + 15) / 16
             //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
             //  otherwise (size + 15)/16 === (size / 16) + 1
-            computeCmdBuffer.dispatch((simFrameData.simBuffersImage.size.x + 15)/16, (simFrameData.simBuffersImage.size.y+15)/16, 1);
+            computeCmdBuffer.dispatch((global.simSize.padded_pixel_size.x*2 + 15)/16, (global.simSize.padded_pixel_size.y*2+15)/16, 1);
         }
+        {
+            // Transfer the simBuffersImage layout so that the next shaders can read it
+            // Make ShaderWrites to a General-layout image in the ComputeShader
+            //   available + visible to ShaderReads from a ShaderReadOnlyOptimal-layout image in the ComputeShader.
+            // Even if we're not updating the particles this frame, transitioning the layout is required.
+            transferImageLayout(
+                    computeCmdBuffer,
+                    *data.sharedFrameData.simDataImage,
+                    vk::ImageLayout::eGeneral,vk::ImageLayout::eShaderReadOnlyOptimal,
+                    vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead,
+                    vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader
+            );
+        }
+
+        // Particle Update
+        // If we're not locking the particle sim to the actual sim, always run the particle sim.
+        // If we are locking the sims together, only run the particle sim if the input ran the sim.
+        if (simulateParticles && (!lockParticleToSimulation || input.shouldSimParticles)) {
+            // Copy index draw list -> index simulate list for the emit shader to add to
+            {
+                auto copy = vk::BufferCopy{};
+                copy.srcOffset = 0;
+                copy.dstOffset = 0;
+                copy.size = data.sharedFrameData.particleIndexDrawList.size;
+                computeCmdBuffer.copyBuffer(*data.sharedFrameData.particleIndexDrawList,
+                                            *data.sharedFrameData.particleIndexSimulateList, {copy});
+            }
+
+            // Setup the emitter points
+            {
+                {
+                    DASSERT(global.props.maxParicleEmitters >= 6);
+                    auto memory = simFrameData.particleEmitters.mapCPUMemory(*global.context.device);
+                    auto* emitterData = (Shaders::ParticleEmitter*)(*memory);
+                    emitterData[0] = Shaders::ParticleEmitter {
+                        .position = glm::vec4(0, 0.1, 0, 0),
+                        .color = glm::vec4(1, 0, 0, 1)
+                    };
+                    emitterData[1] = Shaders::ParticleEmitter {
+                        .position = glm::vec4(0, 0.4, 0, 0),
+                        .color = glm::vec4(0, 1, 0, 1)
+                    };
+                    emitterData[2] = Shaders::ParticleEmitter {
+                        .position = glm::vec4(0, 0.6, 0, 0),
+                        .color = glm::vec4(0, 0, 1, 1)
+                    };
+                    emitterData[3] = Shaders::ParticleEmitter {
+                        .position = glm::vec4(0, 0.9, 0, 0),
+                        .color = glm::vec4(1, 1, 1, 1)
+                    };
+                    emitterData[4] = Shaders::ParticleEmitter {
+                            .position = glm::vec4(0, 0.3, 0, 0),
+                            .color = glm::vec4(0, 0, 1, 1)
+                    };
+                    emitterData[5] = Shaders::ParticleEmitter {
+                            .position = glm::vec4(0, 0.7, 0, 0),
+                            .color = glm::vec4(1, 1, 1, 1)
+                    };
+
+                    // Auto unmapped
+                }
+                simFrameData.particleEmitters.scheduleCopyToGPU(computeCmdBuffer);
+            }
+
+            // Run the kickoff shader
+            {
+                // Initial pipeline barrier
+                // particleIndexDrawList is in input.
+                //      was written last frame, multiple semaphores inbetween => writes are available and visible
+                // particlesToEmit is an output, we don't care what's in there
+                // particleIndirectCommands is an output, we don't care
+
+                auto particleKickoff = Shaders::ParticleKickoffParams{
+                        .emitterCount = (spawnNewParticleThisTick ? 6u : 0u)
+                };
+                computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
+                                              *global.pipelines.computeParticleKickoff);
+                computeCmdBuffer.pushConstants(
+                        *global.pipelines.computeParticleKickoff.layout,
+                        vk::ShaderStageFlagBits::eCompute,
+                        0,
+                        vk::ArrayProxy<const Shaders::ParticleKickoffParams>{particleKickoff});
+                computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                    *global.pipelines.computeParticleKickoff.layout,
+                                                    0,
+                                                    {
+                                                        // Input
+                                                        *data.sharedFrameData.particleIndexDrawList_comp_ds, //particlesDrawnLastFrame
+
+                                                        // Output
+                                                        *data.sharedFrameData.particlesToEmit_comp_ds, //particlesToEmit
+                                                        *data.sharedFrameData.particleIndirectCommands_comp_ds, //indirectCmds
+                                                    },
+                                                    {});
+                computeCmdBuffer.dispatch(1, 1, 1);
+            }
+
+            // Run the emit shader
+            {
+                // particleEmitters, particleIndexSimulate list are inputs, need to wait for the transfers to finish
+                // particlesToEmit is an input, need to wait for the previous compute to finish
+                // Reads from particleIndirectCommands, need to wait for previous compute to finish BEFORE DrawIndirectBit
+
+                // So full-memory barrier from Compute->DrawIndirect
+                // and full-memory barrier from Transfer->Compute?
+
+                // Make ShaderWrites from the ComputeShader stage available + visible to IndirectCommandReads in the DrawIndirect stage
+                fullMemoryBarrier(computeCmdBuffer,
+                                  vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eDrawIndirect,
+                                  vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eIndirectCommandRead);
+//                fullMemoryBarrier(computeCmdBuffer,
+//                                  vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader,
+//                                  vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead);
+                // Make TransferWrites from the Transfer stage available + visible to the ShaderReads in the ComputeShader phase.
+                fullMemoryBarrier(computeCmdBuffer,
+                                  vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader,
+                                  vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead);
+
+                computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
+                                              *global.pipelines.computeParticleEmit);
+                computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                    *global.pipelines.computeParticleEmit.layout,
+                                                    0,
+                                                    {
+                                                        // Input
+                                                        *simFrameData.particleEmitters_comp_ds, //emitters
+                                                        *data.sharedFrameData.particlesToEmit_comp_ds, //particlesToEmit
+
+                                                        // Input/output
+                                                        *data.sharedFrameData.particleIndexSimulateList_comp_ds, //particlesToSimIndexList
+                                                        *data.sharedFrameData.inactiveParticleIndexList_comp_ds, //inactiveParticleIndexList
+
+                                                        // Output
+                                                        *data.sharedFrameData.particleDataArray_comp_ds, //particleDatas
+                                                    },
+                                                    {});
+                computeCmdBuffer.dispatchIndirect(
+                    *data.sharedFrameData.particleIndirectCommands,
+                    offsetof(Shaders::ParticleIndirectCommands, particleEmitCmd)
+                );
+            }
+
+            // Run the simulate shader
+            {
+                // particleIndexSimulateList is an input from the emit shader.
+                // the indirect draw is an input from the kickoff shader, but the emit shader has already waited so we don't have to.
+
+                // Make ShaderWrites from the ComputeShader stage available + visible to the ShaderReads in the ComputeShader phase.
+                fullMemoryBarrier(computeCmdBuffer,
+                                  vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader,
+                                  vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead);
+
+                auto particleSimParams = Shaders::ParticleSimulateParams{
+                        .timestep = lockParticleToSimulation ? input.thisSimTickLength : (1.0f/particleUnlockedSimFreq),
+                        .xLength = global.simSize.physical_size.x,
+                        .yLength = global.simSize.physical_size.y
+                };
+                computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
+                                              *global.pipelines.computeParticleSimulate);
+                computeCmdBuffer.pushConstants(
+                        *global.pipelines.computeParticleSimulate.layout,
+                        vk::ShaderStageFlagBits::eCompute,
+                        0,
+                        vk::ArrayProxy<const Shaders::ParticleSimulateParams>{particleSimParams});
+                computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                    *global.pipelines.computeParticleSimulate.layout,
+                                                    0,
+                                                    {
+                                                        // Inputs
+                                                        *data.sharedFrameData.particleIndexSimulateList_comp_ds, //particlesToSimIndexList
+                                                        *data.sharedFrameData.simDataSampler_comp_ds,    //simBufferDataSampler
+
+                                                        // Input/Outputs
+                                                        *data.sharedFrameData.particleIndexDrawList_comp_ds, //particlesToDrawIndexList
+                                                        *data.sharedFrameData.inactiveParticleIndexList_comp_ds, //inactiveParticleIndexList
+
+                                                        // Outputs
+                                                        *data.sharedFrameData.particleIndirectCommands_comp_ds, //indirectCmds
+                                                        *data.sharedFrameData.particleDataArray_comp_ds, //particleDatas
+                                                    },
+                                                    {});
+                computeCmdBuffer.dispatchIndirect(
+                    *data.sharedFrameData.particleIndirectCommands,
+                    offsetof(Shaders::ParticleIndirectCommands, particleSimCmd)
+                );
+
+                // Don't need to sync writes to the particleIndirectCommands/particleDataArray
+                // because that's done on the graphics pipeline after a semaphore.
+            }
+        } else if (shouldResetParticles) {
+            // Reset the particles:
+            // Zero out the "to draw list", which is used as a base for the simulation normally
+            computeCmdBuffer.fillBuffer(*data.sharedFrameData.particleIndexDrawList, 0, data.sharedFrameData.particleIndexDrawList.size, 0);
+            // Copy the reset data into the inactiveParticleIndexList
+            auto copy = vk::BufferCopy{};
+            copy.srcOffset = 0;
+            copy.dstOffset = 0;
+            copy.size = data.sharedFrameData.inactiveParticleIndexList.size;
+            computeCmdBuffer.copyBuffer(
+                data.sharedFrameData.inactiveParticleIndexList_resetData.getGpuBuffer(),
+                data.sharedFrameData.inactiveParticleIndexList.getGpuBuffer(),
+                {copy}
+            );
+        }
+
         computeCmdBuffer.end();
     }
 
@@ -221,33 +482,65 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         auto beginInfo = vk::CommandBufferBeginInfo();
         graphicsCmdBuffer.begin(beginInfo);
 
-        {
-            // Transfer the simBuffersImage layout so that the shader can read it
-            transferImageLayout(
-                    graphicsCmdBuffer,
-                    *simFrameData.simBuffersImage,
-                    vk::ImageLayout::eGeneral,vk::ImageLayout::eShaderReadOnlyOptimal,
-                    vk::AccessFlagBits(0), vk::AccessFlagBits::eShaderRead,
-                    vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eComputeShader
-            );
-        }
+//        {
+//            // Transfer the simBuffersImage layout so that we can read it
+//            transferImageLayout(
+//                    graphicsCmdBuffer,
+//                    *data.sharedFrameData.simDataImage,
+//                    vk::ImageLayout::eShaderReadOnlyOptimal,vk::ImageLayout::eShaderReadOnlyOptimal,
+//                    vk::AccessFlagBits::eShaderRead, vk::AccessFlagBits::eShaderRead,
+//                    vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eFragmentShader
+//            );
+//        }
 
         {
             auto simRenderPassInfo = vk::RenderPassBeginInfo();
             simRenderPassInfo.renderPass = global.vizRenderPass;
-            simRenderPassInfo.framebuffer = *simFrameData.vizFramebuffer;
+            simRenderPassInfo.framebuffer = *data.sharedFrameData.vizFramebuffer;
             simRenderPassInfo.renderArea = global.vizRect;
             simRenderPassInfo.clearValueCount = 1;
             simRenderPassInfo.pClearValues = &clearColor;
             graphicsCmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
-            graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.fullscreenPressure);
+
+            graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.quantityScalar);
             graphicsCmdBuffer.bindDescriptorSets(
                     vk::PipelineBindPoint::eGraphics,
-                    *global.pipelines.fullscreenPressure.layout,
+                    *global.pipelines.quantityScalar.layout,
                     0,
-                    {*simFrameData.simBuffersImageDescriptorSet},
+                    {*data.sharedFrameData.simDataSampler_frag_ds},
                     {});
-            graphicsCmdBuffer.draw(6, 1, 0, 0);
+            graphicsCmdBuffer.draw(4, 1, 0, 0);
+
+            if (simulateParticles && renderParticleGlyphs){
+                auto particlePushConsts = Shaders::InstancedParticleParams{
+                    .baseScale = particleGlyphSize,
+                    .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
+                };
+
+                graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.particle);
+                graphicsCmdBuffer.pushConstants(
+                    *global.pipelines.particle.layout,
+                    vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
+                    0,
+                    vk::ArrayProxy<const Shaders::InstancedParticleParams>{particlePushConsts}
+                );
+                graphicsCmdBuffer.bindVertexBuffers(0, {data.sharedFrameData.particleVertexData.getGpuBuffer()}, {0});
+                graphicsCmdBuffer.bindDescriptorSets(
+                        vk::PipelineBindPoint::eGraphics,
+                        *global.pipelines.particle.layout,
+                        0,
+                        {
+                            *data.sharedFrameData.particleIndexDrawList_vert_ds, // particlesToDrawIndexList
+                            *data.sharedFrameData.particleDataArray_vert_ds // particleDatas
+                        },
+                {});
+                graphicsCmdBuffer.drawIndirect(
+                    *data.sharedFrameData.particleIndirectCommands,
+                    offsetof(Shaders::ParticleIndirectCommands, particleDrawCmd),
+                    1, 0
+                );
+            }
+
             graphicsCmdBuffer.endRenderPass();
         }
 
@@ -271,11 +564,79 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         graphicsCmdBuffer.end();
     }
 
+    // Submit the command buffers
+    // Send the compute work
+    {
+        vk::SubmitInfo submitInfo{};
+        std::vector<vk::Semaphore> waitSemaphores = {*simFrameData.simFinishedCanCompute};
+        std::vector<vk::PipelineStageFlags> waitStages = {vk::PipelineStageFlagBits::eComputeShader};
+        if (input.perf.currentFrameNum > 0) {
+            // Find previous frame idx, use to check that the previous render has finished
+            // Do (i + size - 1) % size instead of just (i - 1) % size because idk how C modulo works with negatives
+            const auto nextFrameIdx = (input.simFrameIndex + data.perFrameData.size() - 1) % data.perFrameData.size();
+            const auto& previousFrameData = data.perFrameData[nextFrameIdx];
+            waitSemaphores.push_back(*previousFrameData.renderFinishedNextFrameCanCompute);
+            waitStages.push_back(vk::PipelineStageFlagBits::eComputeShader);
+        }
+
+        submitInfo.waitSemaphoreCount = waitSemaphores.size();
+        submitInfo.pWaitSemaphores = waitSemaphores.data();
+        submitInfo.pWaitDstStageMask = waitStages.data();
+
+        vk::CommandBuffer cmdBuffers[] = {
+            computeCmdBuffer
+        };
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = cmdBuffers;
+
+        vk::Semaphore signalSemaphores[] = {*simFrameData.computeFinishedCanRender, *simFrameData.computeFinishedCanSim};
+        submitInfo.signalSemaphoreCount = 2;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        global.context.computeQueue.submit({submitInfo}, nullptr);
+    }
+
+    // Send the graphics work
+    {
+        vk::SubmitInfo submitInfo{};
+        vk::Semaphore waitSemaphores[] = {*simFrameData.imageAcquiredCanRender, *simFrameData.computeFinishedCanRender};
+        vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTopOfPipe};
+        submitInfo.waitSemaphoreCount = 2;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = waitStages;
+
+        vk::CommandBuffer cmdBuffers[] = {
+            graphicsCmdBuffer
+        };
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = cmdBuffers;
+
+        vk::Semaphore signalSemaphores[] = {*simFrameData.renderFinishedCanPresent, *simFrameData.renderFinishedNextFrameCanCompute};
+        submitInfo.signalSemaphoreCount = 2;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        // We are now using these command buffers to execute - don't record over them
+        global.device.resetFences({*simFrameData.frameCmdBuffersInUse});
+        // Tell the graphics queue to re-open the fence once it's done with this submission
+        global.context.graphicsQueue.submit({submitInfo}, *simFrameData.frameCmdBuffersInUse);
+    }
+
+    // Send the Present work
+    {
+        vk::PresentInfoKHR presentInfo{};
+        vk::Semaphore presentWaitSemaphores[] = {*simFrameData.renderFinishedCanPresent};
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = presentWaitSemaphores;
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = &(*global.swapchain);
+        presentInfo.pImageIndices = &swapchainImageIdx;
+        presentInfo.pResults = nullptr;
+        global.context.presentQueue.presentKHR(presentInfo);
+    }
+
     return SystemWorkerOut{
-            .wantsQuit = wantsQuit,
-            .wantsRunSim = wantsRunSim,
-            .graphicsCmdBuffer = graphicsCmdBuffer,
-            .computeCmdBuffer = computeCmdBuffer,
+        .wantsQuit = wantsQuit,
+        .wantsRunSim = wantsRunSim
     };
 }
 
@@ -298,6 +659,9 @@ SystemWorker::transferImageLayout(vk::CommandBuffer cmdBuffer, vk::Image image,
     imageBarrier.srcAccessMask = oldAccess;
     imageBarrier.dstAccessMask = newAccess;
 
+    imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;//oldQueueFamily;
+    imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
     cmdBuffer.pipelineBarrier(
         oldStage, newStage, vk::DependencyFlagBits(0), {}, {}, {imageBarrier}
     );
@@ -313,4 +677,16 @@ void SystemWorker::showRange(VizValueRange* range) {
         range->max = rangeValue[1];
     }
     ImGui::PopID();
+}
+
+void SystemWorker::fullMemoryBarrier(vk::CommandBuffer cmdBuffer,
+                                     vk::PipelineStageFlags oldStage, vk::PipelineStageFlags newStage,
+                                     vk::AccessFlags oldAccess, vk::AccessFlags newAccess) {
+    auto memoryBarrier = vk::MemoryBarrier{};
+    memoryBarrier.srcAccessMask = oldAccess;
+    memoryBarrier.dstAccessMask = newAccess;
+
+    cmdBuffer.pipelineBarrier(
+            oldStage, newStage, vk::DependencyFlagBits(0), {memoryBarrier}, {}, {}
+    );
 }

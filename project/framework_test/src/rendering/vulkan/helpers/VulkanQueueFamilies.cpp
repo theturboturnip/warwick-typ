@@ -15,7 +15,7 @@ std::optional<VulkanQueueFamilies> VulkanQueueFamilies::getForDevice(vk::Physica
             graphicsFamily = queueFamilyIndex;
         }
 
-        if (queueFamily.queueFlags & vk::QueueFlagBits::eCompute) {
+        if (queueFamily.queueFlags & vk::QueueFlagBits::eCompute && !(queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)) {
             computeFamily = queueFamilyIndex;
         }
 

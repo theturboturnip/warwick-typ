@@ -1,0 +1,42 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
+#include "global_descriptor_sets.glsl"
+#include "global_structures.glsl"
+
+layout (local_size_x = 1) in;
+
+SPEC_CONST_MAX_PARTICLE_COUNT()
+SPEC_CONST_MAX_PARTICLES_TO_EMIT_COUNT()
+SPEC_CONST_MAX_PARTICLE_EMITTER_COUNT()
+
+//PUSH_CONSTANTS()
+
+DS_PARTICLE_EMITTERS_DATA(0, emitters)
+DS_PARTICLES_TO_EMIT_INPUT_DATA(1, particlesToEmit)
+DS_PARTICLE_MUTABLE_INDEX_LIST(2, particlesToSimIndexList)
+
+// Inactive particle list - shrinks during this shader
+DS_PARTICLE_MUTABLE_INDEX_LIST(3, inactiveParticleIndexList)
+DS_PARTICLE_OUTPUT_BUFFER(4, particleDatas)
+
+void main() {
+    // Current SSBO index
+    uint index = gl_GlobalInvocationID.x;
+
+    // We are responsible for emitting a particle from...
+    uint emitterIdx = particlesToEmit[index].emitterIdx;
+    ParticleEmitter emitter = emitters[emitterIdx];
+
+    // Remove a particle idx from the dead list
+    const uint newParticleIndex = inactiveParticleIndexList[atomicAdd(inactiveParticleIndexList_length, -1) - 1];
+    // Set up this index with data
+    particleDatas[newParticleIndex].data = vec4(emitter.position.x, emitter.position.y, 0, 1);
+    particleDatas[newParticleIndex].color = emitter.color;
+
+    // Add this particle to the particlesToSimIndexList
+    // TODO - using atomicexchange here in case this has caching issues
+    //   if the array element and the length are in the same cache line, atomically writing to one part and not the other could cause issues.
+//    atomicExchange(particlesToSimIndexList[atomicAdd(particlesToSimIndexList_length, 1)], newParticleIndex);
+    particlesToSimIndexList[atomicAdd(particlesToSimIndexList_length, 1)] = newParticleIndex;
+}

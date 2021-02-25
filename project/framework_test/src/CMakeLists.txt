@@ -23,12 +23,18 @@ target_sources(generic_sources INTERFACE
         memory/internal/MType.h
         memory/internal/Sim2DArray.h
         memory/internal/SimRedBlackArray.h
+        rendering/shaders/global_structures.glsl
+        rendering/shaders/global_structures.h
         rendering/threads/IWorkerThread.h
         rendering/threads/IWorkerThread_Impl.inl
         rendering/threads/ThreadWorkData.h
         rendering/threads/WorkerThreadController.h
         rendering/threads/work/SystemWorker.cpp
         rendering/threads/work/SystemWorker.h
+        rendering/vulkan/helpers/VulkanBackedBuffer.cpp
+        rendering/vulkan/helpers/VulkanBackedBuffer.h
+        rendering/vulkan/helpers/VulkanBackedGPUBuffer_WithStaging.cpp
+        rendering/vulkan/helpers/VulkanBackedGPUBuffer_WithStaging.h
         rendering/vulkan/helpers/VulkanBackedGPUImage.cpp
         rendering/vulkan/helpers/VulkanBackedGPUImage.h
         rendering/vulkan/helpers/VulkanBackedFramebuffer.cpp
@@ -56,6 +62,13 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanRenderPass.h
         rendering/vulkan/helpers/VulkanSwapchain.cpp
         rendering/vulkan/helpers/VulkanSwapchain.h
+        rendering/vulkan/helpers/VulkanVertexInformation.cpp
+        rendering/vulkan/helpers/VulkanVertexInformation.h
+        rendering/vulkan/mesh/particle_instance.h
+        rendering/vulkan/mesh/particle_instance.cpp
+        rendering/vulkan/mesh/vertex.h
+        rendering/vulkan/mesh/vertex.cpp
+        rendering/vulkan/mesh/vk_format.h
         rendering/vulkan/VulkanSimApp.cpp
         rendering/vulkan/VulkanSimApp.h
         rendering/vulkan/VulkanContext.cpp
@@ -104,6 +117,7 @@ target_sources(generic_sources INTERFACE
         util/HostVisibleArray.h
         util/LegacyCompat2DBackingArray.h
         util/selectors.h
+        util/glm.h
         validation/SimDumpDifferenceData.cpp
         validation/SimDumpDifferenceData.h
         main.cpp

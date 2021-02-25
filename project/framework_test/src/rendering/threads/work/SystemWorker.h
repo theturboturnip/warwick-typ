@@ -14,9 +14,10 @@
 
 
 struct SystemWorkerIn {
-    uint32_t swapchainImageIndex;
     uint32_t simFrameIndex;
     bool shouldSimParticles;
+    float thisSimTickLength;
+    float lastFrameTime;
 
     struct PerfData {
         std::array<float, 32> frameTimes;
@@ -35,15 +36,13 @@ struct SystemWorkerIn {
 struct SystemWorkerOut {
     bool wantsQuit = false;
     bool wantsRunSim = false;
-    vk::CommandBuffer graphicsCmdBuffer;
-    vk::CommandBuffer computeCmdBuffer;
 };
 
 struct VizValueRange {
     // If true, the threshold is set to the minimum/maximum values present.
     // If false, the threshold is using min/max. Any values outside the range are disabled.
     bool autoRange = true;
-    float min=0, max=1;
+    float min=-1, max=1;
 };
 
 /**
@@ -58,6 +57,7 @@ class SystemWorker {
     // internal
     bool showDemoWindow = true;
     bool wantsRunSim = false;
+
     enum class ScalarQuantity : size_t {
         None=0,
         VelocityX=1,
@@ -78,8 +78,13 @@ class SystemWorker {
     VectorQuantity vizVector = VectorQuantity::None;
     VizValueRange vizVectorMagnitudeRange;
     // Particle Options
-    bool showParticles = false;
+    bool simulateParticles = true;
     bool renderParticleGlyphs = true;
+    float particleGlyphSize = 0.01;
+    bool lockParticleToSimulation = true;
+    float particleUnlockedSimFreq = 120;
+    float particleSpawnFreq = 10;
+    float particleSpawnTimer = 0;
     enum class ParticleTrailType : size_t {
         None=0,
         Streakline=1,
@@ -90,16 +95,17 @@ class SystemWorker {
     ParticleTrailType trailType = ParticleTrailType::None;
     float trailLength = 0;
 
-
-    // In case the constants change over time i.e. for color
-    VulkanSimPipelineSet::SimFragPushConstants simBuffersPushConstants;
-
     void transferImageLayout(vk::CommandBuffer cmdBuffer,
                              vk::Image image,
                              vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
                              vk::AccessFlags oldAccess, vk::AccessFlags newAccess,
                              vk::PipelineStageFlags oldStage = vk::PipelineStageFlagBits::eTopOfPipe,
                              vk::PipelineStageFlags newStage = vk::PipelineStageFlagBits::eTopOfPipe);
+    void fullMemoryBarrier(
+        vk::CommandBuffer cmdBuffer,
+        vk::PipelineStageFlags oldStage, vk::PipelineStageFlags newStage,
+        vk::AccessFlags oldAccess, vk::AccessFlags newAccess
+    );
     void showRange(VizValueRange* range);
 
 public:

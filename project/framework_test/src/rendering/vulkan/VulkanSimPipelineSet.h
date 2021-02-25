@@ -12,35 +12,70 @@
 #include "rendering/vulkan/helpers/VulkanPipeline.h"
 #include "rendering/vulkan/helpers/VulkanShader.h"
 #include "rendering/vulkan/VulkanContext.h"
+#include "SimAppProperties.h"
 
 class VulkanSimPipelineSet {
 public:
-    struct SimFragPushConstants {
-        uint32_t pixelWidth;
-        uint32_t pixelHeight;
-        uint32_t columnStride;
-        uint32_t totalPixels;
-    };
+    vk::SpecializationMapEntry particleBufferLength_specConstant;
+    vk::SpecializationMapEntry particleToEmitBufferLength_specConstant;
+    vk::SpecializationMapEntry particleEmitterCount_specConstant;
+    std::vector<vk::SpecializationMapEntry> specConstants;
+    struct SpecConstantsData {
+        uint32_t particleBufferLength;
+        uint32_t particleToEmitBufferLength;
+        uint32_t particleEmitterCount;
+    } specConstantsData;
 
-    VertexShader triVert;
-    VertexShader fullscreenQuadVert;
-    FragmentShader redFrag;
-    FragmentShader uvFrag;
-    FragmentShader simPressure;
+    VulkanDescriptorSetLayout simDataSampler_comp_ds;
+    VulkanDescriptorSetLayout simDataSampler_frag_ds;
+    VulkanDescriptorSetLayout simBufferCopyInput_comp_ds;
+    VulkanDescriptorSetLayout simBufferCopyOutput_comp_ds;
+
+    VulkanDescriptorSetLayout buffer_comp_ds;
+    VulkanDescriptorSetLayout buffer_vert_ds;
+
+    VertexShader quantityScalar_vert;
+    FragmentShader quantityScalar_frag;
+    VertexShader particle_vert;
+    FragmentShader particle_frag;
     ComputeShader computeSimDataImage_shader;
 
-    VulkanDescriptorSetLayout simBuffers_computeDescriptorLayout;
-    VulkanDescriptorSetLayout simBuffersImage_fragmentDescriptorLayout;
-    vk::PushConstantRange simBuffers_computePushConstantRange;
+    ComputeShader computeParticleKickoff_shader;
+    ComputeShader computeParticleEmit_shader;
+    ComputeShader computeParticleSimulate_shader;
 
-    VulkanPipeline redTriangle;
-    VulkanPipeline redQuad;
-    VulkanPipeline fullscreenPressure;
+    VulkanPipeline quantityScalar;
+    VulkanPipeline particle;
     VulkanPipeline computeSimDataImage;
+    VulkanPipeline computeParticleKickoff;
+    VulkanPipeline computeParticleEmit;
+    VulkanPipeline computeParticleSimulate;
 
-    explicit VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize);
+    VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize, SimAppProperties& properties);
     VulkanSimPipelineSet(VulkanSimPipelineSet &&) noexcept = default;
 
-    vk::UniqueDescriptorSet buildFullscreenPressureDescriptors(VulkanContext& context, VulkanImageSampler& simBuffersImageSampler);
-    vk::UniqueDescriptorSet buildComputeSimDataImageDescriptors(VulkanContext& context, VulkanSimFrameData& buffers, vk::Image simBuffersImage, VulkanImageSampler& simBuffersImageSampler);
+    vk::UniqueDescriptorSet buildSimDataSampler_comp_ds(
+        VulkanContext& context,
+        VulkanImageSampler& simBuffersImageSampler
+    );
+    vk::UniqueDescriptorSet buildSimDataSampler_frag_ds(
+        VulkanContext& context,
+        VulkanImageSampler& simBuffersImageSampler
+    );
+    vk::UniqueDescriptorSet buildSimBufferCopyInput_comp_ds(
+        VulkanContext& context,
+        VulkanSimFrameData& buffers
+    );
+    vk::UniqueDescriptorSet buildSimBufferCopyOutput_comp_ds(
+        VulkanContext& context,
+        VulkanImageSampler& simBuffersImageSampler
+    );
+    vk::UniqueDescriptorSet buildBuffer_comp_ds(
+        VulkanContext& context,
+        vk::DescriptorBufferInfo buffer
+    );
+    vk::UniqueDescriptorSet buildBuffer_vert_ds(
+            VulkanContext& context,
+            vk::DescriptorBufferInfo buffer
+    );
 };

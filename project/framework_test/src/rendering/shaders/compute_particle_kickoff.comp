@@ -1,0 +1,62 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
+#include "global_descriptor_sets.glsl"
+#include "global_structures.glsl"
+
+layout (local_size_x = 1) in;
+
+//SPEC_CONST_MAX_PARTICLE_COUNT//()
+//SPEC_CONST_MAX_PARTICLE_TO_EMIT_COUNT//()
+//SPEC_CONST_MAX_PARTICLE_EMITTER_COUNT//()
+layout (constant_id = 0) const uint particleBufferLength = 1;
+layout (constant_id = 1) const uint particleToEmitBufferLength = 1;
+layout (constant_id = 2) const uint particleEmitterCount = 1;
+
+PUSH_CONSTANTS(ParticleKickoffParams)
+
+DS_PARTICLE_MUTABLE_INDEX_LIST(0, particlesDrawnLastFrame)
+
+DS_PARTICLES_TO_EMIT_OUTPUT_DATA(1, particlesToEmit)
+DS_PARTICLE_INDIRECT_CMDS(2, indirectCmds)
+
+void main() {
+    uint initialParticleCount = particlesDrawnLastFrame_length;
+
+    // Try to emit one per emitter each tick, capped at the buffer length
+    uint targetEmitCount = min(pConsts.emitterCount, particleToEmitBufferLength);
+    // Check this isn't larger than the amount of particles in the buffer
+    uint particleCountAfterEmit = min(initialParticleCount + targetEmitCount, particleBufferLength);
+    // Get the actual amount we'll be emitting
+    uint particlesToEmitCount = particleCountAfterEmit - initialParticleCount;
+    for (uint i = 0; i < particlesToEmitCount; i++) {
+        // Emit a particle from this emitter.
+        particlesToEmit[i] = ParticleToEmitData(i);
+    }
+
+    // Setup the indirect commands
+    indirectCmds.particleEmitCmd = VkDispatchIndirectCommand(
+        particlesToEmitCount,
+        1u,
+        1u,
+        0// padding
+    );
+    indirectCmds.particleSimCmd = VkDispatchIndirectCommand(
+        uint((particleCountAfterEmit + 32u - 1u) / 32u),
+        1u,
+        1u,
+        0// padding
+    );
+    indirectCmds.particleDrawCmd = VkDrawIndirectCommand(
+        4u,                     //    vertexCount;
+        particleCountAfterEmit, //    instanceCount;
+        0u,                     //    firstVertex;
+        0u                      //    firstInstance;
+    );
+
+    indirectCmds.particlesToEmitCount = particlesToEmitCount;
+    indirectCmds.particlesToSimCount = particleCountAfterEmit;
+
+    // Reset the size to reset the "indices-to-draw" data
+    particlesDrawnLastFrame_length = 0;
+}
