@@ -50,6 +50,10 @@ public:
         VulkanBackedGPUBuffer_WithStaging particleEmitters;
         vk::UniqueDescriptorSet particleEmitters_comp_ds;
 
+        // TODO - this doesn't *need* to be per frame. The CPU side does, but the GPU side doesn't.
+        VulkanBackedGPUBuffer_WithStaging quantityScalar_range;
+        vk::UniqueDescriptorSet quantityScalar_range_frag_ds;
+
         // Synchronization
 
         // Signalled when the Sim relinquishes this frame's buffers to the Compute phase.

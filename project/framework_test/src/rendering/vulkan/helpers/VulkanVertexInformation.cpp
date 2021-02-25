@@ -5,8 +5,8 @@
 #include <util/fatal_error.h>
 #include "VulkanVertexInformation.h"
 
-#include "rendering/vulkan/mesh/vertex.h"
-#include "rendering/vulkan/mesh/particle_instance.h"
+#include "rendering/vulkan/viz/vertex.h"
+#include "rendering/vulkan/viz/particle_instance.h"
 
 VulkanVertexInformation VulkanVertexInformation::getInfo(VulkanVertexInformation::Kind kind) {
     switch (kind) {

@@ -3,7 +3,7 @@
 //
 
 #include <imgui_impl_vulkan.h>
-#include <rendering/vulkan/mesh/vertex.h>
+#include <rendering/vulkan/viz/vertex.h>
 #include "VulkanSimAppData.h"
 #include "rendering/shaders/global_structures.h"
 
@@ -12,6 +12,9 @@ vk::UniqueDescriptorSet bufferDescSet_comp(VulkanSimAppData::Global &globalData,
 }
 vk::UniqueDescriptorSet bufferDescSet_vert(VulkanSimAppData::Global &globalData, vk::DescriptorBufferInfo info) {
     return globalData.pipelines.buildBuffer_vert_ds(globalData.context, info);
+}
+vk::UniqueDescriptorSet bufferDescSet_frag(VulkanSimAppData::Global &globalData, vk::DescriptorBufferInfo info) {
+    return globalData.pipelines.buildBuffer_frag_ds(globalData.context, info);
 }
 
 
@@ -40,6 +43,9 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
 
       particleEmitters(context, vk::BufferUsageFlagBits::eStorageBuffer, globalData.props.maxParicleEmitters * sizeof(Shaders::ParticleEmitter)),
       particleEmitters_comp_ds(bufferDescSet_comp(globalData, particleEmitters.getGpuDescriptor())),
+
+      quantityScalar_range(context, vk::BufferUsageFlagBits::eStorageBuffer, sizeof(Shaders::FloatRange)),
+      quantityScalar_range_frag_ds(bufferDescSet_frag(globalData, quantityScalar_range.getGpuDescriptor())),
 
       simFinishedCanCompute(*context.device),
       computeFinishedCanSim(*context.device),

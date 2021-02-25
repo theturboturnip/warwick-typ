@@ -7,9 +7,11 @@
 #include <vulkan/vulkan.hpp>
 #include <memory/FrameSetAllocator.h>
 #include <rendering/vulkan/helpers/VulkanImageSampler.h>
+#include <rendering/vulkan/viz/enums.h>
 
 #include "rendering/vulkan/helpers/VulkanDescriptorSetLayout.h"
 #include "rendering/vulkan/helpers/VulkanPipeline.h"
+#include "rendering/vulkan/helpers/VulkanPipelineSpecMap.h"
 #include "rendering/vulkan/helpers/VulkanShader.h"
 #include "rendering/vulkan/VulkanContext.h"
 #include "SimAppProperties.h"
@@ -33,6 +35,7 @@ public:
 
     VulkanDescriptorSetLayout buffer_comp_ds;
     VulkanDescriptorSetLayout buffer_vert_ds;
+    VulkanDescriptorSetLayout buffer_frag_ds;
 
     VertexShader quantityScalar_vert;
     FragmentShader quantityScalar_frag;
@@ -44,7 +47,7 @@ public:
     ComputeShader computeParticleEmit_shader;
     ComputeShader computeParticleSimulate_shader;
 
-    VulkanPipeline quantityScalar;
+    VulkanPipelineSpecMap<ScalarQuantity> quantityScalar;
     VulkanPipeline particle;
     VulkanPipeline computeSimDataImage;
     VulkanPipeline computeParticleKickoff;
@@ -77,5 +80,9 @@ public:
     vk::UniqueDescriptorSet buildBuffer_vert_ds(
             VulkanContext& context,
             vk::DescriptorBufferInfo buffer
+    );
+    vk::UniqueDescriptorSet buildBuffer_frag_ds(
+        VulkanContext& context,
+        vk::DescriptorBufferInfo buffer
     );
 };

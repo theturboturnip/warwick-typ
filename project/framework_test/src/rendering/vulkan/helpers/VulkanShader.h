@@ -18,6 +18,8 @@ enum class ShaderStage {
 template<ShaderStage Stage>
 class VulkanShader {
 public:
+    std::string name;
+
     VulkanShader(const VulkanShader&) = delete;
     VulkanShader(VulkanShader&&) noexcept = default;
     static VulkanShader from_file(vk::Device device, std::string shader_name);
@@ -26,7 +28,7 @@ public:
     vk::PipelineShaderStageCreateInfo getShaderStage(vk::SpecializationInfo* specInfo = nullptr) const;
 
 private:
-    VulkanShader(vk::Device device, const std::vector<char>& data);
+    VulkanShader(vk::Device device, std::string name, const std::vector<char>& data);
 };
 
 using VertexShader = VulkanShader<ShaderStage::Vertex>;

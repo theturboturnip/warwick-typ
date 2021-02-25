@@ -56,6 +56,7 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanSemaphore.h
         rendering/vulkan/helpers/VulkanPipeline.cpp
         rendering/vulkan/helpers/VulkanPipeline.h
+        rendering/vulkan/helpers/VulkanPipelineSpecMap.h
         rendering/vulkan/helpers/VulkanQueueFamilies.cpp
         rendering/vulkan/helpers/VulkanQueueFamilies.h
         rendering/vulkan/helpers/VulkanRenderPass.cpp
@@ -64,6 +65,8 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanSwapchain.h
         rendering/vulkan/helpers/VulkanVertexInformation.cpp
         rendering/vulkan/helpers/VulkanVertexInformation.h
+        rendering/vulkan/viz/enums.h
+        rendering/vulkan/viz/enums.cpp
         rendering/vulkan/viz/particle_instance.h
         rendering/vulkan/viz/particle_instance.cpp
         rendering/vulkan/viz/vertex.h

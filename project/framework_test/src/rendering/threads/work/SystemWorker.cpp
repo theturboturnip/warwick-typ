@@ -6,24 +6,6 @@
 
 #include "rendering/shaders/global_structures.h"
 
-std::array<const char*, 5> SystemWorker::scalarQuantity = {
-        "None",
-        "Velocity X [TODO]",
-        "Velocity Y [TODO]",
-        "Pressure [TODO]",
-        "Vorticity [TODO]",
-};
-std::array<const char*, 2> SystemWorker::vectorQuantity = {
-        "None",
-        "Velocity [TODO]",
-};
-std::array<const char*, 4> SystemWorker::particleTrailType = {
-        "None",
-        "Streakline [TODO]",
-        "Pathline [TODO]",
-        "Ribbon [TODO]",
-};
-
 SystemWorker::SystemWorker(VulkanSimAppData &data)
         : data(data),
           global(data.globalData)
@@ -93,10 +75,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     {
         ImGui::Text("Scalar Quantity");
         // From https://github.com/ocornut/imgui/issues/1658
-        if (ImGui::BeginCombo("##Scalar Quantity", scalarQuantity[(int)vizScalar])) {
-            for (size_t i = 0; i < scalarQuantity.size(); i++) {
+        if (ImGui::BeginCombo("##Scalar Quantity", scalarQuantityStrs[(int)vizScalar])) {
+            for (size_t i = 0; i < scalarQuantityStrs.size(); i++) {
                 bool is_selected = (i == (size_t)vizScalar);
-                if (ImGui::Selectable(scalarQuantity[i], is_selected)) {
+                if (ImGui::Selectable(scalarQuantityStrs[i], is_selected)) {
                     vizScalar = (ScalarQuantity)i;
                 }
                 if (is_selected) {
@@ -110,10 +92,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
         ImGui::NewLine();
         ImGui::Text("Vector Quantity");
-        if (ImGui::BeginCombo("##Vector Quantity", vectorQuantity[(int)vizVector])) {
-            for (size_t i = 0; i < vectorQuantity.size(); i++) {
+        if (ImGui::BeginCombo("##Vector Quantity", vectorQuantityStrs[(int)vizVector])) {
+            for (size_t i = 0; i < vectorQuantityStrs.size(); i++) {
                 bool is_selected = (i == (size_t)vizVector);
-                if (ImGui::Selectable(vectorQuantity[i], is_selected)) {
+                if (ImGui::Selectable(vectorQuantityStrs[i], is_selected)) {
                     vizVector = (VectorQuantity)i;
                 }
                 if (is_selected) {
@@ -155,10 +137,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
             ImGui::NewLine();
             ImGui::Text("Particle Trail Type");
-            if (ImGui::BeginCombo("##TraceType", particleTrailType[(int)trailType])) {
-                for (size_t i = 0; i < particleTrailType.size(); i++) {
+            if (ImGui::BeginCombo("##TraceType", particleTrailTypeStrs[(int)trailType])) {
+                for (size_t i = 0; i < particleTrailTypeStrs.size(); i++) {
                     bool is_selected = (i == (size_t)trailType);
-                    if (ImGui::Selectable(particleTrailType[i], is_selected)) {
+                    if (ImGui::Selectable(particleTrailTypeStrs[i], is_selected)) {
                         trailType = (ParticleTrailType)i;
                     }
                     if (is_selected) {
@@ -482,16 +464,24 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         auto beginInfo = vk::CommandBufferBeginInfo();
         graphicsCmdBuffer.begin(beginInfo);
 
-//        {
-//            // Transfer the simBuffersImage layout so that we can read it
-//            transferImageLayout(
-//                    graphicsCmdBuffer,
-//                    *data.sharedFrameData.simDataImage,
-//                    vk::ImageLayout::eShaderReadOnlyOptimal,vk::ImageLayout::eShaderReadOnlyOptimal,
-//                    vk::AccessFlagBits::eShaderRead, vk::AccessFlagBits::eShaderRead,
-//                    vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eFragmentShader
-//            );
-//        }
+        // Copy quantity ranges (can't do this inside a renderpass)
+        {
+            {
+                DASSERT(global.props.maxParicleEmitters >= 6);
+                auto memory = simFrameData.quantityScalar_range.mapCPUMemory(*global.context.device);
+                auto* quantityScalar_range = (Shaders::FloatRange*)(*memory);
+                *quantityScalar_range = Shaders::FloatRange{
+                    vizScalarRange.min, vizScalarRange.max
+                };
+
+                // Auto unmapped
+            }
+            simFrameData.quantityScalar_range.scheduleCopyToGPU(graphicsCmdBuffer);
+
+            fullMemoryBarrier(graphicsCmdBuffer,
+                              vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader,
+                              vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead);
+        }
 
         {
             auto simRenderPassInfo = vk::RenderPassBeginInfo();
@@ -502,14 +492,43 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             simRenderPassInfo.pClearValues = &clearColor;
             graphicsCmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
 
-            graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.quantityScalar);
-            graphicsCmdBuffer.bindDescriptorSets(
-                    vk::PipelineBindPoint::eGraphics,
-                    *global.pipelines.quantityScalar.layout,
-                    0,
-                    {*data.sharedFrameData.simDataSampler_frag_ds},
-                    {});
-            graphicsCmdBuffer.draw(4, 1, 0, 0);
+            // Render background
+            {
+                // Colors are ABGR
+                auto quantityScalar_pushConsts = Shaders::QuantityScalarParams{
+                    .colorRange32Bit = {
+                            glm::packUnorm4x8({0, 0, 1, 1}), // Blue TODO this is only here cuz idk what else could go here
+                            glm::packUnorm4x8({0, 0.5, 1, 1}), // Blue
+                            glm::packUnorm4x8({0, 0.5, 0.5, 1}), // 1/2 between blue, turquoise
+                            glm::packUnorm4x8({0, 1, 1, 1}), // Turquoise
+                            glm::packUnorm4x8({0, 1, 0, 1}), // Green
+                            glm::packUnorm4x8({1, 1, 0, 1}), // Yellow
+                            glm::packUnorm4x8({1, 0.5, 0, 1}), // Orange
+                            glm::packUnorm4x8({1, 0, 0, 1}), // Red
+                    },
+                    .fluidColor32Bit = glm::packUnorm4x8({0.5, 0.5, 0.5, 1.0}),
+                    .obstacleColor32Bit = glm::packUnorm4x8({0, 0, 0, 1})
+                };
+
+                const auto &quantityScalar = global.pipelines.quantityScalar[vizScalar];
+                graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *quantityScalar);
+                graphicsCmdBuffer.pushConstants(
+                        *quantityScalar.layout,
+                        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
+                        0,
+                        vk::ArrayProxy<const Shaders::QuantityScalarParams>{quantityScalar_pushConsts}
+                );
+                graphicsCmdBuffer.bindDescriptorSets(
+                        vk::PipelineBindPoint::eGraphics,
+                        *quantityScalar.layout,
+                        0,
+                        {
+                            *data.sharedFrameData.simDataSampler_frag_ds,
+                            *simFrameData.quantityScalar_range_frag_ds,
+                        },
+                        {});
+                graphicsCmdBuffer.draw(4, 1, 0, 0);
+            }
 
             if (simulateParticles && renderParticleGlyphs){
                 auto particlePushConsts = Shaders::InstancedParticleParams{

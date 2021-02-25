@@ -1,3 +1,5 @@
+#ifndef GLOBAL_STRUCTURES
+#define GLOBAL_STRUCTURES
 
 struct Particle {
 // vec4(posX, posY, rot, none)
@@ -43,6 +45,21 @@ struct ParticleKickoffParams {
     uint emitterCount;
 };
 
+struct QuantityScalarParams {
+    // Create a color scale out of 8 32-bit color values.
+    // colorRange[0] = minimum color, colorRange[7] = maximum color
+    // Colors can be extracted with unpackUnorm4x8(), and packed with packSnorm4x8() (available in GLM core).
+    uint colorRange32Bit[8];
+
+    uint fluidColor32Bit;
+    uint obstacleColor32Bit;
+};
+
+struct FloatRange {
+    float min;
+    float max;
+};
+
 /**
 * Indirect commands
 */
@@ -83,3 +100,5 @@ struct ParticleIndirectCommands {
     uint particlesToEmitCount;
     uint particlesToSimCount;
 };
+
+#endif

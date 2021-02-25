@@ -88,6 +88,14 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                     vk::ShaderStageFlagBits::eVertex
             )
     }),
+    buffer_frag_ds(device, {
+            vk::DescriptorSetLayoutBinding(
+                    0,
+                    vk::DescriptorType::eStorageBuffer,
+                    1,
+                    vk::ShaderStageFlagBits::eFragment
+            )
+    }),
 
     quantityScalar_vert(VertexShader::from_file(device, "quantity_scalar.vert")),
     quantityScalar_frag(FragmentShader::from_file(device, "quantity_scalar.frag")),
@@ -99,6 +107,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
     computeParticleSimulate_shader(ComputeShader::from_file(device, "compute_particle_simulate.comp")),
 
     quantityScalar(
+            {ScalarQuantity::None, ScalarQuantity::VelocityX, ScalarQuantity::VelocityY, ScalarQuantity::VelocityMagnitude, ScalarQuantity::Pressure, ScalarQuantity::Vorticity},
             device,
             renderPass,
             {
@@ -107,7 +116,8 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
             },
             quantityScalar_vert, quantityScalar_frag,
             VulkanVertexInformation::Kind::None,
-            {*simDataSampler_frag_ds}
+            {*simDataSampler_frag_ds, *buffer_frag_ds},
+            sizeof(Shaders::QuantityScalarParams)
     ),
     particle(
             device,
@@ -220,84 +230,6 @@ vk::UniqueDescriptorSet buildDescriptorSet(VulkanContext& context,
     context.device->updateDescriptorSets(writes, {});
     return descriptorSet;
 }
-
-/*
-vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimDataSampler_ds(VulkanContext& context, VulkanImageSampler& simBuffersImageSampler) {
-    auto allocInfo = vk::DescriptorSetAllocateInfo{};
-    allocInfo.descriptorPool = *context.descriptorPool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &*simBuffersImage_fragmentDescriptorLayout;
-    auto descriptorSet = std::move(context.device->allocateDescriptorSetsUnique(allocInfo)[0]);
-
-    auto imageInfo = vk::DescriptorImageInfo{};
-    imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-    imageInfo.imageView = *simBuffersImageSampler.imageView;
-    imageInfo.sampler = *simBuffersImageSampler.sampler;
-
-    auto descriptorWrite = vk::WriteDescriptorSet{};
-    descriptorWrite.dstSet = *descriptorSet;
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-    descriptorWrite.descriptorCount = 1;
-
-    descriptorWrite.pBufferInfo = nullptr;
-    descriptorWrite.pImageInfo = &imageInfo;
-    descriptorWrite.pTexelBufferView = nullptr;
-
-    context.device->updateDescriptorSets({descriptorWrite}, {});
-    return descriptorSet;
-}
-vk::UniqueDescriptorSet
-VulkanSimPipelineSet::buildSimBuffersDescriptors(VulkanContext &context, VulkanSimFrameData &buffers, vk::Image simBuffersImage, VulkanImageSampler& simBuffersImageSampler) {
-    auto allocInfo = vk::DescriptorSetAllocateInfo{};
-    allocInfo.descriptorPool = *context.descriptorPool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &*simBuffers_computeDescriptorLayout;
-    auto descriptorSet = std::move(context.device->allocateDescriptorSetsUnique(allocInfo)[0]);
-
-    auto writeDescriptorBuffer = [&](uint32_t i, vk::DescriptorBufferInfo bufferInfo) {
-        auto descriptorWrite = vk::WriteDescriptorSet{};
-        descriptorWrite.dstSet = *descriptorSet;
-        descriptorWrite.dstBinding = i;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrite.descriptorCount = 1;
-
-        descriptorWrite.pBufferInfo = &bufferInfo;
-        descriptorWrite.pImageInfo = nullptr;
-        descriptorWrite.pTexelBufferView = nullptr;
-
-        context.device->updateDescriptorSets({descriptorWrite}, {});
-    };
-    writeDescriptorBuffer(0, buffers.u);
-    writeDescriptorBuffer(1, buffers.v);
-    writeDescriptorBuffer(2, buffers.p);
-    writeDescriptorBuffer(3, buffers.fluidmask);
-
-    {
-        auto imageInfo = vk::DescriptorImageInfo{};
-        imageInfo.imageLayout = vk::ImageLayout::eGeneral;
-        imageInfo.imageView = *simBuffersImageSampler.imageView;
-        imageInfo.sampler = *simBuffersImageSampler.sampler;
-
-        auto descriptorWrite = vk::WriteDescriptorSet{};
-        descriptorWrite.dstSet = *descriptorSet;
-        descriptorWrite.dstBinding = 4;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = vk::DescriptorType::eStorageImage;
-        descriptorWrite.descriptorCount = 1;
-
-        descriptorWrite.pBufferInfo = nullptr;
-        descriptorWrite.pImageInfo = &imageInfo;
-        descriptorWrite.pTexelBufferView = nullptr;
-
-        context.device->updateDescriptorSets({descriptorWrite}, {});
-    }
-
-    return descriptorSet;
-}
- */
 
 vk::UniqueDescriptorSet VulkanSimPipelineSet::buildSimDataSampler_comp_ds(
         VulkanContext& context,
@@ -420,5 +352,21 @@ vk::UniqueDescriptorSet VulkanSimPipelineSet::buildBuffer_vert_ds(
                 .imageInfo = std::nullopt
             },
         }
+    );
+}
+vk::UniqueDescriptorSet VulkanSimPipelineSet::buildBuffer_frag_ds(
+        VulkanContext& context,
+        vk::DescriptorBufferInfo buffer
+){
+    return buildDescriptorSet(
+            context,
+            buffer_frag_ds,
+            {
+                    Descriptor{
+                            .type = vk::DescriptorType::eStorageBuffer,
+                            .bufferInfo = buffer,
+                            .imageInfo = std::nullopt
+                    },
+            }
     );
 }

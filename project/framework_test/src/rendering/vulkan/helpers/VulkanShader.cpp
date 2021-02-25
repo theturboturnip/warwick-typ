@@ -5,7 +5,7 @@
 #include <util/fatal_error.h>
 
 template<ShaderStage Stage>
-VulkanShader<Stage>::VulkanShader(vk::Device device, const std::vector<char> &data) {
+VulkanShader<Stage>::VulkanShader(vk::Device device, std::string name, const std::vector<char> &data) : name(name) {
     auto moduleCreateInfo = vk::ShaderModuleCreateInfo();
     moduleCreateInfo.codeSize = data.size();
     moduleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(data.data());
@@ -19,7 +19,7 @@ VulkanShader<Stage> VulkanShader<Stage>::from_file(vk::Device device, std::strin
     auto data = std::vector<char>((std::istreambuf_iterator<char>(shader_file)),
                                       std::istreambuf_iterator<char>());
     FATAL_ERROR_IF(data.size() % 4 != 0, "Vulkan expects SPIR-V files to be multiples of uint32 i.e. have a size that's a multiple of 4.");
-    return VulkanShader<Stage>(device, data);
+    return VulkanShader<Stage>(device, shader_name, data);
 }
 
 template<ShaderStage Stage>
