@@ -16,6 +16,8 @@
 
 #define SPEC_CONST_SCALAR_QUANTITY() layout (constant_id = 0) const uint scalarQuantity = ScalarQuantity_None;
 
+#define SPEC_CONST_MAX_VECTORARROW_COUNT()  layout (constant_id = 0) const uint maxVectorArrowCount = 1;
+
 
 #define PUSH_CONSTANTS(TYPE) \
     layout(push_constant) uniform pushConstants { \

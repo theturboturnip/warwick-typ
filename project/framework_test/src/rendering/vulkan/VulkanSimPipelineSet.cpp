@@ -96,6 +96,14 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                     vk::ShaderStageFlagBits::eFragment
             )
     }),
+    image_comp_ds(device, {
+            vk::DescriptorSetLayoutBinding(
+                    0,
+                    vk::DescriptorType::eStorageImage,
+                    1,
+                    vk::ShaderStageFlagBits::eCompute
+            )
+    }),
 
     quantityScalar_vert(VertexShader::from_file(device, "quantity_scalar.vert")),
     quantityScalar_frag(FragmentShader::from_file(device, "quantity_scalar.frag")),
@@ -105,6 +113,8 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
     computeParticleKickoff_shader(ComputeShader::from_file(device, "compute_particle_kickoff.comp")),
     computeParticleEmit_shader(ComputeShader::from_file(device, "compute_particle_emit.comp")),
     computeParticleSimulate_shader(ComputeShader::from_file(device, "compute_particle_simulate.comp")),
+    computeScalarExtract_shader(ComputeShader::from_file(device, "compute_scalar_extract.comp")),
+    computeMinMaxReduce_shader(ComputeShader::from_file(device, "compute_minmax_reduce.comp")),
 
     quantityScalar(
             {ScalarQuantity::None, ScalarQuantity::VelocityX, ScalarQuantity::VelocityY, ScalarQuantity::VelocityMagnitude, ScalarQuantity::Pressure, ScalarQuantity::Vorticity},
@@ -192,6 +202,26 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                     sizeof(specConstantsData),
                     &specConstantsData
             }
+    ),
+    computeScalarExtract(
+        {ScalarQuantity::None, ScalarQuantity::VelocityX, ScalarQuantity::VelocityY, ScalarQuantity::VelocityMagnitude, ScalarQuantity::Pressure, ScalarQuantity::Vorticity},
+        device,
+        computeParticleSimulate_shader,
+        {
+            *image_comp_ds,
+            *image_comp_ds,
+            *buffer_comp_ds
+        },
+        sizeof(Shaders::ScalarExtractParams)
+    ),
+    computeMinMaxReduce(
+        device,
+        computeMinMaxReduce_shader,
+        {
+                *buffer_comp_ds,
+                *buffer_comp_ds
+        },
+        sizeof(Shaders::MinMaxReduceParams)
     )
 {}
 
@@ -370,3 +400,43 @@ vk::UniqueDescriptorSet VulkanSimPipelineSet::buildBuffer_frag_ds(
             }
     );
 }
+
+vk::UniqueDescriptorSet
+VulkanSimPipelineSet::buildImage_comp_ds(VulkanContext &context, VulkanImageSampler &imageSampler) {
+    return buildDescriptorSet(
+            context,
+            buffer_frag_ds,
+            {
+                    Descriptor{
+                            .type = vk::DescriptorType::eStorageBuffer,
+                            .bufferInfo = std::nullopt,
+                            .imageInfo = vk::DescriptorImageInfo(
+                                nullptr, // No sampler, this image isn't being sampled
+                                *imageSampler.imageView,
+                                vk::ImageLayout::eGeneral
+                            )
+                    },
+            }
+    );
+}
+
+vk::UniqueDescriptorSet
+VulkanSimPipelineSet::buildImageSampler_frag_ds(VulkanContext &context, VulkanImageSampler &imageSampler) {
+    return buildDescriptorSet(
+            context,
+            buffer_frag_ds,
+            {
+                    Descriptor{
+                            .type = vk::DescriptorType::eStorageBuffer,
+                            .bufferInfo = std::nullopt,
+                            .imageInfo = vk::DescriptorImageInfo(
+                                    *imageSampler.sampler,
+                                    *imageSampler.imageView,
+                                    vk::ImageLayout::eShaderReadOnlyOptimal
+                            )
+                    },
+            }
+    );
+}
+
+

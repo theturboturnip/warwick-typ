@@ -12,8 +12,10 @@ PUSH_CONSTANTS(ScalarExtractParams)
 
 // Declare the descriptor sets
 DS_IMAGE_INPUT(0, rgba32f, simDataImage)
-DS_IMAGE_OUTPUT(1, scalarResult)
-DS_GENERIC_OUTPUT_BUFFER(1, FloatRange, outputRanges[pConsts.simDataImage_width * pConsts.simDataImage_height])
+DS_IMAGE_OUTPUT(1, rg32f, scalarResult)
+layout(set=2, binding=0, std430) writeonly buffer FloatRangeOutputs {
+    FloatRange outputRanges[];
+};
 
 float getScalarQuantity(vec4 data) {
     switch(scalarQuantity) {
@@ -36,7 +38,7 @@ float getScalarQuantity(vec4 data) {
 }
 
 void main() {
-    uvec2 pxIdx = uvec2(gl_GlobalInvocationID.xy);
+    ivec2 pxIdx = ivec2(gl_GlobalInvocationID.xy);
 
     // Make sure we don't read out of bounds.
     if (pxIdx.x > pConsts.simDataImage_width || pxIdx.y > pConsts.simDataImage_height)
@@ -45,7 +47,7 @@ void main() {
     vec4 data = imageLoad(simDataImage, pxIdx);
     float quantity = getScalarQuantity(data);
 
-    imageStore(scalarResult, vec4(quantity, 0, 0, data.w), pxIdx);
+    imageStore(scalarResult, pxIdx, vec4(quantity, data.w, 0, 0));
     // Put the quantity in as both min and max
     outputRanges[pxIdx.x * pConsts.simDataImage_height + pxIdx.y] = FloatRange(quantity, quantity);
 }

@@ -80,6 +80,8 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/VulkanSimPipelineSet.h
         rendering/vulkan/VulkanSimAppData.cpp
         rendering/vulkan/VulkanSimAppData.h
+        rendering/vulkan/VulkanMinMaxReducer.cpp
+        rendering/vulkan/VulkanMinMaxReducer.h
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp

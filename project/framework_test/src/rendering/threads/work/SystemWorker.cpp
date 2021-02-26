@@ -452,6 +452,78 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             );
         }
 
+        if (vizScalar != ScalarQuantity::None) {
+            // Perform scalar extraction
+
+            // Make the quantityScalar image writable
+            transferImageLayout(
+                    computeCmdBuffer,
+                    *data.sharedFrameData.quantityScalar,
+                    vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral,
+                    vk::AccessFlagBits(0), vk::AccessFlagBits::eShaderWrite,
+                    vk::PipelineStageFlags(0), vk::PipelineStageFlagBits::eComputeShader
+            );
+
+            auto scalarExtractParams = Shaders::ScalarExtractParams{
+                .simDataImage_width = data.sharedFrameData.simDataImage.size.x,
+                .simDataImage_height = data.sharedFrameData.simDataImage.size.y
+            };
+
+            // Run the compute shader
+            computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeScalarExtract[vizScalar]);
+            computeCmdBuffer.pushConstants(
+                    *global.pipelines.computeScalarExtract[vizScalar].layout,
+                    vk::ShaderStageFlagBits::eCompute,
+                    0,
+                    vk::ArrayProxy<const Shaders::ScalarExtractParams>{scalarExtractParams});
+            computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                *global.pipelines.computeScalarExtract[vizScalar].layout,
+                                                0,
+                                                vk::ArrayProxy<const vk::DescriptorSet>{
+                                                        *data.sharedFrameData.simBufferCopyOutput_comp_ds,
+
+                                                        *data.sharedFrameData.quantityScalar_comp_ds,
+                                                        *data.sharedFrameData.quantityScalarReducer.getInputDescriptorSets().buffer_comp_ds
+                                                },
+                                                {});
+            // Group size of 16 -> group count in each direction is size/16
+            // If size isn't a multiple of 16, get extra group to cover the remainder
+            // i.e. (size + 15) / 16
+            //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
+            //  otherwise (size + 15)/16 === (size / 16) + 1
+            computeCmdBuffer.dispatch((data.sharedFrameData.quantityScalar.size.x + 15)/16, (data.sharedFrameData.quantityScalar.size.y+15)/16, 1);
+
+            if (vizScalarRange.autoRange) {
+                // Perform the reduction, copying the data into quantityScalar_range
+                data.sharedFrameData.quantityScalarReducer.enqueueReductionFromInput(computeCmdBuffer, simFrameData.quantityScalar_range.getGpuBuffer());
+            } else {
+                // Copy quantity ranges in from CPU
+                {
+                    {
+                        DASSERT(global.props.maxParicleEmitters >= 6);
+                        auto memory = simFrameData.quantityScalar_range.mapCPUMemory(*global.context.device);
+                        auto* quantityScalar_range = (Shaders::FloatRange*)(*memory);
+                        *quantityScalar_range = Shaders::FloatRange{
+                                vizScalarRange.min, vizScalarRange.max
+                        };
+
+                        // Auto unmapped
+                    }
+                    simFrameData.quantityScalar_range.scheduleCopyToGPU(computeCmdBuffer);
+                }
+
+            }
+
+            // Make the quantityScalar image readable
+            transferImageLayout(
+                    computeCmdBuffer,
+                    *data.sharedFrameData.quantityScalar,
+                    vk::ImageLayout::eGeneral,vk::ImageLayout::eShaderReadOnlyOptimal,
+                    vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead,
+                    vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eFragmentShader
+            );
+        }
+
         computeCmdBuffer.end();
     }
 
@@ -463,25 +535,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
         auto beginInfo = vk::CommandBufferBeginInfo();
         graphicsCmdBuffer.begin(beginInfo);
-
-        // Copy quantity ranges (can't do this inside a renderpass)
-        {
-            {
-                DASSERT(global.props.maxParicleEmitters >= 6);
-                auto memory = simFrameData.quantityScalar_range.mapCPUMemory(*global.context.device);
-                auto* quantityScalar_range = (Shaders::FloatRange*)(*memory);
-                *quantityScalar_range = Shaders::FloatRange{
-                    vizScalarRange.min, vizScalarRange.max
-                };
-
-                // Auto unmapped
-            }
-            simFrameData.quantityScalar_range.scheduleCopyToGPU(graphicsCmdBuffer);
-
-            fullMemoryBarrier(graphicsCmdBuffer,
-                              vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader,
-                              vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead);
-        }
 
         {
             auto simRenderPassInfo = vk::RenderPassBeginInfo();
@@ -523,7 +576,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                         *quantityScalar.layout,
                         0,
                         {
-                            *data.sharedFrameData.simDataSampler_frag_ds,
+                            *data.sharedFrameData.quantityScalarSampler_frag_ds,
                             *simFrameData.quantityScalar_range_frag_ds,
                         },
                         {});

@@ -41,6 +41,8 @@ compile_glsl(shader_files
         compute_particle_emit.comp
         compute_particle_simulate.comp
         compute_particle_kickoff.comp
+        compute_scalar_extract.comp
+        compute_minmax_reduce.comp
         particle.vert
         particle.frag
         )

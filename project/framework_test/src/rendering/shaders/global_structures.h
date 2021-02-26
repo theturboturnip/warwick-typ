@@ -12,6 +12,7 @@ namespace Shaders {
     using ivec4 = glm::ivec4;
     using uvec2 = glm::uvec2;
     using uvec4 = glm::uvec4;
+    using mat2 = glm::mat2;
 
     // We don't need to preserve the "atomic" element of atomic_uint on the CPU side
     using atomic_uint = uint;

@@ -15,7 +15,7 @@ public:
     VulkanDeviceMemory() : memory(nullptr) {}
     VulkanDeviceMemory(VulkanContext& context, vk::MemoryRequirements requirements, vk::MemoryPropertyFlags properties);
 
-    const vk::DeviceMemory& operator*() {
+    const vk::DeviceMemory& operator*() const {
         return *memory;
     }
 };

@@ -18,13 +18,13 @@ public:
     VulkanBackedBuffer(VulkanBackedBuffer&&) noexcept = default;
     VulkanBackedBuffer(const VulkanBackedBuffer&) = delete;
 
-    vk::DescriptorBufferInfo asDescriptor() {
+    [[nodiscard]] vk::DescriptorBufferInfo asDescriptor() const {
         return vk::DescriptorBufferInfo (*buffer, 0, size);
     }
-    vk::DeviceMemory asDeviceMemory() {
+    [[nodiscard]] vk::DeviceMemory asDeviceMemory() const {
         return *bufferMemory;
     }
-    vk::Buffer operator*() {
+    vk::Buffer operator*() const {
         return *buffer;
     }
 };

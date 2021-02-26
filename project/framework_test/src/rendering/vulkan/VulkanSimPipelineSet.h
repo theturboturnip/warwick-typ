@@ -37,22 +37,29 @@ public:
     VulkanDescriptorSetLayout buffer_vert_ds;
     VulkanDescriptorSetLayout buffer_frag_ds;
 
+    VulkanDescriptorSetLayout image_comp_ds;
+
     VertexShader quantityScalar_vert;
     FragmentShader quantityScalar_frag;
     VertexShader particle_vert;
     FragmentShader particle_frag;
     ComputeShader computeSimDataImage_shader;
-
     ComputeShader computeParticleKickoff_shader;
     ComputeShader computeParticleEmit_shader;
     ComputeShader computeParticleSimulate_shader;
+    ComputeShader computeScalarExtract_shader;
+    ComputeShader computeMinMaxReduce_shader;
 
+    // TODO - quantityScalar doesn't *have* to be a SpecMap.
+    //  it's convenient tho.
     VulkanPipelineSpecMap<ScalarQuantity> quantityScalar;
     VulkanPipeline particle;
     VulkanPipeline computeSimDataImage;
     VulkanPipeline computeParticleKickoff;
     VulkanPipeline computeParticleEmit;
     VulkanPipeline computeParticleSimulate;
+    VulkanPipelineSpecMap<ScalarQuantity> computeScalarExtract;
+    VulkanPipeline computeMinMaxReduce;
 
     VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize, SimAppProperties& properties);
     VulkanSimPipelineSet(VulkanSimPipelineSet &&) noexcept = default;
@@ -78,11 +85,20 @@ public:
         vk::DescriptorBufferInfo buffer
     );
     vk::UniqueDescriptorSet buildBuffer_vert_ds(
-            VulkanContext& context,
-            vk::DescriptorBufferInfo buffer
+        VulkanContext& context,
+        vk::DescriptorBufferInfo buffer
     );
     vk::UniqueDescriptorSet buildBuffer_frag_ds(
         VulkanContext& context,
         vk::DescriptorBufferInfo buffer
+    );
+
+    vk::UniqueDescriptorSet buildImage_comp_ds(
+        VulkanContext& context,
+        VulkanImageSampler& imageSampler
+    );
+    vk::UniqueDescriptorSet buildImageSampler_frag_ds(
+        VulkanContext& context,
+        VulkanImageSampler& imageSampler
     );
 };

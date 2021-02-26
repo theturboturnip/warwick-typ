@@ -22,6 +22,16 @@ struct ParticleEmitter {
 };
 
 /**
+ * Instanced Vector Arrows
+ */
+struct VectorArrow {
+    // rotation and scale are precomputed, so we don't do trig per-vertex.
+    // More space-efficient to store pos separately, and requires fewer multiplications.
+    mat2 rotScale;
+    vec2 pos;
+};
+
+/**
 * Push Constants
 */
 struct SimDataBufferStats {
@@ -69,6 +79,12 @@ struct MinMaxReduceParams {
     uint bufferLength;
 };
 
+struct InstancedVectorArrowParams {
+    float baseScale;
+    // TODO - move into VectorArrow.rotScale
+    float render_heightDivWidth;
+};
+
 /**
 * Indirect commands
 */
@@ -78,6 +94,7 @@ struct VkDispatchIndirectCommand {
     uint    y;
     uint    z;
 
+    // Pad to vec4 size otherwise RenderDoc complains
     uint padding;
 };
 
@@ -98,8 +115,6 @@ struct VkDrawIndirectCommand {
 };
 
 struct ParticleIndirectCommands {
-    // Add padding to the indirect dispatch commands so they have even length - RenderDoc doesn't like them otherwise
-
     VkDispatchIndirectCommand particleEmitCmd;
 
     VkDispatchIndirectCommand particleSimCmd;
@@ -108,6 +123,10 @@ struct ParticleIndirectCommands {
 
     uint particlesToEmitCount;
     uint particlesToSimCount;
+};
+
+struct VectorArrowIndirectCommands {
+    VkDrawIndirectCommand vectorArrowDrawCmd;
 };
 
 #endif

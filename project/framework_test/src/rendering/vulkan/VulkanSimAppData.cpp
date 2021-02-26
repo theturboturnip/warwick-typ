@@ -150,21 +150,12 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
            sizeof(Vertex) * 4,
            false // not shared
         ),
-//        particleInputBuffer_comp_ds(
-//               globalData.pipelines.buildParticleInputBuffer_comp_ds(
-//                       context, particleBuffer.asDescriptor()
-//               )
-//        ),
-//        particleInputBuffer_vert_ds(
-//               globalData.pipelines.buildParticleInputBuffer_vert_ds(
-//                       context, particleBuffer.asDescriptor()
-//               )
-//        ),
-//        particleOutputBuffer_comp_ds(
-//               globalData.pipelines.buildParticleOutputBuffer_comp_ds(
-//                       context, particleBuffer.asDescriptor()
-//               )
-//        ),
+
+        quantityScalar(context, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled, simDataImage.size, vk::Format::eR32G32Sfloat, true),
+        quantityScalarSampler(context, quantityScalar),
+        quantityScalar_comp_ds(globalData.pipelines.buildImage_comp_ds(context, quantityScalarSampler)),
+        quantityScalarSampler_frag_ds(globalData.pipelines.buildImageSampler_frag_ds(context, quantityScalarSampler)),
+        quantityScalarReducer(context, globalData.pipelines, simDataImage.size.area()),
 
         vizFramebuffer(
                context,

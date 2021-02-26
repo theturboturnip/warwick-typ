@@ -19,7 +19,7 @@ float CudaReducer<BlockSize>::map_reduce(Sim2DArray<float, MemType>& input, Prep
     while (curr_input_size > 1) {
         size_t next_output_size = next_reduction_size(curr_input_size);
 
-        dim3 gridsize(next_output_size);
+        dim3 gridsize(next_output_size); // TODO - this should be divided by BlockSize?????
 
         //printf("Reduce %p [%6zu]-> %p [%6zu]\n", reduction_in, curr_input_size, reduction_out, next_output_size);
 
@@ -42,6 +42,7 @@ float CudaReducer<BlockSize>::map_reduce(Sim2DArray<float, MemType>& input, Prep
     }
 
     CHECKED_CUDA(cudaStreamSynchronize(stream));
+    // TODO - reduction_out won't have the max value, reduction_in will? have they swapped around at this point?
     // curr_input_size = 1 - we're finished! reduction_out has a single float with the result of the reduction
     float result = -1;
     CHECKED_CUDA(cudaMemcpy(&result, reduction_out, sizeof(float), cudaMemcpyDefault));
