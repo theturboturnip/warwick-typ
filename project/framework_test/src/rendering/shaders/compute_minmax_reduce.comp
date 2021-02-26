@@ -1,0 +1,58 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
+#include "global_descriptor_sets.glsl"
+#include "global_structures.glsl"
+
+layout (local_size_x = 64) in;
+
+SPEC_CONST_SCALAR_QUANTITY()
+
+PUSH_CONSTANTS(ScalarExtractParams)
+
+// Declare the descriptor sets
+DS_GENERIC_INPUT_BUFFER(0, FloatRange, inputRanges[pConsts.bufferLength])
+DS_GENERIC_OUTPUT_BUFFER(1, FloatRange, outputRanges[pConsts.bufferLength/2])
+
+// min/max float values used for unspecified numbers, i.e. when we're trying to reduce beyond the end of the buffer.
+// From https://stackoverflow.com/a/47543127
+#define FLT_MAX 3.402823466e+38
+#define FLT_MIN 1.175494351e-38
+
+shared FloatRange shared_data[gl_WorkGroupSize.x];
+
+void main() {
+    // Move an element from the input array into shared data.
+    // This thread block will perform the reduction over the shared data only, and then move that into the output.
+    const uint t_id = gl_LocalInvocationID;
+    const uint input_idx = (gl_WorkGroupID.x * gl_WorkGroupSize.x) + gl_LocalInvocationID.x;
+    // Writing this into shared data is race-free, because each thread has a unique index.
+    if (input_idx < input_length) {
+        shared_data[t_id] = inputRanges[input_idx];
+    } else {
+        // Handle the case where the input data isn't pow2
+        shared_data[t_id] = FloatRange(
+            FLT_MAX, // Set the minimum value to FLT_MAX, as min(x, FLT_MAX) = x always
+            FLT_MIN // Same principle.
+        );
+    }
+
+    // __syncthreads is required before reading shared memory - while threads within a warp are all guaranteed to execute at the same time,
+    // warps within a block are not. i.e. one warp could be started once another warp is waiting for a memory access.
+    for (uint stride = 1; stride < gl_WorkGroupSize.x; stride *= 2) {
+        // Use a strided index - each thread reduces the indices (2*tid)*stride, (2*tid + 1)*stride
+        const uint index = 2 * stride * t_id;
+
+        // This is different to the PDF - I prefer to sync at the last possible second, to give as much leeway as possible to the scheduler beforehand,
+        // and to make sure threads don't lose their sync inbetween the sync and the access.
+        // This is done outside of the loop on purpose! Doing it inside a conditional is undefined behaviour.
+        memoryBarrierShared();
+        if (index < gl_WorkGroupSize.x) {
+            shared_data[index].min = min(shared_data[index].min, shared_data[index + stride].min);
+            shared_data[index].max = max(shared_data[index].max, shared_data[index + stride].max);
+        }
+    }
+
+    if (t_id == 0)
+        outputRanges[blockIdx.x] = shared_data[0];
+}

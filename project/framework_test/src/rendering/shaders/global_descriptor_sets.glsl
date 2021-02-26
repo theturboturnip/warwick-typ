@@ -41,6 +41,12 @@
 #define DS_SIM_BUFFER_COPY_OUTPUT(SET, NAME) \
     layout (set=SET, binding=0, rgba32f) uniform writeonly image2D NAME;
 
+#define DS_IMAGE_INPUT(SET, FMT, NAME) \
+    layout (set=SET, binding=0, FMT) uniform readonly image2D NAME;
+
+#define DS_IMAGE_OUTPUT(SET, FMT, NAME) \
+    layout (set=SET, binding=0, FMT) uniform writeonly image2D NAME;
+
 #define DS_PARTICLE_INPUT_BUFFER(SET, NAME) \
     layout (set=SET, binding=0, std430) readonly buffer ParticleInBuffer { \
         Particle NAME[particleBufferLength]; \
@@ -84,6 +90,11 @@
     };
 
 #define DS_GENERIC_INPUT_BUFFER(SET, TYPE, NAME) \
+    layout (set=SET, binding=0, std430) readonly buffer NAME##_Buffer { \
+        TYPE NAME; \
+    };
+
+#define DS_GENERIC_OUTPUT_BUFFER(SET, TYPE, NAME) \
     layout (set=SET, binding=0, std430) readonly buffer NAME##_Buffer { \
         TYPE NAME; \
     };

@@ -60,6 +60,15 @@ struct FloatRange {
     float max;
 };
 
+struct ScalarExtractParams {
+    uint simDataImage_width;
+    uint simDataImage_height;
+};
+
+struct MinMaxReduceParams {
+    uint bufferLength;
+};
+
 /**
 * Indirect commands
 */

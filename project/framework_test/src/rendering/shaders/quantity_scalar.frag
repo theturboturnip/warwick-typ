@@ -12,29 +12,8 @@ layout(location = 0) in vec2 uv;
 
 layout(location = 0) out vec4 outColor;
 
-DS_SIM_DATA_SAMPLER(0, simBufferDataSampler)
+DS_SIM_DATA_SAMPLER(0, scalarQuantitySampler)
 DS_GENERIC_INPUT_BUFFER(1, FloatRange, quantityDisplayRange)
-
-float getScalarQuantity(vec4 data) {
-    switch(scalarQuantity) {
-        case ScalarQuantity_None:
-            return 0;
-        case ScalarQuantity_VelocityX:
-            return data.x;
-        case ScalarQuantity_VelocityY:
-            return data.y;
-        case ScalarQuantity_VelocityMagnitude:
-            return length(data.xy);
-        case ScalarQuantity_Pressure:
-            return data.z;
-        case ScalarQuantity_Vorticity:
-        // TODO Store Vorticity in data.w in compute_sim_data_image?
-        // return data.w;
-        default:
-            return -1;
-    }
-}
-
 
 vec4 convertQuantityToColor(float quantity, uint fallback) {
     // If outside the range, return the fallback
@@ -62,12 +41,12 @@ vec4 convertQuantityToColor(float quantity, uint fallback) {
 void main() {
     // TODO - offset by 1/2 pixel
     vec2 offset = vec2(0,0);
-    vec4 data = texture(simBufferDataSampler, uv + offset);
+    vec4 data = texture(scalarQuantitySampler, uv + offset);
 
     if (data.w > 0.5) {
         // pixIdx is a valid fluid square, get the quantity
         if (scalarQuantity != ScalarQuantity_None) {
-            float quantity = getScalarQuantity(data);
+            float quantity = data.x;
             outColor = convertQuantityToColor(quantity, pConsts.fluidColor32Bit);
         } else {
             outColor = unpackUnorm4x8(pConsts.fluidColor32Bit);
