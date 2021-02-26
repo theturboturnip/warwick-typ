@@ -51,7 +51,7 @@ void main() {
         // This is different to the PDF - I prefer to sync at the last possible second, to give as much leeway as possible to the scheduler beforehand,
         // and to make sure threads don't lose their sync inbetween the sync and the access.
         // This is done outside of the loop on purpose! Doing it inside a conditional is undefined behaviour.
-        memoryBarrierShared();
+        barrier();//memoryBarrierShared();
         if (index < gl_WorkGroupSize.x) {
             shared_data[index].min = min(shared_data[index].min, shared_data[index + stride].min);
             shared_data[index].max = max(shared_data[index].max, shared_data[index + stride].max);

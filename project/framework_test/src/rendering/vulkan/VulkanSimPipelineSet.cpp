@@ -104,6 +104,14 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                     vk::ShaderStageFlagBits::eCompute
             )
     }),
+    imageSampler_frag_ds(device, {
+            vk::DescriptorSetLayoutBinding(
+                    0,
+                    vk::DescriptorType::eCombinedImageSampler,
+                    1,
+                    vk::ShaderStageFlagBits::eFragment
+            )
+    }),
 
     quantityScalar_vert(VertexShader::from_file(device, "quantity_scalar.vert")),
     quantityScalar_frag(FragmentShader::from_file(device, "quantity_scalar.frag")),
@@ -206,7 +214,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
     computeScalarExtract(
         {ScalarQuantity::None, ScalarQuantity::VelocityX, ScalarQuantity::VelocityY, ScalarQuantity::VelocityMagnitude, ScalarQuantity::Pressure, ScalarQuantity::Vorticity},
         device,
-        computeParticleSimulate_shader,
+        computeScalarExtract_shader,
         {
             *image_comp_ds,
             *image_comp_ds,
@@ -405,10 +413,10 @@ vk::UniqueDescriptorSet
 VulkanSimPipelineSet::buildImage_comp_ds(VulkanContext &context, VulkanImageSampler &imageSampler) {
     return buildDescriptorSet(
             context,
-            buffer_frag_ds,
+            image_comp_ds,
             {
                     Descriptor{
-                            .type = vk::DescriptorType::eStorageBuffer,
+                            .type = vk::DescriptorType::eStorageImage,
                             .bufferInfo = std::nullopt,
                             .imageInfo = vk::DescriptorImageInfo(
                                 nullptr, // No sampler, this image isn't being sampled
@@ -424,10 +432,10 @@ vk::UniqueDescriptorSet
 VulkanSimPipelineSet::buildImageSampler_frag_ds(VulkanContext &context, VulkanImageSampler &imageSampler) {
     return buildDescriptorSet(
             context,
-            buffer_frag_ds,
+            imageSampler_frag_ds,
             {
                     Descriptor{
-                            .type = vk::DescriptorType::eStorageBuffer,
+                            .type = vk::DescriptorType::eCombinedImageSampler,
                             .bufferInfo = std::nullopt,
                             .imageInfo = vk::DescriptorImageInfo(
                                     *imageSampler.sampler,

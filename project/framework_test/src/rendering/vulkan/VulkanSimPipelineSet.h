@@ -38,6 +38,7 @@ public:
     VulkanDescriptorSetLayout buffer_frag_ds;
 
     VulkanDescriptorSetLayout image_comp_ds;
+    VulkanDescriptorSetLayout imageSampler_frag_ds;
 
     VertexShader quantityScalar_vert;
     FragmentShader quantityScalar_frag;
