@@ -67,8 +67,6 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanVertexInformation.h
         rendering/vulkan/viz/enums.h
         rendering/vulkan/viz/enums.cpp
-        rendering/vulkan/viz/particle_instance.h
-        rendering/vulkan/viz/particle_instance.cpp
         rendering/vulkan/viz/vertex.h
         rendering/vulkan/viz/vertex.cpp
         rendering/vulkan/viz/vk_format.h

@@ -11,7 +11,6 @@ struct VulkanVertexInformation {
     enum class Kind {
         None,
         Vertex,
-        Particle
     };
 
     std::vector<vk::VertexInputBindingDescription> bindings;
