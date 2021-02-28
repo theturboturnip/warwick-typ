@@ -11,6 +11,23 @@ SystemWorker::SystemWorker(VulkanSimAppData &data)
         : data(data),
           global(data.globalData)
 {
+    setDefaultColors();
+}
+
+void SystemWorker::setDefaultColors() {
+    colorScale = std::array<glm::vec4, 8>{{
+        {0, 0, 1, 1}, // Blue TODO this is only here cuz idk what else could go here
+        {0, 0.5, 1, 1}, // Blue
+        {0, 1, 1, 1}, // Turquoise
+        {0, 1, 0, 1}, // Green
+        {1, 1, 0, 1}, // Yellow
+        {1, 0.5, 0, 1}, // Orange
+        {0.75, 0.25, 0, 1}, // Orange
+        {1, 0, 0, 1}, // Red
+    }};
+    fluidBaseColor = {0.5, 0.5, 0.5, 1.0};
+    obstacleColor = {0, 0, 0, 1};
+    vectorArrowColor = {0.167, 0.014, 0.014, 1};
 }
 
 
@@ -145,6 +162,31 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     }
     ImGui::End();
 
+    ImGui::Begin("Colors", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    {
+        if (ImGui::Button("Reset")) {
+            setDefaultColors();
+        }
+
+        ImGui::ColorEdit3("Fluid Color", (float*)&fluidBaseColor, ImGuiColorEditFlags_NoInputs);
+        ImGui::ColorEdit3("Obstacle Color", (float*)&obstacleColor, ImGuiColorEditFlags_NoInputs);
+        ImGui::ColorEdit3("Vector Arrow Color", (float*)&vectorArrowColor, ImGuiColorEditFlags_NoInputs);
+
+        ImGui::NewLine();
+        ImGui::Text("Quantity by Scalar Range");
+        for (int i = colorScale.size() - 1; i >= 0; i--) {
+            ImGui::PushID(i);
+            const char* label = "";
+            if (i == ((int)colorScale.size()) - 1)
+                label = "Max Value";
+            else if (i == 0)
+                label = "Min Value";
+            ImGui::ColorEdit3(label, (float*)&colorScale[i], ImGuiColorEditFlags_NoInputs);
+            ImGui::PopID();
+        }
+    }
+    ImGui::End();
+
     //ImGui::SetNextWindowSize(ImVec2(simSize.pixel_size.x+2, simSize.pixel_size.y+2));
     ImGui::Begin("Simulation", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Image(
@@ -174,6 +216,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         spawnNewParticleThisTick = true;
         particleSpawnTimer = 0;
     }
+    spawnNewParticleThisTick = true;
 
     // Wait for this frame's command buffers to become available
 //    fprintf(stderr, "Waiting for cmdbuffer fence\n");
@@ -657,17 +700,17 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 // Colors are ABGR
                 auto quantityScalar_pushConsts = Shaders::QuantityScalarParams{
                     .colorRange32Bit = {
-                            glm::packUnorm4x8({0, 0, 1, 1}), // Blue TODO this is only here cuz idk what else could go here
-                            glm::packUnorm4x8({0, 0.5, 1, 1}), // Blue
-                            glm::packUnorm4x8({0, 0.5, 0.5, 1}), // 1/2 between blue, turquoise
-                            glm::packUnorm4x8({0, 1, 1, 1}), // Turquoise
-                            glm::packUnorm4x8({0, 1, 0, 1}), // Green
-                            glm::packUnorm4x8({1, 1, 0, 1}), // Yellow
-                            glm::packUnorm4x8({1, 0.5, 0, 1}), // Orange
-                            glm::packUnorm4x8({1, 0, 0, 1}), // Red
+                            glm::packUnorm4x8(colorScale[0]),
+                            glm::packUnorm4x8(colorScale[1]),
+                            glm::packUnorm4x8(colorScale[2]),
+                            glm::packUnorm4x8(colorScale[3]),
+                            glm::packUnorm4x8(colorScale[4]),
+                            glm::packUnorm4x8(colorScale[5]),
+                            glm::packUnorm4x8(colorScale[6]),
+                            glm::packUnorm4x8(colorScale[7]),
                     },
-                    .fluidColor32Bit = glm::packUnorm4x8({0.5, 0.5, 0.5, 1.0}),
-                    .obstacleColor32Bit = glm::packUnorm4x8({0, 0, 0, 1})
+                    .fluidColor32Bit = glm::packUnorm4x8(fluidBaseColor),
+                    .obstacleColor32Bit = glm::packUnorm4x8(obstacleColor)
                 };
 
                 const auto &quantityScalar = global.pipelines.quantityScalar[vizScalar];
@@ -692,7 +735,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
             if (vizVector != VectorQuantity::None) {
                 auto vectorArrowPushConsts = Shaders::InstancedVectorArrowParams{
-                        .dummy = 1
+                    .color = vectorArrowColor
                 };
 
                 graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.vectorArrow);

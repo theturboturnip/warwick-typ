@@ -85,7 +85,7 @@ struct MinMaxReduceParams {
 };
 
 struct InstancedVectorArrowParams {
-    float dummy;
+    vec4 color;
 };
 
 struct VectorArrowGenerateParams {

@@ -79,6 +79,13 @@ class SystemWorker {
     ParticleTrailType trailType = ParticleTrailType::None;
     float trailLength = 0;
 
+    glm::vec4 fluidBaseColor;
+    glm::vec4 obstacleColor;
+    std::array<glm::vec4, 8> colorScale;
+    glm::vec4 vectorArrowColor;
+
+    void setDefaultColors();
+
     void transferImageLayout(vk::CommandBuffer cmdBuffer,
                              vk::Image image,
                              vk::ImageLayout oldLayout, vk::ImageLayout newLayout,

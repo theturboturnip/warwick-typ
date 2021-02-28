@@ -18,7 +18,6 @@ layout(location = 0) in vec2 v_pos;
 layout(location = 1) in vec2 v_uv;
 
 layout(location = 0) out vec2 f_uv;
-layout(location = 1) out vec4 f_color;
 
 void main() {
     const VectorArrow vectorArrow = vectorArrowDatas[gl_InstanceIndex.x];
@@ -27,6 +26,4 @@ void main() {
     vec2 finalPos = (pos_01space * 2) - 1;
     gl_Position = vec4(finalPos.x, finalPos.y, 0, 1);
     f_uv = v_uv;
-    // TODO - colorramp based on quantity?
-    f_color = vec4(1,0,0,1);
 }
