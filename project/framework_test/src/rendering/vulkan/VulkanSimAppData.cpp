@@ -292,13 +292,13 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
         };
         auto* idxData = (uint16_t*)(vData + 7);
         idxData[0] = 0;
-        idxData[0] = 1;
-        idxData[0] = 2;
-        idxData[0] = 3;
-        idxData[0] = 0xFFFF;
-        idxData[0] = 4;
-        idxData[0] = 5;
-        idxData[0] = 6;
+        idxData[1] = 1;
+        idxData[2] = 2;
+        idxData[3] = 3;
+        idxData[4] = 0xFFFF;
+        idxData[5] = 4;
+        idxData[6] = 5;
+        idxData[7] = 6;
 
         // Auto unmapped
     }

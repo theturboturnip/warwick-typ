@@ -24,7 +24,7 @@ void InteractiveSubApp::run() {
         auto window = VulkanSimApp(
             appinfo,
             simProperties,
-            {1280, 720}//{ initial.simSize.pixel_size.x + 2, initial.simSize.pixel_size.y + 2 }
+            {1600, 900}//{ initial.simSize.pixel_size.x + 2, initial.simSize.pixel_size.y + 2 }
         );
 
 #if CUDA_ENABLED

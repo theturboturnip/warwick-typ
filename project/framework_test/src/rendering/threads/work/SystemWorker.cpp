@@ -160,7 +160,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     ImGui::Begin("Simulation", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Image(
             (ImTextureID)*data.sharedFrameData.vizFramebufferDescriptorSet,
-            ImVec2(global.simSize.padded_pixel_size.x*1.5, global.simSize.padded_pixel_size.y*1.5)
+            ImVec2(global.simSize.padded_pixel_size.x*2, global.simSize.padded_pixel_size.y*2)
     );
     ImGui::End();
     ImGui::Render();
@@ -408,8 +408,8 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 // Run the compute shader
                 auto vectorGenerateParams = Shaders::VectorArrowGenerateParams{
                     .gridCount_x = 100, // TODO
-                    .gridCount_y = 10, // TODO
-                    .baseScale = 0.01, // TODO
+                    .gridCount_y = 8, // TODO
+                    .baseScale = 0.02, // TODO
                     .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
                 };
                 computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeVectorArrowGenerate);

@@ -4,6 +4,8 @@
 #include "global_descriptor_sets.glsl"
 #include "global_structures.glsl"
 
+layout (local_size_x = 16, local_size_y = 16) in;
+
 SPEC_CONST_MAX_VECTORARROW_COUNT()
 
 PUSH_CONSTANTS(VectorArrowGenerateParams)
@@ -27,6 +29,8 @@ layout(set = 3, binding = 0, std430) buffer VectorIndirectDraw {
 void main() {
     // Current SSBO index
     uvec2 index = gl_GlobalInvocationID.xy;
+    if (index.x >= pConsts.gridCount_x || index.y >= pConsts.gridCount_y)
+        return;
 
     // We are responsible for placing a vector at...
     // For even spacing, place at (index + 1) / (len + 1)
@@ -40,6 +44,8 @@ void main() {
 
     vec2 velocity = dataAtPos.xy;
     float velocity_magnitude = length(velocity);
+    if (velocity_magnitude < quantityDisplayRange.min || velocity_magnitude > quantityDisplayRange.max)
+        return;
     float velocity_relativeMagnitude = (velocity_magnitude - quantityDisplayRange.min) / (quantityDisplayRange.max - quantityDisplayRange.min);
     float fluidmask = dataAtPos.z;
     if (fluidmask < 0.5)
@@ -56,7 +62,7 @@ void main() {
     // The normal arrow model points in the +X direction
     // Figure out the rotation required to point it in the velocity direction.
     float c = velocity.x/velocity_magnitude;
-    float s = velocity.y/velocity_magnitude;
+    float s = -velocity.y/velocity_magnitude;
     mat2 rotationMatrix = mat2(
         c, s, // first column
         -s, c // second column
