@@ -48,6 +48,13 @@ void main() {
     float quantity = getScalarQuantity(data);
 
     imageStore(scalarResult, pxIdx, vec4(quantity, data.w, 0, 0));
-    // Put the quantity in as both min and max
-    outputRanges[pxIdx.x * pConsts.simDataImage_height + pxIdx.y] = FloatRange(quantity, quantity);
+
+    // If this is a fluid square...
+    if (data.w >= 1.0) {
+        // Put the quantity in as both min and max
+        outputRanges[pxIdx.x * pConsts.simDataImage_height + pxIdx.y] = FloatRange(quantity, quantity);
+    } else {
+        // Put min=FLT_MAX and max=FLT_MIN so the obstacle-square data doesn't influence results.
+        outputRanges[pxIdx.x * pConsts.simDataImage_height + pxIdx.y] = FloatRange(FLT_MAX, FLT_MIN);
+    }
 }

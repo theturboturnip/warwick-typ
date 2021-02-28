@@ -117,6 +117,9 @@ void main() {
         (fluidmask[simIdx(ivec2((pxIdx.x+1)/2, (pxIdx.y+1)/2))] != 0) ? 1.0 : 0.0
     );
     float fluidmask = evaluate(pxIdx, fluidmaskTaps);
+    // Sharp fluidmask edges. Should prevent
+    if (fluidmask < 1.0)
+        fluidmask = 0.0;
 
     vec4 value = vec4(u, v, p, fluidmask);
     // 2*res GPU threads are spawned.

@@ -107,4 +107,9 @@
         TYPE NAME; \
     };
 
+// min/max float values used for unspecified numbers, i.e. when we're trying to reduce beyond the end of the buffer.
+// From https://stackoverflow.com/a/47543127
+#define FLT_MAX 3.402823466e+38
+#define FLT_MIN 1.175494351e-38
+
 #endif

@@ -51,4 +51,10 @@ void main() {
             outputRanges[pxIdx.x * pConsts.simDataImage_height + pxIdx.y] = FloatRange(0, 0);
             break;
     }
+
+    // If we're an obstacle
+    if (data.w < 1.0) {
+        // Put min=FLT_MAX and max=FLT_MIN so the obstacle-square data doesn't influence results.
+        outputRanges[pxIdx.x * pConsts.simDataImage_height + pxIdx.y] = FloatRange(FLT_MAX, FLT_MIN);
+    }
 }

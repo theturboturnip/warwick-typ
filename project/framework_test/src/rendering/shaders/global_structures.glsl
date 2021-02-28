@@ -92,6 +92,7 @@ struct VectorArrowGenerateParams {
     uint gridCount_x, gridCount_y;
     float baseScale;
     float render_heightDivWidth;
+    float baseLength;
 };
 
 /**

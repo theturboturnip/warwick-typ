@@ -109,6 +109,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             showRange(&vizVectorMagnitudeRange);
         ImGui::InputFloat2("Grid Spacing", vizVectorSpacing);
         ImGui::SliderFloat("Vector Size", &vizVectorSize, 0.01, 0.1, "%.5f", 2.0f);
+        ImGui::SliderFloat("Base Vector Length", &vizVectorLength, 0.01, 10, "%.5f", 2.0f);
 
 
 //        ImGui::NewLine();
@@ -395,10 +396,11 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
                 // Run the compute shader
                 auto vectorGenerateParams = Shaders::VectorArrowGenerateParams{
-                    .gridCount_x = (uint32_t)(1.0 / vizVectorSpacing[0]) + 1,
-                    .gridCount_y = (uint32_t)(1.0 / vizVectorSpacing[1]) + 1,
+                    .gridCount_x = (uint32_t)(global.simSize.physical_size.x / vizVectorSpacing[0]) + 1,
+                    .gridCount_y = (uint32_t)(global.simSize.physical_size.y / vizVectorSpacing[1]) + 1,
                     .baseScale = vizVectorSize,
-                    .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
+                    .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width,
+                    .baseLength = vizVectorLength
                 };
                 computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeVectorArrowGenerate);
                 computeCmdBuffer.pushConstants(

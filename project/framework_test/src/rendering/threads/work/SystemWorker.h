@@ -65,8 +65,9 @@ class SystemWorker {
     VizValueRange vizScalarRange;
     VectorQuantity vizVector = VectorQuantity::Velocity;
     VizValueRange vizVectorMagnitudeRange;
-    float vizVectorSpacing[2] = {0.05, 0.05};
-    float vizVectorSize = 0.03;
+    float vizVectorSpacing[2] = {0.5, 0.5};
+    float vizVectorSize = 0.04;
+    float vizVectorLength = 0.65;
     // Particle Options
     bool simulateParticles = true;
     bool renderParticleGlyphs = true;

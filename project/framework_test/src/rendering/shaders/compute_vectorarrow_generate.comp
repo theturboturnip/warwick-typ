@@ -48,7 +48,7 @@ void main() {
         return;
     float velocity_relativeMagnitude = (velocity_magnitude - quantityDisplayRange.min) / (quantityDisplayRange.max - quantityDisplayRange.min);
     float fluidmask = dataAtPos.z;
-    if (fluidmask < 0.5)
+    if (fluidmask < 1.0)
         return; // This is on an obstacle, don't place a vector
 
     // aspectRatio_scale scales the vertices inversely to the aspect ratio, so they look correct when pulled from 01 space to pixel-space.
@@ -58,7 +58,7 @@ void main() {
         0, aspectRatio_scale.y
     );
     // Stretch the vector in X by how large the magnitude is
-    vec2 vectorScale = vec2(velocity_relativeMagnitude+0.3, 1) * pConsts.baseScale;
+    vec2 vectorScale = vec2(velocity_relativeMagnitude+pConsts.baseLength, 1) * pConsts.baseScale;
     mat2 scaleMatrix = mat2(
         vectorScale.x, 0, // First column
         0, vectorScale.y  // Second column
@@ -74,6 +74,9 @@ void main() {
 
     // Get an index to place this vector in.
     uint vectorIndex = atomicAdd(vectorArrowList_length, 1);
+    // Make sure we don't go beyond the end of the list
+    if (vectorIndex > maxVectorArrowCount)
+        return;
     vectorArrowList[vectorIndex] = VectorArrow(
         aspectRatio_scaleMatrix * rotationMatrix * scaleMatrix, // Model-space vector scale first, then rotate, then apply aspect ratio correction
         vectorPos

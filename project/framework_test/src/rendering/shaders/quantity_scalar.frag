@@ -43,7 +43,7 @@ void main() {
     vec2 offset = vec2(0,0);
     vec4 data = texture(scalarQuantitySampler, uv + offset);
     float fluidmask = data.g;
-    if (fluidmask > 0.5) {
+    if (fluidmask >= 1.0) {
         // pixIdx is a valid fluid square, get the quantity
         if (scalarQuantity != ScalarQuantity_None) {
             float quantity = data.x;
