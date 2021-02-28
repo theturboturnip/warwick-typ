@@ -18,6 +18,7 @@ VulkanShader<Stage> VulkanShader<Stage>::from_file(vk::Device device, std::strin
     auto shader_file = std::basic_ifstream<char>("shaders/" + shader_name + ".spv", std::ios::binary);
     auto data = std::vector<char>((std::istreambuf_iterator<char>(shader_file)),
                                       std::istreambuf_iterator<char>());
+    FATAL_ERROR_IF(data.size() == 0, "No SPIRV found in %s", shader_name.c_str());
     FATAL_ERROR_IF(data.size() % 4 != 0, "Vulkan expects SPIR-V files to be multiples of uint32 i.e. have a size that's a multiple of 4.");
     return VulkanShader<Stage>(device, shader_name, data);
 }

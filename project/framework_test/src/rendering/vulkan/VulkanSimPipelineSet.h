@@ -21,12 +21,14 @@ public:
     vk::SpecializationMapEntry particleBufferLength_specConstant;
     vk::SpecializationMapEntry particleToEmitBufferLength_specConstant;
     vk::SpecializationMapEntry particleEmitterCount_specConstant;
-    std::vector<vk::SpecializationMapEntry> specConstants;
-    struct SpecConstantsData {
+    std::vector<vk::SpecializationMapEntry> particleSpecConstants;
+    struct ParticleSpecConstantsData {
         uint32_t particleBufferLength;
         uint32_t particleToEmitBufferLength;
         uint32_t particleEmitterCount;
-    } specConstantsData;
+    } particleSpecConstantsData;
+
+    vk::SpecializationMapEntry vectorArrowBufferLength_specConstant;
 
     VulkanDescriptorSetLayout simDataSampler_comp_ds;
     VulkanDescriptorSetLayout simDataSampler_frag_ds;
@@ -39,28 +41,37 @@ public:
 
     VulkanDescriptorSetLayout image_comp_ds;
     VulkanDescriptorSetLayout imageSampler_frag_ds;
+    VulkanDescriptorSetLayout imageSampler_comp_ds;
 
     VertexShader quantityScalar_vert;
     FragmentShader quantityScalar_frag;
     VertexShader particle_vert;
     FragmentShader particle_frag;
+    VertexShader vectorArrow_vert;
+    FragmentShader vectorArrow_frag;
     ComputeShader computeSimDataImage_shader;
     ComputeShader computeParticleKickoff_shader;
     ComputeShader computeParticleEmit_shader;
     ComputeShader computeParticleSimulate_shader;
     ComputeShader computeScalarExtract_shader;
     ComputeShader computeMinMaxReduce_shader;
+    ComputeShader computeVectorExtract_shader;
+    ComputeShader computeVectorArrowGenerate_shader;
 
     // TODO - quantityScalar doesn't *have* to be a SpecMap.
     //  it's convenient tho.
     VulkanPipelineSpecMap<ScalarQuantity> quantityScalar;
     VulkanPipeline particle;
+    VulkanPipeline vectorArrow;
+
     VulkanPipeline computeSimDataImage;
     VulkanPipeline computeParticleKickoff;
     VulkanPipeline computeParticleEmit;
     VulkanPipeline computeParticleSimulate;
     VulkanPipelineSpecMap<ScalarQuantity> computeScalarExtract;
     VulkanPipeline computeMinMaxReduce;
+    VulkanPipelineSpecMap<VectorQuantity> computeVectorExtract;
+    VulkanPipeline computeVectorArrowGenerate;
 
     VulkanSimPipelineSet(vk::Device device, vk::RenderPass renderPass, Size<uint32_t> viewportSize, SimAppProperties& properties);
     VulkanSimPipelineSet(VulkanSimPipelineSet &&) noexcept = default;
@@ -101,5 +112,9 @@ public:
     vk::UniqueDescriptorSet buildImageSampler_frag_ds(
         VulkanContext& context,
         VulkanImageSampler& imageSampler
+    );
+    vk::UniqueDescriptorSet buildImageSampler_comp_ds(
+            VulkanContext& context,
+            VulkanImageSampler& imageSampler
     );
 };

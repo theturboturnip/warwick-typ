@@ -2,6 +2,7 @@
 // Created by samuel on 13/02/2021.
 //
 
+#include <rendering/vulkan/viz/vertex.h>
 #include "SystemWorker.h"
 
 #include "rendering/shaders/global_structures.h"
@@ -296,7 +297,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 // Copy quantity ranges in from CPU
                 {
                     {
-                        DASSERT(global.props.maxParicleEmitters >= 6);
                         auto memory = simFrameData.quantityScalar_range.mapCPUMemory(*global.context.device);
                         auto* quantityScalar_range = (Shaders::FloatRange*)(*memory);
                         *quantityScalar_range = Shaders::FloatRange{
@@ -318,6 +318,125 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                     vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead,
                     vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader
             );
+        }
+        if (vizVector != VectorQuantity::None) {
+            // Perform vector extraction
+
+            // Make the quantityVector image writable
+            transferImageLayout(
+                    computeCmdBuffer,
+                    *data.sharedFrameData.quantityVector,
+                    vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral,
+                    vk::AccessFlagBits(0), vk::AccessFlagBits::eShaderWrite,
+                    vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eComputeShader
+            );
+
+            auto vectorExtractParams = Shaders::VectorExtractParams{
+                    .simDataImage_width = data.sharedFrameData.simDataImage.size.x,
+                    .simDataImage_height = data.sharedFrameData.simDataImage.size.y
+            };
+
+            // Run the compute shader
+            computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeVectorExtract[vizVector]);
+            computeCmdBuffer.pushConstants(
+                    *global.pipelines.computeVectorExtract[vizVector].layout,
+                    vk::ShaderStageFlagBits::eCompute,
+                    0,
+                    vk::ArrayProxy<const Shaders::VectorExtractParams>{vectorExtractParams});
+            computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                *global.pipelines.computeVectorExtract[vizVector].layout,
+                                                0,
+                                                vk::ArrayProxy<const vk::DescriptorSet>{
+                                                        *data.sharedFrameData.simBufferCopyOutput_comp_ds,
+
+                                                        *data.sharedFrameData.quantityVector_comp_ds,
+                                                        *data.sharedFrameData.quantityVectorReducer.getInputDescriptorSets().buffer_comp_ds
+                                                },
+                                                {});
+            // Group size of 16 -> group count in each direction is size/16
+            // If size isn't a multiple of 16, get extra group to cover the remainder
+            // i.e. (size + 15) / 16
+            //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
+            //  otherwise (size + 15)/16 === (size / 16) + 1
+            computeCmdBuffer.dispatch((data.sharedFrameData.quantityVector.size.x + 15)/16, (data.sharedFrameData.quantityVector.size.y+15)/16, 1);
+
+            if (vizVectorMagnitudeRange.autoRange) {
+                // Perform the reduction, copying the data into quantityVector_range
+                data.sharedFrameData.quantityVectorReducer.enqueueReductionFromInput(computeCmdBuffer, simFrameData.quantityVector_range.getGpuBuffer());
+            } else {
+                // Copy quantity ranges in from CPU
+                {
+                    {
+                        auto memory = simFrameData.quantityVector_range.mapCPUMemory(*global.context.device);
+                        auto* quantityVector_range = (Shaders::FloatRange*)(*memory);
+                        *quantityVector_range = Shaders::FloatRange{
+                                vizVectorMagnitudeRange.min, vizVectorMagnitudeRange.max
+                        };
+
+                        // Auto unmapped
+                    }
+                    simFrameData.quantityVector_range.scheduleCopyToGPU(computeCmdBuffer);
+                }
+
+            }
+
+            // Make the quantityVector image readable
+            transferImageLayout(
+                    computeCmdBuffer,
+                    *data.sharedFrameData.quantityVector,
+                    vk::ImageLayout::eGeneral,vk::ImageLayout::eShaderReadOnlyOptimal,
+                    vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead,
+                    vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader
+            );
+
+            // Generate vector arrow instances
+            {
+                // Zero-out the vectorArrowInstanceData,
+                computeCmdBuffer.fillBuffer(*data.sharedFrameData.vectorArrowInstanceData, 0, data.sharedFrameData.vectorArrowInstanceData.size, 0);
+                // reset the quantityVectorIndirectDrawData.
+                // The CPU-side buffer already has the correct data, we just need to transfer it in.
+                data.sharedFrameData.quantityVectorIndirectDrawData.scheduleCopyToGPU(computeCmdBuffer);
+
+                // Wait for transfers to finish before starting the compute shader
+                // (the buffer fill also counts as a transfer)
+                fullMemoryBarrier(
+                    computeCmdBuffer,
+                    vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader,
+                    vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead
+                );
+
+                // Run the compute shader
+                auto vectorGenerateParams = Shaders::VectorArrowGenerateParams{
+                    .gridCount_x = 100, // TODO
+                    .gridCount_y = 10, // TODO
+                    .baseScale = 0.01, // TODO
+                    .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
+                };
+                computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeVectorArrowGenerate);
+                computeCmdBuffer.pushConstants(
+                        *global.pipelines.computeVectorArrowGenerate.layout,
+                        vk::ShaderStageFlagBits::eCompute,
+                        0,
+                        vk::ArrayProxy<const Shaders::VectorArrowGenerateParams>{vectorGenerateParams});
+                computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                    *global.pipelines.computeVectorArrowGenerate.layout,
+                                                    0,
+                                                    vk::ArrayProxy<const vk::DescriptorSet>{
+                                                            *data.sharedFrameData.quantityVectorSampler_comp_ds,
+                                                            *simFrameData.quantityVector_range_comp_ds,
+
+                                                            *data.sharedFrameData.vectorArrowInstanceData_comp_ds,
+                                                            *data.sharedFrameData.quantityVectorIndirectDrawData_comp_ds
+                                                    },
+                                                    {});
+                // Group size of 16 -> group count in each direction is size/16
+                // If size isn't a multiple of 16, get extra group to cover the remainder
+                // i.e. (size + 15) / 16
+                //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
+                //  otherwise (size + 15)/16 === (size / 16) + 1
+                computeCmdBuffer.dispatch((vectorGenerateParams.gridCount_x + 15)/16, (vectorGenerateParams.gridCount_y+15)/16, 1);
+
+            }
         }
 
         {
@@ -611,6 +730,35 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                     *data.sharedFrameData.particleIndirectCommands,
                     offsetof(Shaders::ParticleIndirectCommands, particleDrawCmd),
                     1, 0
+                );
+            }
+
+            if (vizVector != VectorQuantity::None) {
+                auto vectorArrowPushConsts = Shaders::InstancedVectorArrowParams{
+                        .dummy = 1
+                };
+
+                graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.vectorArrow);
+                graphicsCmdBuffer.pushConstants(
+                        *global.pipelines.vectorArrow.layout,
+                        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
+                        0,
+                        vk::ArrayProxy<const Shaders::InstancedVectorArrowParams>{vectorArrowPushConsts}
+                );
+                graphicsCmdBuffer.bindVertexBuffers(0, {data.sharedFrameData.vectorArrowVertexIndexData.getGpuBuffer()}, {0});
+                graphicsCmdBuffer.bindIndexBuffer(data.sharedFrameData.vectorArrowVertexIndexData.getGpuBuffer(), sizeof(Vertex) * 7, vk::IndexType::eUint16);
+                graphicsCmdBuffer.bindDescriptorSets(
+                        vk::PipelineBindPoint::eGraphics,
+                        *global.pipelines.vectorArrow.layout,
+                        0,
+                        {
+                            *data.sharedFrameData.vectorArrowInstanceData_vert_ds
+                        },
+                        {});
+                graphicsCmdBuffer.drawIndexedIndirect(
+                        data.sharedFrameData.quantityVectorIndirectDrawData.getGpuBuffer(),
+                        offsetof(Shaders::VectorArrowIndirectCommands, vectorArrowDrawCmd),
+                        1, 0
                 );
             }
 

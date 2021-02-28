@@ -11,16 +11,18 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
         particleBufferLength_specConstant(0, 0, sizeof(uint32_t)),
         particleToEmitBufferLength_specConstant(1, sizeof(uint32_t), sizeof(uint32_t)),
         particleEmitterCount_specConstant(2, sizeof(uint32_t) * 2, sizeof(uint32_t)),
-        specConstants({
+        particleSpecConstants({
             particleBufferLength_specConstant,
             particleToEmitBufferLength_specConstant,
             particleEmitterCount_specConstant
         }),
-        specConstantsData({
+        particleSpecConstantsData({
             .particleBufferLength=props.maxParticles,
             .particleToEmitBufferLength=props.maxParticlesEmittedPerFrame,
             .particleEmitterCount=props.maxParicleEmitters
         }),
+
+        vectorArrowBufferLength_specConstant(0, 0, sizeof(uint32_t)),
 
     simDataSampler_comp_ds(device, {
             vk::DescriptorSetLayoutBinding(
@@ -112,17 +114,29 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                     vk::ShaderStageFlagBits::eFragment
             )
     }),
+    imageSampler_comp_ds(device, {
+            vk::DescriptorSetLayoutBinding(
+                    0,
+                    vk::DescriptorType::eCombinedImageSampler,
+                    1,
+                    vk::ShaderStageFlagBits::eCompute
+            )
+    }),
 
     quantityScalar_vert(VertexShader::from_file(device, "quantity_scalar.vert")),
     quantityScalar_frag(FragmentShader::from_file(device, "quantity_scalar.frag")),
     particle_vert(VertexShader::from_file(device, "particle.vert")),
     particle_frag(FragmentShader::from_file(device, "particle.frag")),
+    vectorArrow_vert(VertexShader::from_file(device, "vectorarrow.vert")),
+    vectorArrow_frag(FragmentShader::from_file(device, "vectorarrow.frag")),
     computeSimDataImage_shader(ComputeShader::from_file(device, "compute_sim_data_image.comp")),
     computeParticleKickoff_shader(ComputeShader::from_file(device, "compute_particle_kickoff.comp")),
     computeParticleEmit_shader(ComputeShader::from_file(device, "compute_particle_emit.comp")),
     computeParticleSimulate_shader(ComputeShader::from_file(device, "compute_particle_simulate.comp")),
     computeScalarExtract_shader(ComputeShader::from_file(device, "compute_scalar_extract.comp")),
     computeMinMaxReduce_shader(ComputeShader::from_file(device, "compute_minmax_reduce.comp")),
+    computeVectorExtract_shader(ComputeShader::from_file(device, "compute_vector_extract.comp")),
+    computeVectorArrowGenerate_shader(ComputeShader::from_file(device, "compute_vectorarrow_generate.comp")),
 
     quantityScalar(
             {ScalarQuantity::None, ScalarQuantity::VelocityX, ScalarQuantity::VelocityY, ScalarQuantity::VelocityMagnitude, ScalarQuantity::Pressure, ScalarQuantity::Vorticity},
@@ -152,6 +166,26 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
             },
             sizeof(Shaders::InstancedParticleParams)
     ),
+    vectorArrow(
+        device,
+        renderPass,
+        {
+            viewportSize.x*2,
+            viewportSize.y*2
+        },
+        vectorArrow_vert, vectorArrow_frag,
+        VulkanVertexInformation::Kind::Vertex,
+        {
+            *buffer_vert_ds
+        },
+        sizeof(Shaders::InstancedVectorArrowParams),
+        {
+            1,
+            &vectorArrowBufferLength_specConstant,
+            sizeof(uint32_t),
+            &props.maxVectorArrows
+        }
+    ),
     computeSimDataImage(
             device,
             computeSimDataImage_shader,
@@ -168,10 +202,10 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
             },
             sizeof(Shaders::ParticleKickoffParams),
             {
-                    (uint32_t)specConstants.size(),
-                    specConstants.data(),
-                    sizeof(specConstantsData),
-                    &specConstantsData
+                    (uint32_t)particleSpecConstants.size(),
+                    particleSpecConstants.data(),
+                    sizeof(particleSpecConstantsData),
+                    &particleSpecConstantsData
             }
     ),
     computeParticleEmit(
@@ -186,10 +220,10 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
             },
             0,
             {
-                    (uint32_t)specConstants.size(),
-                    specConstants.data(),
-                    sizeof(specConstantsData),
-                    &specConstantsData
+                    (uint32_t)particleSpecConstants.size(),
+                    particleSpecConstants.data(),
+                    sizeof(particleSpecConstantsData),
+                    &particleSpecConstantsData
             }
     ),
     computeParticleSimulate(
@@ -205,10 +239,10 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
             },
             sizeof(Shaders::ParticleSimulateParams),
             {
-                    (uint32_t)specConstants.size(),
-                    specConstants.data(),
-                    sizeof(specConstantsData),
-                    &specConstantsData
+                    (uint32_t)particleSpecConstants.size(),
+                    particleSpecConstants.data(),
+                    sizeof(particleSpecConstantsData),
+                    &particleSpecConstantsData
             }
     ),
     computeScalarExtract(
@@ -230,6 +264,32 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
                 *buffer_comp_ds
         },
         sizeof(Shaders::MinMaxReduceParams)
+    ),
+    computeVectorExtract(
+        {VectorQuantity::None, VectorQuantity::VelocityX, VectorQuantity::VelocityY, VectorQuantity::Velocity},
+        device,
+        computeVectorExtract_shader,
+        {
+                *image_comp_ds,
+                *image_comp_ds,
+                *buffer_comp_ds
+        },
+        sizeof(Shaders::VectorExtractParams)
+    ),
+    computeVectorArrowGenerate(
+        device,
+        computeVectorArrowGenerate_shader,
+        {
+            *imageSampler_comp_ds,
+            *buffer_comp_ds
+        },
+        sizeof(Shaders::VectorArrowGenerateParams),
+        {
+            1,
+            &vectorArrowBufferLength_specConstant,
+            sizeof(uint32_t),
+            &props.maxVectorArrows
+        }
     )
 {}
 
@@ -447,4 +507,22 @@ VulkanSimPipelineSet::buildImageSampler_frag_ds(VulkanContext &context, VulkanIm
     );
 }
 
+vk::UniqueDescriptorSet
+VulkanSimPipelineSet::buildImageSampler_comp_ds(VulkanContext &context, VulkanImageSampler &imageSampler) {
+    return buildDescriptorSet(
+            context,
+            imageSampler_comp_ds,
+            {
+                    Descriptor{
+                            .type = vk::DescriptorType::eCombinedImageSampler,
+                            .bufferInfo = std::nullopt,
+                            .imageInfo = vk::DescriptorImageInfo(
+                                    *imageSampler.sampler,
+                                    *imageSampler.imageView,
+                                    vk::ImageLayout::eShaderReadOnlyOptimal
+                            )
+                    },
+            }
+    );
+}
 

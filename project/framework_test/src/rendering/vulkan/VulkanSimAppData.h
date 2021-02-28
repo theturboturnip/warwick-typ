@@ -55,6 +55,9 @@ public:
         VulkanBackedGPUBuffer_WithStaging quantityScalar_range;
         vk::UniqueDescriptorSet quantityScalar_range_frag_ds;
 
+        VulkanBackedGPUBuffer_WithStaging quantityVector_range;
+        vk::UniqueDescriptorSet quantityVector_range_comp_ds;
+
         // Synchronization
 
         // Signalled when the Sim relinquishes this frame's buffers to the Compute phase.
@@ -128,6 +131,21 @@ public:
         vk::UniqueDescriptorSet quantityScalar_comp_ds;
         vk::UniqueDescriptorSet quantityScalarSampler_frag_ds;
         VulkanMinMaxReducer quantityScalarReducer;
+
+        // Quantity-by-vector resources
+        VulkanBackedGPUImage quantityVector;
+        VulkanImageSampler quantityVectorSampler;
+        vk::UniqueDescriptorSet quantityVector_comp_ds;
+        vk::UniqueDescriptorSet quantityVectorSampler_comp_ds;
+        vk::UniqueDescriptorSet quantityVectorSampler_frag_ds;
+        VulkanMinMaxReducer quantityVectorReducer;
+        VulkanBackedGPUBuffer_WithStaging quantityVectorIndirectDrawData;
+        vk::UniqueDescriptorSet quantityVectorIndirectDrawData_comp_ds;
+        VulkanBackedBuffer vectorArrowInstanceData;
+        vk::UniqueDescriptorSet vectorArrowInstanceData_comp_ds;
+        vk::UniqueDescriptorSet vectorArrowInstanceData_vert_ds;
+        // Vertex[] of vectorArrow, uint16_t[] of index data;
+        VulkanBackedGPUBuffer_WithStaging vectorArrowVertexIndexData;
 
         // The framebuffer to render the visualization into, and a descriptor set that samples it for ImGui.
         VulkanBackedFramebuffer vizFramebuffer;

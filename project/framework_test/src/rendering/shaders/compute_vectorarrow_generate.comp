@@ -11,7 +11,7 @@ PUSH_CONSTANTS(VectorArrowGenerateParams)
 layout(set = 0, binding = 0) uniform sampler2D vectorQuantitySampler;
 DS_GENERIC_INPUT_BUFFER(1, FloatRange, quantityDisplayRange)
 
-layout(set = 2, binding = 0, std430) buffer VectorArrowIndices {
+layout(set = 2, binding = 0, std430) buffer VectorArrowsBuffer {
     // Put VectorArrow first because we know how many there are, and it makes sure it's tightly packed.
     // If it was uint; VectorArrow; the alignment of VectorArrow might mean padding is needed.
     // I *believe* this isn't the case, but better to not take the risk.

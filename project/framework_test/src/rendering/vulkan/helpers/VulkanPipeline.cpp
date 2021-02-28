@@ -41,7 +41,7 @@ VulkanPipeline::VulkanPipeline(
 
     auto inputAssembly = vk::PipelineInputAssemblyStateCreateInfo();
     inputAssembly.topology = vk::PrimitiveTopology::eTriangleStrip;
-    inputAssembly.primitiveRestartEnable = VK_FALSE;
+    inputAssembly.primitiveRestartEnable = VK_TRUE;
 
     auto rasterizer = vk::PipelineRasterizationStateCreateInfo();
     rasterizer.depthClampEnable = VK_FALSE; // Discard fragments that are outside [0,1] depth
