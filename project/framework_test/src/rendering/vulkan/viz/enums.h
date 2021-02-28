@@ -17,9 +17,11 @@ enum class ScalarQuantity : uint32_t {
 extern std::array<const char*, 6> scalarQuantityStrs;
 enum class VectorQuantity : uint32_t {
     None=0,
-    Velocity=1
+    Velocity=1,
+    VelocityX=2,
+    VelocityY=3
 };
-extern std::array<const char*, 2> vectorQuantityStrs;
+extern std::array<const char*, 4> vectorQuantityStrs;
 
 enum class ParticleTrailType : uint32_t {
     None=0,

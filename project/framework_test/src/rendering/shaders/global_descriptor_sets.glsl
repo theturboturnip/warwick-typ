@@ -10,11 +10,17 @@
 #define ScalarQuantity_Pressure 4
 #define ScalarQuantity_Vorticity 5
 
+#define VectorQuantity_None 0
+#define VectorQuantity_Velocity 1
+#define VectorQuantity_VelocityX 2
+#define VectorQuantity_VelocityY 3
+
 #define SPEC_CONST_MAX_PARTICLE_COUNT() layout (constant_id = 0) const uint particleBufferLength = 1;
 #define SPEC_CONST_MAX_PARTICLES_TO_EMIT_COUNT() layout (constant_id = 1) const uint particleToEmitBufferLength = 1;
 #define SPEC_CONST_MAX_PARTICLE_EMITTER_COUNT() layout (constant_id = 2) const uint particleEmitterCount = 1;
 
 #define SPEC_CONST_SCALAR_QUANTITY() layout (constant_id = 0) const uint scalarQuantity = ScalarQuantity_None;
+#define SPEC_CONST_VECTOR_QUANTITY() layout (constant_id = 0) const uint vectorQuantity = VectorQuantity_None;
 
 #define SPEC_CONST_MAX_VECTORARROW_COUNT()  layout (constant_id = 0) const uint maxVectorArrowCount = 1;
 

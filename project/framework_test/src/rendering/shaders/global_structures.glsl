@@ -75,13 +75,22 @@ struct ScalarExtractParams {
     uint simDataImage_height;
 };
 
+struct VectorExtractParams {
+    uint simDataImage_width;
+    uint simDataImage_height;
+};
+
 struct MinMaxReduceParams {
     uint bufferLength;
 };
 
 struct InstancedVectorArrowParams {
+    float dummy;
+};
+
+struct VectorArrowGenerateParams {
+    uint gridCount_x, gridCount_y;
     float baseScale;
-    // TODO - move into VectorArrow.rotScale
     float render_heightDivWidth;
 };
 
@@ -126,7 +135,7 @@ struct ParticleIndirectCommands {
 };
 
 struct VectorArrowIndirectCommands {
-    VkDrawIndirectCommand vectorArrowDrawCmd;
+    VkDrawIndexedIndirectCommand vectorArrowDrawCmd;
 };
 
 #endif

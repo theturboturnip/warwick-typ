@@ -1,0 +1,74 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
+#include "global_descriptor_sets.glsl"
+#include "global_structures.glsl"
+
+SPEC_CONST_MAX_VECTORARROW_COUNT()
+
+PUSH_CONSTANTS(VectorArrowGenerateParams)
+
+layout(set = 0, binding = 0) uniform sampler2D vectorQuantitySampler;
+DS_GENERIC_INPUT_BUFFER(1, FloatRange, quantityDisplayRange)
+
+layout(set = 2, binding = 0, std430) buffer VectorArrowIndices {
+    // Put VectorArrow first because we know how many there are, and it makes sure it's tightly packed.
+    // If it was uint; VectorArrow; the alignment of VectorArrow might mean padding is needed.
+    // I *believe* this isn't the case, but better to not take the risk.
+    // std430 rules: https://www.oreilly.com/library/view/opengl-programming-guide/9780132748445/app09lev1sec3.html
+    // Actual memory usage isn't a concern here, just calculating how many bytes are needed lol.
+    VectorArrow vectorArrowList[maxVectorArrowCount];
+    uint vectorArrowList_length;
+};
+layout(set = 3, binding = 0, std430) buffer VectorIndirectDraw {
+    VectorArrowIndirectCommands indirectDraw;
+};
+
+void main() {
+    // Current SSBO index
+    uvec2 index = gl_GlobalInvocationID.xy;
+
+    // We are responsible for placing a vector at...
+    // For even spacing, place at (index + 1) / (len + 1)
+    // For len=1, place [0] at 1/2
+    // For len=2, place [0] at 1/3, [1] at 2/3
+    // etc.
+    vec2 vectorPos = vec2(index + 1) / vec2(pConsts.gridCount_x + 1, pConsts.gridCount_y + 1);
+    // TODO - offset by 1/2 pixel
+    vec2 offset = vec2(0,0);
+    vec4 dataAtPos = texture(vectorQuantitySampler, vectorPos + offset);
+
+    vec2 velocity = dataAtPos.xy;
+    float velocity_magnitude = length(velocity);
+    float velocity_relativeMagnitude = (velocity_magnitude - quantityDisplayRange.min) / (quantityDisplayRange.max - quantityDisplayRange.min);
+    float fluidmask = dataAtPos.z;
+    if (fluidmask < 0.5)
+        return; // This is on an obstacle, don't place a vector
+
+    // aspectRatio_scale scales the vertices inversely to the aspect ratio, so they look correct when pulled from 01 space to pixel-space.
+    vec2 aspectRatio_scale = vec2(pConsts.render_heightDivWidth, 1);
+    // Stretch the vector in X by how large the magnitude is
+    vec2 vectorScale = vec2(velocity_relativeMagnitude+0.5, 1) * aspectRatio_scale * pConsts.baseScale;
+    mat2 scaleMatrix = mat2(
+        vectorScale.x, 0, // First column
+        0, vectorScale.y  // Second column
+    );
+    // The normal arrow model points in the +X direction
+    // Figure out the rotation required to point it in the velocity direction.
+    float c = velocity.x/velocity_magnitude;
+    float s = velocity.y/velocity_magnitude;
+    mat2 rotationMatrix = mat2(
+        c, s, // first column
+        -s, c // second column
+    );
+
+    // Get an index to place this vector in.
+    uint vectorIndex = atomicAdd(vectorArrowList_length, 1);
+    vectorArrowList[vectorIndex] = VectorArrow(
+        rotationMatrix * scaleMatrix,
+        vectorPos
+    );
+
+    // Add one to the draw count
+    atomicAdd(indirectDraw.vectorArrowDrawCmd.instanceCount, 1);
+}

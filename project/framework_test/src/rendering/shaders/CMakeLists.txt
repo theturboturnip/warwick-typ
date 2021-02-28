@@ -45,5 +45,9 @@ compile_glsl(shader_files
         compute_minmax_reduce.comp
         particle.vert
         particle.frag
+        vectorarrow.frag
+        vectorarrow.vert
+        compute_vector_extract.comp
+        compute_vectorarrow_generate.comp
         )
 add_library(shaders OBJECT ${PROJECT_SHADER_DIR} ${shader_files})

@@ -12,9 +12,11 @@ std::array<const char*, 6> scalarQuantityStrs = {
         "Pressure",
         "Vorticity [TODO]",
 };
-std::array<const char*, 2> vectorQuantityStrs = {
+std::array<const char*, 4> vectorQuantityStrs = {
         "None",
         "Velocity [TODO]",
+        "Velocity X [TODO]",
+        "Velocity Y [TODO]"
 };
 std::array<const char*, 4> particleTrailTypeStrs = {
         "None",
