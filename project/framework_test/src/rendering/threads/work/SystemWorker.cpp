@@ -107,9 +107,12 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         }
         if (vizVector != VectorQuantity::None)
             showRange(&vizVectorMagnitudeRange);
+        ImGui::InputFloat2("Grid Spacing", vizVectorSpacing);
+        ImGui::SliderFloat("Vector Size", &vizVectorSize, 0.01, 0.1, "%.5f", 2.0f);
 
-        ImGui::NewLine();
-        ImGui::Checkbox("Streamline Overlay", &overlayStreamlines);
+
+//        ImGui::NewLine();
+//        ImGui::Checkbox("Streamline Overlay", &overlayStreamlines);
 
         ImGui::NewLine();
         if (ImGui::Checkbox("Particles", &simulateParticles)) {
@@ -407,9 +410,9 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
                 // Run the compute shader
                 auto vectorGenerateParams = Shaders::VectorArrowGenerateParams{
-                    .gridCount_x = 100, // TODO
-                    .gridCount_y = 8, // TODO
-                    .baseScale = 0.02, // TODO
+                    .gridCount_x = (uint32_t)(1.0 / vizVectorSpacing[0]) + 1,
+                    .gridCount_y = (uint32_t)(1.0 / vizVectorSpacing[1]) + 1,
+                    .baseScale = vizVectorSize,
                     .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
                 };
                 computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeVectorArrowGenerate);

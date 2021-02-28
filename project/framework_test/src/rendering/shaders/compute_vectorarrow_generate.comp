@@ -53,8 +53,12 @@ void main() {
 
     // aspectRatio_scale scales the vertices inversely to the aspect ratio, so they look correct when pulled from 01 space to pixel-space.
     vec2 aspectRatio_scale = vec2(pConsts.render_heightDivWidth, 1);
+    mat2 aspectRatio_scaleMatrix = mat2(
+        aspectRatio_scale.x, 0,
+        0, aspectRatio_scale.y
+    );
     // Stretch the vector in X by how large the magnitude is
-    vec2 vectorScale = vec2(velocity_relativeMagnitude+0.5, 1) * aspectRatio_scale * pConsts.baseScale;
+    vec2 vectorScale = vec2(velocity_relativeMagnitude+0.3, 1) * pConsts.baseScale;
     mat2 scaleMatrix = mat2(
         vectorScale.x, 0, // First column
         0, vectorScale.y  // Second column
@@ -62,7 +66,7 @@ void main() {
     // The normal arrow model points in the +X direction
     // Figure out the rotation required to point it in the velocity direction.
     float c = velocity.x/velocity_magnitude;
-    float s = -velocity.y/velocity_magnitude;
+    float s = velocity.y/velocity_magnitude;
     mat2 rotationMatrix = mat2(
         c, s, // first column
         -s, c // second column
@@ -71,7 +75,7 @@ void main() {
     // Get an index to place this vector in.
     uint vectorIndex = atomicAdd(vectorArrowList_length, 1);
     vectorArrowList[vectorIndex] = VectorArrow(
-        rotationMatrix * scaleMatrix,
+        aspectRatio_scaleMatrix * rotationMatrix * scaleMatrix, // Model-space vector scale first, then rotate, then apply aspect ratio correction
         vectorPos
     );
 

@@ -42,7 +42,7 @@ struct SystemWorkerOut {
 struct VizValueRange {
     // If true, the threshold is set to the minimum/maximum values present.
     // If false, the threshold is using min/max. Any values outside the range are disabled.
-    bool autoRange = false;
+    bool autoRange = true;
     float min=-1, max=1;
 };
 
@@ -61,10 +61,12 @@ class SystemWorker {
 
     // Stream contour lines with Zeta
     bool overlayStreamlines = false;
-    ScalarQuantity vizScalar = ScalarQuantity::Vorticity;
+    ScalarQuantity vizScalar = ScalarQuantity::Pressure;
     VizValueRange vizScalarRange;
-    VectorQuantity vizVector = VectorQuantity::None;
+    VectorQuantity vizVector = VectorQuantity::Velocity;
     VizValueRange vizVectorMagnitudeRange;
+    float vizVectorSpacing[2] = {0.05, 0.05};
+    float vizVectorSize = 0.03;
     // Particle Options
     bool simulateParticles = true;
     bool renderParticleGlyphs = true;

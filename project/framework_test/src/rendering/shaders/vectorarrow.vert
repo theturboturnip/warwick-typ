@@ -23,7 +23,7 @@ layout(location = 1) out vec4 f_color;
 void main() {
     const VectorArrow vectorArrow = vectorArrowDatas[gl_InstanceIndex.x];
 
-    vec2 pos_01space = (v_pos.xy * vectorArrow.rotScale) + vectorArrow.pos;
+    vec2 pos_01space = (vectorArrow.rotScale * v_pos.xy) + vectorArrow.pos;
     vec2 finalPos = (pos_01space * 2) - 1;
     gl_Position = vec4(finalPos.x, finalPos.y, 0, 1);
     f_uv = v_uv;
