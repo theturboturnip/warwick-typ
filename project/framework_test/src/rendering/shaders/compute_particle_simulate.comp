@@ -37,7 +37,7 @@ void main() {
         //     TODO - offset by 1/2 pixel?
         vec2 offset = vec2(0,0);
         vec4 fluidData = texture(simBufferDataSampler, pos + offset);
-        if (fluidData.w < 1.0) {
+        if (fluidData.w < 0.5) {
             shouldMakeParticleInactive = true;
             break;
         }

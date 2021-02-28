@@ -216,7 +216,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         spawnNewParticleThisTick = true;
         particleSpawnTimer = 0;
     }
-    spawnNewParticleThisTick = true;
 
     // Wait for this frame's command buffers to become available
 //    fprintf(stderr, "Waiting for cmdbuffer fence\n");
