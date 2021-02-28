@@ -9,8 +9,8 @@ SPEC_CONST_MAX_VECTORARROW_COUNT()
 PUSH_CONSTANTS(InstancedVectorArrowParams)
 
 layout(set = 0, binding = 0, std430) readonly buffer VectorArrowIndices {
-    VectorArrow vectorArrowDatas[maxVectorArrowCount];
     uint vectorArrowDatas_length;
+    VectorArrow vectorArrowDatas[maxVectorArrowCount];
 };
 
 // Per-vertex data

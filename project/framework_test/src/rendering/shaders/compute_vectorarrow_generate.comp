@@ -17,8 +17,8 @@ layout(set = 2, binding = 0, std430) buffer VectorArrowsBuffer {
     // I *believe* this isn't the case, but better to not take the risk.
     // std430 rules: https://www.oreilly.com/library/view/opengl-programming-guide/9780132748445/app09lev1sec3.html
     // Actual memory usage isn't a concern here, just calculating how many bytes are needed lol.
-    VectorArrow vectorArrowList[maxVectorArrowCount];
     uint vectorArrowList_length;
+    VectorArrow vectorArrowList[maxVectorArrowCount];
 };
 layout(set = 3, binding = 0, std430) buffer VectorIndirectDraw {
     VectorArrowIndirectCommands indirectDraw;

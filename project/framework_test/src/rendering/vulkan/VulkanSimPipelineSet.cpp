@@ -281,7 +281,9 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
         computeVectorArrowGenerate_shader,
         {
             *imageSampler_comp_ds,
-            *buffer_comp_ds
+            *buffer_comp_ds,
+            *buffer_comp_ds,
+            *buffer_comp_ds,
         },
         sizeof(Shaders::VectorArrowGenerateParams),
         {

@@ -167,7 +167,7 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
         quantityVectorReducer(context, globalData.pipelines, simDataImage.size.area()),
         quantityVectorIndirectDrawData(
             context,
-            vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eTransferDst,
+            vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
             sizeof(Shaders::VectorArrowIndirectCommands),
             false
         ),
