@@ -139,21 +139,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 ImGui::Unindent();
             }
 
-            ImGui::NewLine();
-            ImGui::Text("Particle Trail Type");
-            if (ImGui::BeginCombo("##TraceType", particleTrailTypeStrs[(int)trailType])) {
-                for (size_t i = 0; i < particleTrailTypeStrs.size(); i++) {
-                    bool is_selected = (i == (size_t)trailType);
-                    if (ImGui::Selectable(particleTrailTypeStrs[i], is_selected)) {
-                        trailType = (ParticleTrailType)i;
-                    }
-                    if (is_selected) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-                ImGui::EndCombo();
-            }
-
             ImGui::Unindent();
         }
     }
@@ -552,9 +537,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 fullMemoryBarrier(computeCmdBuffer,
                                   vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eDrawIndirect,
                                   vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eIndirectCommandRead);
-//                fullMemoryBarrier(computeCmdBuffer,
-//                                  vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader,
-//                                  vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead);
                 // Make TransferWrites from the Transfer stage available + visible to the ShaderReads in the ComputeShader phase.
                 fullMemoryBarrier(computeCmdBuffer,
                                   vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader,
@@ -706,36 +688,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 graphicsCmdBuffer.draw(4, 1, 0, 0);
             }
 
-            if (simulateParticles && renderParticleGlyphs){
-                auto particlePushConsts = Shaders::InstancedParticleParams{
-                    .baseScale = particleGlyphSize,
-                    .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
-                };
-
-                graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.particle);
-                graphicsCmdBuffer.pushConstants(
-                    *global.pipelines.particle.layout,
-                    vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
-                    0,
-                    vk::ArrayProxy<const Shaders::InstancedParticleParams>{particlePushConsts}
-                );
-                graphicsCmdBuffer.bindVertexBuffers(0, {data.sharedFrameData.particleVertexData.getGpuBuffer()}, {0});
-                graphicsCmdBuffer.bindDescriptorSets(
-                        vk::PipelineBindPoint::eGraphics,
-                        *global.pipelines.particle.layout,
-                        0,
-                        {
-                            *data.sharedFrameData.particleIndexDrawList_vert_ds, // particlesToDrawIndexList
-                            *data.sharedFrameData.particleDataArray_vert_ds // particleDatas
-                        },
-                {});
-                graphicsCmdBuffer.drawIndirect(
-                    *data.sharedFrameData.particleIndirectCommands,
-                    offsetof(Shaders::ParticleIndirectCommands, particleDrawCmd),
-                    1, 0
-                );
-            }
-
             if (vizVector != VectorQuantity::None) {
                 auto vectorArrowPushConsts = Shaders::InstancedVectorArrowParams{
                         .dummy = 1
@@ -761,6 +713,36 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 graphicsCmdBuffer.drawIndexedIndirect(
                         data.sharedFrameData.quantityVectorIndirectDrawData.getGpuBuffer(),
                         offsetof(Shaders::VectorArrowIndirectCommands, vectorArrowDrawCmd),
+                        1, 0
+                );
+            }
+
+            if (simulateParticles && renderParticleGlyphs){
+                auto particlePushConsts = Shaders::InstancedParticleParams{
+                        .baseScale = particleGlyphSize,
+                        .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
+                };
+
+                graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.particle);
+                graphicsCmdBuffer.pushConstants(
+                        *global.pipelines.particle.layout,
+                        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
+                        0,
+                        vk::ArrayProxy<const Shaders::InstancedParticleParams>{particlePushConsts}
+                );
+                graphicsCmdBuffer.bindVertexBuffers(0, {data.sharedFrameData.particleVertexData.getGpuBuffer()}, {0});
+                graphicsCmdBuffer.bindDescriptorSets(
+                        vk::PipelineBindPoint::eGraphics,
+                        *global.pipelines.particle.layout,
+                        0,
+                        {
+                                *data.sharedFrameData.particleIndexDrawList_vert_ds, // particlesToDrawIndexList
+                                *data.sharedFrameData.particleDataArray_vert_ds // particleDatas
+                        },
+                        {});
+                graphicsCmdBuffer.drawIndirect(
+                        *data.sharedFrameData.particleIndirectCommands,
+                        offsetof(Shaders::ParticleIndirectCommands, particleDrawCmd),
                         1, 0
                 );
             }
