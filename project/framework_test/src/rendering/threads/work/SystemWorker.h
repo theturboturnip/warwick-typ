@@ -77,6 +77,7 @@ class SystemWorker {
     float particleSpawnFreq = 10;
     float particleSpawnTimer = 0;
     float particleBGDarkener = 0.6;
+    float particleEmitterX = 0;
     ParticleTrailType trailType = ParticleTrailType::None;
     float trailLength = 0;
 

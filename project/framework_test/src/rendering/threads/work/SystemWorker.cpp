@@ -44,30 +44,11 @@ void SystemWorker::resizeEmitterCount(size_t newEmitterCount) {
 
     size_t oldCount = emitters.size();
     emitters.resize(newEmitterCount);
-//    std::array<glm::vec3, 16> hsvs = {{
-//        {0, 1, 1},
-//        {15, 0.8, 1},
-//        {30, 1, 1},
-//        {45, 0.8, 1},
-//        {60, 1, 1},
-//        {75, 0.8, 1},
-//        {90, 1, 1},
-//        {105, 0.8, 1},
-//        {120, 0.8, 1},
-//        {135, 0.8, 1},
-//        {150, 1, 1},
-//        {165, 0.8, 1},
-//        {180, 1, 1},
-//        {195, 0.8, 1},
-//        {210, 1, 1},
-//        {225, 0.8, 1},
-//    }};
 
     // Only change the colors of the initial
     for (auto i = oldCount; i < newEmitterCount; i++) {
-        float emitterHue = i * (1000.0 / 16.0);
+        float emitterHue = (int)(i * (1000.0f / 16.0f)) % 360;
         glm::vec3 emitterHSV = {emitterHue, 1.0, 1.0};
-//        glm::vec3 emitterHSV = hsvs[i];
         glm::vec3 emitterRGB_255 = glm::rgbColor(emitterHSV);
         emitters[i].color = glm::vec4(emitterRGB_255, 1);
     }
@@ -75,35 +56,10 @@ void SystemWorker::resizeEmitterCount(size_t newEmitterCount) {
     recalculateEmitterPositions();
 }
 void SystemWorker::recalculateEmitterPositions() {
-    float x = 0;
     for (size_t i = 0; i < emitters.size(); i++) {
         float y = ((float)i + 1.0f) / (float)(emitters.size() + 1);
-        emitters[i].position = glm::vec4(x, y, 0, 0);
+        emitters[i].position = glm::vec4(particleEmitterX, y, 0, 0);
     }
-//    emitters[0] = Shaders::ParticleEmitter {
-//            .position = glm::vec4(0, 0.1, 0, 0),
-//            .color = glm::vec4(1, 0, 0, 1)
-//    };
-//    emitters[1] = Shaders::ParticleEmitter {
-//            .position = glm::vec4(0, 0.4, 0, 0),
-//            .color = glm::vec4(0, 1, 0, 1)
-//    };
-//    emitters[2] = Shaders::ParticleEmitter {
-//            .position = glm::vec4(0, 0.6, 0, 0),
-//            .color = glm::vec4(0, 0, 1, 1)
-//    };
-//    emitters[3] = Shaders::ParticleEmitter {
-//            .position = glm::vec4(0, 0.9, 0, 0),
-//            .color = glm::vec4(1, 1, 1, 1)
-//    };
-//    emitters[4] = Shaders::ParticleEmitter {
-//            .position = glm::vec4(0, 0.3, 0, 0),
-//            .color = glm::vec4(0, 0, 1, 1)
-//    };
-//    emitters[5] = Shaders::ParticleEmitter {
-//            .position = glm::vec4(0, 0.7, 0, 0),
-//            .color = glm::vec4(1, 1, 1, 1)
-//    };
 }
 
 
@@ -219,7 +175,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         if (simulateParticles) {
             ImGui::Indent();
 
-            ImGui::Checkbox("Render as Glyphs", &renderParticleGlyphs);
+//            ImGui::Checkbox("Render as Glyphs", &renderParticleGlyphs);
             if (renderParticleGlyphs) {
                 ImGui::SliderFloat("Size", &particleGlyphSize, 0.01, 0.1, "%.5f", 2.0f);
                 ImGui::SliderFloat("Darken Background", &particleBGDarkener, 0, 1);
@@ -260,6 +216,37 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 label = "Min Value";
             ImGui::ColorEdit3(label, (float*)&colorScale[i], ImGuiColorEditFlags_NoInputs);
             ImGui::PopID();
+        }
+    }
+    ImGui::End();
+
+    ImGui::Begin("Particle Emitters", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    {
+        if (ImGui::Button("Reset")) {
+            setDefaultEmitters();
+            shouldResetParticles = true;
+        }
+
+
+        if (ImGui::SliderFloat("Location", &particleEmitterX, 0, 1)) {
+            recalculateEmitterPositions();
+            shouldResetParticles = true;
+        }
+
+        ImGui::NewLine();
+
+        int requestedEmitterCount = emitters.size();
+        if (ImGui::SliderInt("Emitter Count", &requestedEmitterCount, 0, 16)) {
+            resizeEmitterCount(requestedEmitterCount);
+            shouldResetParticles = true;
+        }
+
+        int i = 1;
+        for (auto& emitter : emitters) {
+            ImGui::Text("Emitter #%02d at %.02f, %.02f", i, emitter.position.x, emitter.position.y);
+            ImGui::SameLine();
+            ImGui::ColorEdit3("##Color", (float*)&emitter.color, ImGuiColorEditFlags_NoInputs);
+            ++i;
         }
     }
     ImGui::End();
@@ -565,7 +552,21 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         // Particle Update
         // If we're not locking the particle sim to the actual sim, always run the particle sim.
         // If we are locking the sims together, only run the particle sim if the input ran the sim.
-        if (simulateParticles && (!lockParticleToSimulation || input.shouldSimParticles)) {
+        if (shouldResetParticles) {
+            // Reset the particles:
+            // Zero out the "to draw list", which is used as a base for the simulation normally
+            computeCmdBuffer.fillBuffer(*data.sharedFrameData.particleIndexDrawList, 0, data.sharedFrameData.particleIndexDrawList.size, 0);
+            // Copy the reset data into the inactiveParticleIndexList
+            auto copy = vk::BufferCopy{};
+            copy.srcOffset = 0;
+            copy.dstOffset = 0;
+            copy.size = data.sharedFrameData.inactiveParticleIndexList.size;
+            computeCmdBuffer.copyBuffer(
+                    data.sharedFrameData.inactiveParticleIndexList_resetData.getGpuBuffer(),
+                    data.sharedFrameData.inactiveParticleIndexList.getGpuBuffer(),
+                    {copy}
+            );
+        } else if (simulateParticles && (!lockParticleToSimulation || input.shouldSimParticles)) {
             // Copy index draw list -> index simulate list for the emit shader to add to
             {
                 auto copy = vk::BufferCopy{};
@@ -710,20 +711,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 // Don't need to sync writes to the particleIndirectCommands/particleDataArray
                 // because that's done on the graphics pipeline after a semaphore.
             }
-        } else if (shouldResetParticles) {
-            // Reset the particles:
-            // Zero out the "to draw list", which is used as a base for the simulation normally
-            computeCmdBuffer.fillBuffer(*data.sharedFrameData.particleIndexDrawList, 0, data.sharedFrameData.particleIndexDrawList.size, 0);
-            // Copy the reset data into the inactiveParticleIndexList
-            auto copy = vk::BufferCopy{};
-            copy.srcOffset = 0;
-            copy.dstOffset = 0;
-            copy.size = data.sharedFrameData.inactiveParticleIndexList.size;
-            computeCmdBuffer.copyBuffer(
-                data.sharedFrameData.inactiveParticleIndexList_resetData.getGpuBuffer(),
-                data.sharedFrameData.inactiveParticleIndexList.getGpuBuffer(),
-                {copy}
-            );
         }
 
         computeCmdBuffer.end();
