@@ -19,7 +19,7 @@ VulkanSimPipelineSet::VulkanSimPipelineSet(vk::Device device, vk::RenderPass ren
         particleSpecConstantsData({
             .particleBufferLength=props.maxParticles,
             .particleToEmitBufferLength=props.maxParticlesEmittedPerFrame,
-            .particleEmitterCount=props.maxParicleEmitters
+            .particleEmitterCount=props.maxParticleEmitters
         }),
 
         vectorArrowBufferLength_specConstant(0, 0, sizeof(uint32_t)),

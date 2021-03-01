@@ -47,7 +47,7 @@ void main() {
         // pixIdx is a valid fluid square, get the quantity
         if (scalarQuantity != ScalarQuantity_None) {
             float quantity = data.x;
-            outColor = convertQuantityToColor(quantity, pConsts.fluidColor32Bit);
+            outColor = convertQuantityToColor(quantity, pConsts.fluidColor32Bit) * pConsts.darkener;
         } else {
             outColor = unpackUnorm4x8(pConsts.fluidColor32Bit);
         }

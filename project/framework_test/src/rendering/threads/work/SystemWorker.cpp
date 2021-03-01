@@ -12,6 +12,10 @@ SystemWorker::SystemWorker(VulkanSimAppData &data)
           global(data.globalData)
 {
     setDefaultColors();
+    setDefaultEmitters();
+    for(auto emitter : emitters){
+        fprintf(stdout, "Emitter at %g,%g w/ color %g %g %g %g\n", emitter.position.x, emitter.position.y, emitter.color.r, emitter.color.g, emitter.color.b, emitter.color.a);
+    }
 }
 
 void SystemWorker::setDefaultColors() {
@@ -28,6 +32,78 @@ void SystemWorker::setDefaultColors() {
     fluidBaseColor = {0.5, 0.5, 0.5, 1.0};
     obstacleColor = {0, 0, 0, 1};
     vectorArrowColor = {0.167, 0.014, 0.014, 1};
+}
+
+void SystemWorker::setDefaultEmitters() {
+    emitters.clear();
+    resizeEmitterCount(6);
+}
+void SystemWorker::resizeEmitterCount(size_t newEmitterCount) {
+    if (newEmitterCount > global.props.maxParticleEmitters)
+        newEmitterCount = global.props.maxParticleEmitters;
+
+    size_t oldCount = emitters.size();
+    emitters.resize(newEmitterCount);
+//    std::array<glm::vec3, 16> hsvs = {{
+//        {0, 1, 1},
+//        {15, 0.8, 1},
+//        {30, 1, 1},
+//        {45, 0.8, 1},
+//        {60, 1, 1},
+//        {75, 0.8, 1},
+//        {90, 1, 1},
+//        {105, 0.8, 1},
+//        {120, 0.8, 1},
+//        {135, 0.8, 1},
+//        {150, 1, 1},
+//        {165, 0.8, 1},
+//        {180, 1, 1},
+//        {195, 0.8, 1},
+//        {210, 1, 1},
+//        {225, 0.8, 1},
+//    }};
+
+    // Only change the colors of the initial
+    for (auto i = oldCount; i < newEmitterCount; i++) {
+        float emitterHue = i * (1000.0 / 16.0);
+        glm::vec3 emitterHSV = {emitterHue, 1.0, 1.0};
+//        glm::vec3 emitterHSV = hsvs[i];
+        glm::vec3 emitterRGB_255 = glm::rgbColor(emitterHSV);
+        emitters[i].color = glm::vec4(emitterRGB_255, 1);
+    }
+
+    recalculateEmitterPositions();
+}
+void SystemWorker::recalculateEmitterPositions() {
+    float x = 0;
+    for (size_t i = 0; i < emitters.size(); i++) {
+        float y = ((float)i + 1.0f) / (float)(emitters.size() + 1);
+        emitters[i].position = glm::vec4(x, y, 0, 0);
+    }
+//    emitters[0] = Shaders::ParticleEmitter {
+//            .position = glm::vec4(0, 0.1, 0, 0),
+//            .color = glm::vec4(1, 0, 0, 1)
+//    };
+//    emitters[1] = Shaders::ParticleEmitter {
+//            .position = glm::vec4(0, 0.4, 0, 0),
+//            .color = glm::vec4(0, 1, 0, 1)
+//    };
+//    emitters[2] = Shaders::ParticleEmitter {
+//            .position = glm::vec4(0, 0.6, 0, 0),
+//            .color = glm::vec4(0, 0, 1, 1)
+//    };
+//    emitters[3] = Shaders::ParticleEmitter {
+//            .position = glm::vec4(0, 0.9, 0, 0),
+//            .color = glm::vec4(1, 1, 1, 1)
+//    };
+//    emitters[4] = Shaders::ParticleEmitter {
+//            .position = glm::vec4(0, 0.3, 0, 0),
+//            .color = glm::vec4(0, 0, 1, 1)
+//    };
+//    emitters[5] = Shaders::ParticleEmitter {
+//            .position = glm::vec4(0, 0.7, 0, 0),
+//            .color = glm::vec4(1, 1, 1, 1)
+//    };
 }
 
 
@@ -146,6 +222,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             ImGui::Checkbox("Render as Glyphs", &renderParticleGlyphs);
             if (renderParticleGlyphs) {
                 ImGui::SliderFloat("Size", &particleGlyphSize, 0.01, 0.1, "%.5f", 2.0f);
+                ImGui::SliderFloat("Darken Background", &particleBGDarkener, 0, 1);
             }
 
             ImGui::SliderFloat("Spawn Speed", &particleSpawnFreq, 1, 100, "%.1f", 2.0f);
@@ -502,34 +579,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             // Setup the emitter points
             {
                 {
-                    DASSERT(global.props.maxParicleEmitters >= 6);
+                    FATAL_ERROR_IF(emitters.size() > global.props.maxParticleEmitters, "Too many emitters");
                     auto memory = simFrameData.particleEmitters.mapCPUMemory(*global.context.device);
                     auto* emitterData = (Shaders::ParticleEmitter*)(*memory);
-                    emitterData[0] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0, 0.1, 0, 0),
-                        .color = glm::vec4(1, 0, 0, 1)
-                    };
-                    emitterData[1] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0, 0.4, 0, 0),
-                        .color = glm::vec4(0, 1, 0, 1)
-                    };
-                    emitterData[2] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0, 0.6, 0, 0),
-                        .color = glm::vec4(0, 0, 1, 1)
-                    };
-                    emitterData[3] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0, 0.9, 0, 0),
-                        .color = glm::vec4(1, 1, 1, 1)
-                    };
-                    emitterData[4] = Shaders::ParticleEmitter {
-                            .position = glm::vec4(0, 0.3, 0, 0),
-                            .color = glm::vec4(0, 0, 1, 1)
-                    };
-                    emitterData[5] = Shaders::ParticleEmitter {
-                            .position = glm::vec4(0, 0.7, 0, 0),
-                            .color = glm::vec4(1, 1, 1, 1)
-                    };
-
+                    memcpy(emitterData, emitters.data(), emitters.size() * sizeof(Shaders::ParticleEmitter));
                     // Auto unmapped
                 }
                 simFrameData.particleEmitters.scheduleCopyToGPU(computeCmdBuffer);
@@ -544,7 +597,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 // particleIndirectCommands is an output, we don't care
 
                 auto particleKickoff = Shaders::ParticleKickoffParams{
-                        .emitterCount = (spawnNewParticleThisTick ? 6u : 0u)
+                        .emitterCount = (spawnNewParticleThisTick ? (uint32_t)emitters.size() : 0u)
                 };
                 computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
                                               *global.pipelines.computeParticleKickoff);
@@ -709,7 +762,8 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                             glm::packUnorm4x8(colorScale[7]),
                     },
                     .fluidColor32Bit = glm::packUnorm4x8(fluidBaseColor),
-                    .obstacleColor32Bit = glm::packUnorm4x8(obstacleColor)
+                    .obstacleColor32Bit = glm::packUnorm4x8(obstacleColor),
+                    .darkener = ((simulateParticles && renderParticleGlyphs) ? particleBGDarkener : 1.0f)
                 };
 
                 const auto &quantityScalar = global.pipelines.quantityScalar[vizScalar];

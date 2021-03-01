@@ -76,6 +76,7 @@ class SystemWorker {
     float particleUnlockedSimFreq = 120;
     float particleSpawnFreq = 10;
     float particleSpawnTimer = 0;
+    float particleBGDarkener = 0.6;
     ParticleTrailType trailType = ParticleTrailType::None;
     float trailLength = 0;
 
@@ -84,6 +85,11 @@ class SystemWorker {
     std::array<glm::vec4, 8> colorScale;
     glm::vec4 vectorArrowColor;
 
+    std::vector<Shaders::ParticleEmitter> emitters;
+
+    void recalculateEmitterPositions();
+    void resizeEmitterCount(size_t newEmitterCount);
+    void setDefaultEmitters();
     void setDefaultColors();
 
     void transferImageLayout(vk::CommandBuffer cmdBuffer,

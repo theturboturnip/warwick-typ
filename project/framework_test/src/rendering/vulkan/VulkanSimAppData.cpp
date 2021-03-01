@@ -41,7 +41,7 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
               globalData.pipelines.buildSimBufferCopyInput_comp_ds(globalData.context, *buffers)
       ),
 
-      particleEmitters(context, vk::BufferUsageFlagBits::eStorageBuffer, globalData.props.maxParicleEmitters * sizeof(Shaders::ParticleEmitter)),
+      particleEmitters(context, vk::BufferUsageFlagBits::eStorageBuffer, globalData.props.maxParticleEmitters * sizeof(Shaders::ParticleEmitter)),
       particleEmitters_comp_ds(bufferDescSet_comp(globalData, particleEmitters.getGpuDescriptor())),
 
       quantityScalar_range(context, vk::BufferUsageFlagBits::eStorageBuffer, sizeof(Shaders::FloatRange)),

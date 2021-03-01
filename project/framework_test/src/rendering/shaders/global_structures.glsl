@@ -63,6 +63,8 @@ struct QuantityScalarParams {
 
     uint fluidColor32Bit;
     uint obstacleColor32Bit;
+
+    float darkener;
 };
 
 struct FloatRange {

@@ -8,3 +8,4 @@
 // i.e. if we add a specific feature to GLM through #defines, make that available and consistent everywhere to avoid confusion.
 
 #include <glm/glm.hpp>
+#include <glm/gtx/color_space.hpp>
