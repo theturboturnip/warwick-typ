@@ -41,7 +41,13 @@ compile_glsl(shader_files
         compute_particle_emit.comp
         compute_particle_simulate.comp
         compute_particle_kickoff.comp
+        compute_scalar_extract.comp
+        compute_minmax_reduce.comp
         particle.vert
         particle.frag
+        vectorarrow.frag
+        vectorarrow.vert
+        compute_vector_extract.comp
+        compute_vectorarrow_generate.comp
         )
 add_library(shaders OBJECT ${PROJECT_SHADER_DIR} ${shader_files})

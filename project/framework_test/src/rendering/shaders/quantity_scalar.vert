@@ -1,5 +1,12 @@
 #version 450
 
+#include "global_descriptor_sets.glsl"
+
+SPEC_CONST_SCALAR_QUANTITY()
+
+PUSH_CONSTANTS(QuantityScalarParams)
+
+
 vec2 positions[4] = vec2[](
     vec2(-1.0, -1.0),
     vec2(1.0, -1.0),

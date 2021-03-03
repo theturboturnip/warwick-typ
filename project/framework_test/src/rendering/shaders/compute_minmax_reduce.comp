@@ -1,0 +1,58 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
+#include "global_descriptor_sets.glsl"
+#include "global_structures.glsl"
+
+layout (local_size_x = 64) in;
+
+PUSH_CONSTANTS(MinMaxReduceParams)
+
+// Declare the descriptor sets
+// TODO - figureout hjow to use generic #defines here?
+layout(set=0, binding=0, std430) readonly buffer FloatRangeInputs {
+    FloatRange inputRanges[];
+};
+layout(set=1, binding=0, std430) writeonly buffer FloatRangeOutputs {
+    FloatRange outputRanges[];
+};
+
+shared FloatRange shared_data[gl_WorkGroupSize.x];
+
+void main() {
+    uvec3 blockIdx = gl_WorkGroupID;
+
+    // Move an element from the input array into shared data.
+    // This thread block will perform the reduction over the shared data only, and then move that into the output.
+    const uint t_id = gl_LocalInvocationID.x;
+    const uint input_idx = (gl_WorkGroupID.x * gl_WorkGroupSize.x) + gl_LocalInvocationID.x;
+    // Writing this into shared data is race-free, because each thread has a unique index.
+    if (input_idx < pConsts.bufferLength) {
+        shared_data[t_id] = inputRanges[input_idx];
+    } else {
+        // Handle the case where the input data isn't in range
+        shared_data[t_id] = FloatRange(
+            FLT_MAX, // Set the minimum value to FLT_MAX, as min(x, FLT_MAX) = x always
+            FLT_MIN // Same principle.
+        );
+    }
+
+    // memory barrier is required before reading shared memory - while threads within a warp are all guaranteed to execute at the same time,
+    // warps within a block are not. i.e. one warp could be started once another warp is waiting for a memory access.
+    for (uint stride = 1; stride < gl_WorkGroupSize.x; stride *= 2) {
+        // Use a strided index - each thread reduces the indices (2*tid)*stride, (2*tid + 1)*stride
+        const uint index = 2 * stride * t_id;
+
+        // This is different to the PDF - I prefer to sync at the last possible second, to give as much leeway as possible to the scheduler beforehand,
+        // and to make sure threads don't lose their sync inbetween the sync and the access.
+        // This is done outside of the loop on purpose! Doing it inside a conditional is undefined behaviour.
+        barrier();//memoryBarrierShared();
+        if (index < gl_WorkGroupSize.x) {
+            shared_data[index].min = min(shared_data[index].min, shared_data[index + stride].min);
+            shared_data[index].max = max(shared_data[index].max, shared_data[index + stride].max);
+        }
+    }
+
+    if (t_id == 0)
+        outputRanges[blockIdx.x] = shared_data[0];
+}

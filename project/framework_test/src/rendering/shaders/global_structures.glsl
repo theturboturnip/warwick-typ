@@ -1,3 +1,5 @@
+#ifndef GLOBAL_STRUCTURES
+#define GLOBAL_STRUCTURES
 
 struct Particle {
 // vec4(posX, posY, rot, none)
@@ -17,6 +19,16 @@ struct ParticleToEmitData {
 struct ParticleEmitter {
     vec4 position;
     vec4 color;
+};
+
+/**
+ * Instanced Vector Arrows
+ */
+struct VectorArrow {
+    // rotation and scale are precomputed, so we don't do trig per-vertex.
+    // More space-efficient to store pos separately, and requires fewer multiplications.
+    mat2 rotScale;
+    vec2 pos;
 };
 
 /**
@@ -43,6 +55,48 @@ struct ParticleKickoffParams {
     uint emitterCount;
 };
 
+struct QuantityScalarParams {
+    // Create a color scale out of 8 32-bit color values.
+    // colorRange[0] = minimum color, colorRange[7] = maximum color
+    // Colors can be extracted with unpackUnorm4x8(), and packed with packSnorm4x8() (available in GLM core).
+    uint colorRange32Bit[8];
+
+    uint fluidColor32Bit;
+    uint obstacleColor32Bit;
+
+    float darkener;
+};
+
+struct FloatRange {
+    float min;
+    float max;
+};
+
+struct ScalarExtractParams {
+    uint simDataImage_width;
+    uint simDataImage_height;
+};
+
+struct VectorExtractParams {
+    uint simDataImage_width;
+    uint simDataImage_height;
+};
+
+struct MinMaxReduceParams {
+    uint bufferLength;
+};
+
+struct InstancedVectorArrowParams {
+    vec4 color;
+};
+
+struct VectorArrowGenerateParams {
+    uint gridCount_x, gridCount_y;
+    float baseScale;
+    float render_heightDivWidth;
+    float baseLength;
+};
+
 /**
 * Indirect commands
 */
@@ -52,6 +106,7 @@ struct VkDispatchIndirectCommand {
     uint    y;
     uint    z;
 
+    // Pad to vec4 size otherwise RenderDoc complains
     uint padding;
 };
 
@@ -72,8 +127,6 @@ struct VkDrawIndirectCommand {
 };
 
 struct ParticleIndirectCommands {
-    // Add padding to the indirect dispatch commands so they have even length - RenderDoc doesn't like them otherwise
-
     VkDispatchIndirectCommand particleEmitCmd;
 
     VkDispatchIndirectCommand particleSimCmd;
@@ -83,3 +136,9 @@ struct ParticleIndirectCommands {
     uint particlesToEmitCount;
     uint particlesToSimCount;
 };
+
+struct VectorArrowIndirectCommands {
+    VkDrawIndexedIndirectCommand vectorArrowDrawCmd;
+};
+
+#endif

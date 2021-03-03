@@ -56,6 +56,7 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanSemaphore.h
         rendering/vulkan/helpers/VulkanPipeline.cpp
         rendering/vulkan/helpers/VulkanPipeline.h
+        rendering/vulkan/helpers/VulkanPipelineSpecMap.h
         rendering/vulkan/helpers/VulkanQueueFamilies.cpp
         rendering/vulkan/helpers/VulkanQueueFamilies.h
         rendering/vulkan/helpers/VulkanRenderPass.cpp
@@ -64,11 +65,11 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/helpers/VulkanSwapchain.h
         rendering/vulkan/helpers/VulkanVertexInformation.cpp
         rendering/vulkan/helpers/VulkanVertexInformation.h
-        rendering/vulkan/mesh/particle_instance.h
-        rendering/vulkan/mesh/particle_instance.cpp
-        rendering/vulkan/mesh/vertex.h
-        rendering/vulkan/mesh/vertex.cpp
-        rendering/vulkan/mesh/vk_format.h
+        rendering/vulkan/viz/enums.h
+        rendering/vulkan/viz/enums.cpp
+        rendering/vulkan/viz/vertex.h
+        rendering/vulkan/viz/vertex.cpp
+        rendering/vulkan/viz/vk_format.h
         rendering/vulkan/VulkanSimApp.cpp
         rendering/vulkan/VulkanSimApp.h
         rendering/vulkan/VulkanContext.cpp
@@ -77,6 +78,8 @@ target_sources(generic_sources INTERFACE
         rendering/vulkan/VulkanSimPipelineSet.h
         rendering/vulkan/VulkanSimAppData.cpp
         rendering/vulkan/VulkanSimAppData.h
+        rendering/vulkan/VulkanMinMaxReducer.cpp
+        rendering/vulkan/VulkanMinMaxReducer.h
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.cpp
         simulation/backends/cpu_simple/optimized/CpuOptimizedAdaptedSimBackend.h
         simulation/backends/cpu_simple/CpuOptimizedSimBackend.cpp

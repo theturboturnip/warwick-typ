@@ -3,7 +3,7 @@
 //
 
 #include <imgui_impl_vulkan.h>
-#include <rendering/vulkan/mesh/vertex.h>
+#include <rendering/vulkan/viz/vertex.h>
 #include "VulkanSimAppData.h"
 #include "rendering/shaders/global_structures.h"
 
@@ -12,6 +12,9 @@ vk::UniqueDescriptorSet bufferDescSet_comp(VulkanSimAppData::Global &globalData,
 }
 vk::UniqueDescriptorSet bufferDescSet_vert(VulkanSimAppData::Global &globalData, vk::DescriptorBufferInfo info) {
     return globalData.pipelines.buildBuffer_vert_ds(globalData.context, info);
+}
+vk::UniqueDescriptorSet bufferDescSet_frag(VulkanSimAppData::Global &globalData, vk::DescriptorBufferInfo info) {
+    return globalData.pipelines.buildBuffer_frag_ds(globalData.context, info);
 }
 
 
@@ -38,8 +41,13 @@ VulkanSimAppData::PerFrameData::PerFrameData(VulkanSimAppData::Global& globalDat
               globalData.pipelines.buildSimBufferCopyInput_comp_ds(globalData.context, *buffers)
       ),
 
-      particleEmitters(context, vk::BufferUsageFlagBits::eStorageBuffer, globalData.props.maxParicleEmitters * sizeof(Shaders::ParticleEmitter)),
+      particleEmitters(context, vk::BufferUsageFlagBits::eStorageBuffer, globalData.props.maxParticleEmitters * sizeof(Shaders::ParticleEmitter)),
       particleEmitters_comp_ds(bufferDescSet_comp(globalData, particleEmitters.getGpuDescriptor())),
+
+      quantityScalar_range(context, vk::BufferUsageFlagBits::eStorageBuffer, sizeof(Shaders::FloatRange)),
+      quantityScalar_range_frag_ds(bufferDescSet_frag(globalData, quantityScalar_range.getGpuDescriptor())),
+      quantityVector_range(context, vk::BufferUsageFlagBits::eStorageBuffer, sizeof(Shaders::FloatRange)),
+      quantityVector_range_comp_ds(bufferDescSet_comp(globalData, quantityVector_range.getGpuDescriptor())),
 
       simFinishedCanCompute(*context.device),
       computeFinishedCanSim(*context.device),
@@ -144,21 +152,41 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
            sizeof(Vertex) * 4,
            false // not shared
         ),
-//        particleInputBuffer_comp_ds(
-//               globalData.pipelines.buildParticleInputBuffer_comp_ds(
-//                       context, particleBuffer.asDescriptor()
-//               )
-//        ),
-//        particleInputBuffer_vert_ds(
-//               globalData.pipelines.buildParticleInputBuffer_vert_ds(
-//                       context, particleBuffer.asDescriptor()
-//               )
-//        ),
-//        particleOutputBuffer_comp_ds(
-//               globalData.pipelines.buildParticleOutputBuffer_comp_ds(
-//                       context, particleBuffer.asDescriptor()
-//               )
-//        ),
+
+        quantityScalar(context, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled, simDataImage.size, vk::Format::eR32G32Sfloat, true),
+        quantityScalarSampler(context, quantityScalar),
+        quantityScalar_comp_ds(globalData.pipelines.buildImage_comp_ds(context, quantityScalarSampler)),
+        quantityScalarSampler_frag_ds(globalData.pipelines.buildImageSampler_frag_ds(context, quantityScalarSampler)),
+        quantityScalarReducer(context, globalData.pipelines, simDataImage.size.area()),
+
+        quantityVector(context, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled, simDataImage.size, vk::Format::eR32G32B32A32Sfloat, true),
+        quantityVectorSampler(context, quantityVector),
+        quantityVector_comp_ds(globalData.pipelines.buildImage_comp_ds(context, quantityVectorSampler)),
+        quantityVectorSampler_comp_ds(globalData.pipelines.buildImageSampler_comp_ds(context, quantityVectorSampler)),
+        quantityVectorSampler_frag_ds(globalData.pipelines.buildImageSampler_frag_ds(context, quantityVectorSampler)),
+        quantityVectorReducer(context, globalData.pipelines, simDataImage.size.area()),
+        quantityVectorIndirectDrawData(
+            context,
+            vk::BufferUsageFlagBits::eIndirectBuffer | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+            sizeof(Shaders::VectorArrowIndirectCommands),
+            false
+        ),
+        quantityVectorIndirectDrawData_comp_ds(bufferDescSet_comp(globalData, quantityVectorIndirectDrawData.getGpuDescriptor())),
+        vectorArrowInstanceData(
+            context,
+            vk::MemoryPropertyFlagBits::eDeviceLocal,
+            vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+            (sizeof(Shaders::VectorArrow) * globalData.props.maxVectorArrows) + sizeof(uint32_t),
+            false
+        ),
+        vectorArrowInstanceData_comp_ds(bufferDescSet_comp(globalData, vectorArrowInstanceData.asDescriptor())),
+        vectorArrowInstanceData_vert_ds(bufferDescSet_vert(globalData, vectorArrowInstanceData.asDescriptor())),
+        vectorArrowVertexIndexData(
+            context,
+            vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer,
+            sizeof(Vertex) * 7 + sizeof(uint16_t) * 8,
+            false // not shared
+        ),
 
         vizFramebuffer(
                context,
@@ -181,7 +209,7 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
     const auto beginInfo = vk::CommandBufferBeginInfo{};
     buf->begin(&beginInfo);
 
-    // INITIALIZE VERTEX BUFFER
+    // Initialize particle vertex buffer
     {
         auto memory = particleVertexData.mapCPUMemory(*globalData.context.device);
         auto* vData = (Vertex*)(*memory);
@@ -206,7 +234,7 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
     }
     particleVertexData.scheduleCopyToGPU(*buf);
 
-    // INITIALIZE INACTIVE LIST WITH ALL PARTICLES
+    // Initialize inactive particle list
     {
         const auto maxParticles = globalData.props.maxParticles;
         auto inactiveNumbers = std::vector<uint32_t>(1 + maxParticles);
@@ -230,12 +258,76 @@ VulkanSimAppData::SharedFrameData::SharedFrameData(VulkanSimAppData::Global &glo
     inactiveParticleIndexList.scheduleCopyToGPU(*buf);
     inactiveParticleIndexList_resetData.scheduleCopyToGPU(*buf);
 
+    // Initialize the vector arrow vertex+index buffer
+    {
+        auto memory = vectorArrowVertexIndexData.mapCPUMemory(*globalData.context.device);
+        auto* vData = (Vertex*)(*memory);
+        vData[0] = Vertex{
+                .pos = glm::vec2(-1, 0.16),
+                .uv = glm::vec2(0, 0),
+        };
+        vData[1] = Vertex{
+                .pos = glm::vec2(-1, -0.16),
+                .uv = glm::vec2(0, 0),
+        };
+        vData[2] = Vertex{
+                .pos = glm::vec2(0.25, 0.16),
+                .uv = glm::vec2(0, 0),
+        };
+        vData[3] = Vertex{
+                .pos = glm::vec2(0.25, -0.16),
+                .uv = glm::vec2(0, 0),
+        };
+        vData[4] = Vertex{
+                .pos = glm::vec2(0.25, 0.75),
+                .uv = glm::vec2(0, 0),
+        };
+        vData[5] = Vertex{
+                .pos = glm::vec2(0.25, -0.75),
+                .uv = glm::vec2(0, 0),
+        };
+        vData[6] = Vertex{
+                .pos = glm::vec2(1, 0),
+                .uv = glm::vec2(0, 0),
+        };
+        auto* idxData = (uint16_t*)(vData + 7);
+        idxData[0] = 0;
+        idxData[1] = 1;
+        idxData[2] = 2;
+        idxData[3] = 3;
+        idxData[4] = 0xFFFF;
+        idxData[5] = 4;
+        idxData[6] = 5;
+        idxData[7] = 6;
+
+        // Auto unmapped
+    }
+    vectorArrowVertexIndexData.scheduleCopyToGPU(*buf);
+
+    // initialize the quantityVectorIndirectDrawData
+    {
+        auto memory = quantityVectorIndirectDrawData.mapCPUMemory(*globalData.context.device);
+        auto* data = (Shaders::VectorArrowIndirectCommands*)(*memory);
+        data->vectorArrowDrawCmd = Shaders::VkDrawIndexedIndirectCommand{
+            .indexCount = 8,
+            .instanceCount = 0, // Starts at 0, is incremented by computeVectorArrowGenerate shader
+            .firstIndex = 0,
+            .vertexOffset = 0,
+            .firstInstance = 0,
+        };
+        // Auto unmapped
+    }
+    quantityVectorIndirectDrawData.scheduleCopyToGPU(*buf);
+
     // Zero out other buffers
     buf->fillBuffer(*particlesToEmit, 0, VK_WHOLE_SIZE, 0);
     buf->fillBuffer(*particleDataArray, 0, VK_WHOLE_SIZE, 0);
     buf->fillBuffer(*particleIndexSimulateList, 0, VK_WHOLE_SIZE, 0);
     buf->fillBuffer(*particleIndexDrawList, 0, VK_WHOLE_SIZE, 0);
     buf->fillBuffer(*particleIndirectCommands, 0, VK_WHOLE_SIZE, 0);
+
+    buf->fillBuffer(*vectorArrowInstanceData, 0, VK_WHOLE_SIZE, 0);
+
 
     buf->end();
 

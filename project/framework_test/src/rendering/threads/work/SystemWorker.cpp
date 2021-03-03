@@ -2,32 +2,64 @@
 // Created by samuel on 13/02/2021.
 //
 
+#include <rendering/vulkan/viz/vertex.h>
 #include "SystemWorker.h"
 
 #include "rendering/shaders/global_structures.h"
-
-std::array<const char*, 5> SystemWorker::scalarQuantity = {
-        "None",
-        "Velocity X [TODO]",
-        "Velocity Y [TODO]",
-        "Pressure [TODO]",
-        "Vorticity [TODO]",
-};
-std::array<const char*, 2> SystemWorker::vectorQuantity = {
-        "None",
-        "Velocity [TODO]",
-};
-std::array<const char*, 4> SystemWorker::particleTrailType = {
-        "None",
-        "Streakline [TODO]",
-        "Pathline [TODO]",
-        "Ribbon [TODO]",
-};
 
 SystemWorker::SystemWorker(VulkanSimAppData &data)
         : data(data),
           global(data.globalData)
 {
+    setDefaultColors();
+    setDefaultEmitters();
+    for(auto emitter : emitters){
+        fprintf(stdout, "Emitter at %g,%g w/ color %g %g %g %g\n", emitter.position.x, emitter.position.y, emitter.color.r, emitter.color.g, emitter.color.b, emitter.color.a);
+    }
+}
+
+void SystemWorker::setDefaultColors() {
+    colorScale = std::array<glm::vec4, 8>{{
+        {0, 0, 1, 1}, // Blue TODO this is only here cuz idk what else could go here
+        {0, 0.5, 1, 1}, // Blue
+        {0, 1, 1, 1}, // Turquoise
+        {0, 1, 0, 1}, // Green
+        {1, 1, 0, 1}, // Yellow
+        {1, 0.5, 0, 1}, // Orange
+        {0.75, 0.25, 0, 1}, // Orange
+        {1, 0, 0, 1}, // Red
+    }};
+    fluidBaseColor = {0.5, 0.5, 0.5, 1.0};
+    obstacleColor = {0, 0, 0, 1};
+    vectorArrowColor = {0.167, 0.014, 0.014, 1};
+}
+
+void SystemWorker::setDefaultEmitters() {
+    emitters.clear();
+    resizeEmitterCount(6);
+}
+void SystemWorker::resizeEmitterCount(size_t newEmitterCount) {
+    if (newEmitterCount > global.props.maxParticleEmitters)
+        newEmitterCount = global.props.maxParticleEmitters;
+
+    size_t oldCount = emitters.size();
+    emitters.resize(newEmitterCount);
+
+    // Only change the colors of the initial
+    for (auto i = oldCount; i < newEmitterCount; i++) {
+        float emitterHue = (int)(i * (1000.0f / 16.0f)) % 360;
+        glm::vec3 emitterHSV = {emitterHue, 1.0, 1.0};
+        glm::vec3 emitterRGB_255 = glm::rgbColor(emitterHSV);
+        emitters[i].color = glm::vec4(emitterRGB_255, 1);
+    }
+
+    recalculateEmitterPositions();
+}
+void SystemWorker::recalculateEmitterPositions() {
+    for (size_t i = 0; i < emitters.size(); i++) {
+        float y = ((float)i + 1.0f) / (float)(emitters.size() + 1);
+        emitters[i].position = glm::vec4(particleEmitterX, y, 0, 0);
+    }
 }
 
 
@@ -93,10 +125,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     {
         ImGui::Text("Scalar Quantity");
         // From https://github.com/ocornut/imgui/issues/1658
-        if (ImGui::BeginCombo("##Scalar Quantity", scalarQuantity[(int)vizScalar])) {
-            for (size_t i = 0; i < scalarQuantity.size(); i++) {
+        if (ImGui::BeginCombo("##Scalar Quantity", scalarQuantityStrs[(int)vizScalar])) {
+            for (size_t i = 0; i < scalarQuantityStrs.size(); i++) {
                 bool is_selected = (i == (size_t)vizScalar);
-                if (ImGui::Selectable(scalarQuantity[i], is_selected)) {
+                if (ImGui::Selectable(scalarQuantityStrs[i], is_selected)) {
                     vizScalar = (ScalarQuantity)i;
                 }
                 if (is_selected) {
@@ -110,10 +142,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
         ImGui::NewLine();
         ImGui::Text("Vector Quantity");
-        if (ImGui::BeginCombo("##Vector Quantity", vectorQuantity[(int)vizVector])) {
-            for (size_t i = 0; i < vectorQuantity.size(); i++) {
+        if (ImGui::BeginCombo("##Vector Quantity", vectorQuantityStrs[(int)vizVector])) {
+            for (size_t i = 0; i < vectorQuantityStrs.size(); i++) {
                 bool is_selected = (i == (size_t)vizVector);
-                if (ImGui::Selectable(vectorQuantity[i], is_selected)) {
+                if (ImGui::Selectable(vectorQuantityStrs[i], is_selected)) {
                     vizVector = (VectorQuantity)i;
                 }
                 if (is_selected) {
@@ -124,9 +156,13 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         }
         if (vizVector != VectorQuantity::None)
             showRange(&vizVectorMagnitudeRange);
+        ImGui::InputFloat2("Grid Spacing", vizVectorSpacing);
+        ImGui::SliderFloat("Vector Size", &vizVectorSize, 0.01, 0.1, "%.5f", 2.0f);
+        ImGui::SliderFloat("Base Vector Length", &vizVectorLength, 0.01, 10, "%.5f", 2.0f);
 
-        ImGui::NewLine();
-        ImGui::Checkbox("Streamline Overlay", &overlayStreamlines);
+
+//        ImGui::NewLine();
+//        ImGui::Checkbox("Streamline Overlay", &overlayStreamlines);
 
         ImGui::NewLine();
         if (ImGui::Checkbox("Particles", &simulateParticles)) {
@@ -139,9 +175,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         if (simulateParticles) {
             ImGui::Indent();
 
-            ImGui::Checkbox("Render as Glyphs", &renderParticleGlyphs);
+//            ImGui::Checkbox("Render as Glyphs", &renderParticleGlyphs);
             if (renderParticleGlyphs) {
                 ImGui::SliderFloat("Size", &particleGlyphSize, 0.01, 0.1, "%.5f", 2.0f);
+                ImGui::SliderFloat("Darken Background", &particleBGDarkener, 0, 1);
             }
 
             ImGui::SliderFloat("Spawn Speed", &particleSpawnFreq, 1, 100, "%.1f", 2.0f);
@@ -153,22 +190,63 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 ImGui::Unindent();
             }
 
-            ImGui::NewLine();
-            ImGui::Text("Particle Trail Type");
-            if (ImGui::BeginCombo("##TraceType", particleTrailType[(int)trailType])) {
-                for (size_t i = 0; i < particleTrailType.size(); i++) {
-                    bool is_selected = (i == (size_t)trailType);
-                    if (ImGui::Selectable(particleTrailType[i], is_selected)) {
-                        trailType = (ParticleTrailType)i;
-                    }
-                    if (is_selected) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-                ImGui::EndCombo();
-            }
-
             ImGui::Unindent();
+        }
+    }
+    ImGui::End();
+
+    ImGui::Begin("Colors", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    {
+        if (ImGui::Button("Reset")) {
+            setDefaultColors();
+        }
+
+        ImGui::ColorEdit3("Fluid Color", (float*)&fluidBaseColor, ImGuiColorEditFlags_NoInputs);
+        ImGui::ColorEdit3("Obstacle Color", (float*)&obstacleColor, ImGuiColorEditFlags_NoInputs);
+        ImGui::ColorEdit3("Vector Arrow Color", (float*)&vectorArrowColor, ImGuiColorEditFlags_NoInputs);
+
+        ImGui::NewLine();
+        ImGui::Text("Quantity by Scalar Range");
+        for (int i = colorScale.size() - 1; i >= 0; i--) {
+            ImGui::PushID(i);
+            const char* label = "";
+            if (i == ((int)colorScale.size()) - 1)
+                label = "Max Value";
+            else if (i == 0)
+                label = "Min Value";
+            ImGui::ColorEdit3(label, (float*)&colorScale[i], ImGuiColorEditFlags_NoInputs);
+            ImGui::PopID();
+        }
+    }
+    ImGui::End();
+
+    ImGui::Begin("Particle Emitters", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    {
+        if (ImGui::Button("Reset")) {
+            setDefaultEmitters();
+            shouldResetParticles = true;
+        }
+
+
+        if (ImGui::SliderFloat("Location", &particleEmitterX, 0, 1)) {
+            recalculateEmitterPositions();
+            shouldResetParticles = true;
+        }
+
+        ImGui::NewLine();
+
+        int requestedEmitterCount = emitters.size();
+        if (ImGui::SliderInt("Emitter Count", &requestedEmitterCount, 0, 16)) {
+            resizeEmitterCount(requestedEmitterCount);
+            shouldResetParticles = true;
+        }
+
+        int i = 1;
+        for (auto& emitter : emitters) {
+            ImGui::Text("Emitter #%02d at %.02f, %.02f", i, emitter.position.x, emitter.position.y);
+            ImGui::SameLine();
+            ImGui::ColorEdit3("##Color", (float*)&emitter.color, ImGuiColorEditFlags_NoInputs);
+            ++i;
         }
     }
     ImGui::End();
@@ -177,7 +255,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     ImGui::Begin("Simulation", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Image(
             (ImTextureID)*data.sharedFrameData.vizFramebufferDescriptorSet,
-            ImVec2(global.simSize.padded_pixel_size.x*1.5, global.simSize.padded_pixel_size.y*1.5)
+            ImVec2(global.simSize.padded_pixel_size.x*2, global.simSize.padded_pixel_size.y*2)
     );
     ImGui::End();
     ImGui::Render();
@@ -265,6 +343,198 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             //  otherwise (size + 15)/16 === (size / 16) + 1
             computeCmdBuffer.dispatch((global.simSize.padded_pixel_size.x*2 + 15)/16, (global.simSize.padded_pixel_size.y*2+15)/16, 1);
         }
+        // Beore the image layouer is transferred, use it for min/max
+        if (vizScalar != ScalarQuantity::None) {
+            // Perform scalar extraction
+
+            // Make the quantityScalar image writable
+            transferImageLayout(
+                    computeCmdBuffer,
+                    *data.sharedFrameData.quantityScalar,
+                    vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral,
+                    vk::AccessFlagBits(0), vk::AccessFlagBits::eShaderWrite,
+                    vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eComputeShader
+            );
+
+            auto scalarExtractParams = Shaders::ScalarExtractParams{
+                    .simDataImage_width = data.sharedFrameData.simDataImage.size.x,
+                    .simDataImage_height = data.sharedFrameData.simDataImage.size.y
+            };
+
+            // Run the compute shader
+            computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeScalarExtract[vizScalar]);
+            computeCmdBuffer.pushConstants(
+                    *global.pipelines.computeScalarExtract[vizScalar].layout,
+                    vk::ShaderStageFlagBits::eCompute,
+                    0,
+                    vk::ArrayProxy<const Shaders::ScalarExtractParams>{scalarExtractParams});
+            computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                *global.pipelines.computeScalarExtract[vizScalar].layout,
+                                                0,
+                                                vk::ArrayProxy<const vk::DescriptorSet>{
+                                                        *data.sharedFrameData.simBufferCopyOutput_comp_ds,
+
+                                                        *data.sharedFrameData.quantityScalar_comp_ds,
+                                                        *data.sharedFrameData.quantityScalarReducer.getInputDescriptorSets().buffer_comp_ds
+                                                },
+                                                {});
+            // Group size of 16 -> group count in each direction is size/16
+            // If size isn't a multiple of 16, get extra group to cover the remainder
+            // i.e. (size + 15) / 16
+            //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
+            //  otherwise (size + 15)/16 === (size / 16) + 1
+            computeCmdBuffer.dispatch((data.sharedFrameData.quantityScalar.size.x + 15)/16, (data.sharedFrameData.quantityScalar.size.y+15)/16, 1);
+
+            if (vizScalarRange.autoRange) {
+                // Perform the reduction, copying the data into quantityScalar_range
+                data.sharedFrameData.quantityScalarReducer.enqueueReductionFromInput(computeCmdBuffer, simFrameData.quantityScalar_range.getGpuBuffer());
+            } else {
+                // Copy quantity ranges in from CPU
+                {
+                    {
+                        auto memory = simFrameData.quantityScalar_range.mapCPUMemory(*global.context.device);
+                        auto* quantityScalar_range = (Shaders::FloatRange*)(*memory);
+                        *quantityScalar_range = Shaders::FloatRange{
+                                vizScalarRange.min, vizScalarRange.max
+                        };
+
+                        // Auto unmapped
+                    }
+                    simFrameData.quantityScalar_range.scheduleCopyToGPU(computeCmdBuffer);
+                }
+
+            }
+
+            // Make the quantityScalar image readable
+            transferImageLayout(
+                    computeCmdBuffer,
+                    *data.sharedFrameData.quantityScalar,
+                    vk::ImageLayout::eGeneral,vk::ImageLayout::eShaderReadOnlyOptimal,
+                    vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead,
+                    vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader
+            );
+        }
+        if (vizVector != VectorQuantity::None) {
+            // Perform vector extraction
+
+            // Make the quantityVector image writable
+            transferImageLayout(
+                    computeCmdBuffer,
+                    *data.sharedFrameData.quantityVector,
+                    vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral,
+                    vk::AccessFlagBits(0), vk::AccessFlagBits::eShaderWrite,
+                    vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eComputeShader
+            );
+
+            auto vectorExtractParams = Shaders::VectorExtractParams{
+                    .simDataImage_width = data.sharedFrameData.simDataImage.size.x,
+                    .simDataImage_height = data.sharedFrameData.simDataImage.size.y
+            };
+
+            // Run the compute shader
+            computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeVectorExtract[vizVector]);
+            computeCmdBuffer.pushConstants(
+                    *global.pipelines.computeVectorExtract[vizVector].layout,
+                    vk::ShaderStageFlagBits::eCompute,
+                    0,
+                    vk::ArrayProxy<const Shaders::VectorExtractParams>{vectorExtractParams});
+            computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                *global.pipelines.computeVectorExtract[vizVector].layout,
+                                                0,
+                                                vk::ArrayProxy<const vk::DescriptorSet>{
+                                                        *data.sharedFrameData.simBufferCopyOutput_comp_ds,
+
+                                                        *data.sharedFrameData.quantityVector_comp_ds,
+                                                        *data.sharedFrameData.quantityVectorReducer.getInputDescriptorSets().buffer_comp_ds
+                                                },
+                                                {});
+            // Group size of 16 -> group count in each direction is size/16
+            // If size isn't a multiple of 16, get extra group to cover the remainder
+            // i.e. (size + 15) / 16
+            //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
+            //  otherwise (size + 15)/16 === (size / 16) + 1
+            computeCmdBuffer.dispatch((data.sharedFrameData.quantityVector.size.x + 15)/16, (data.sharedFrameData.quantityVector.size.y+15)/16, 1);
+
+            if (vizVectorMagnitudeRange.autoRange) {
+                // Perform the reduction, copying the data into quantityVector_range
+                data.sharedFrameData.quantityVectorReducer.enqueueReductionFromInput(computeCmdBuffer, simFrameData.quantityVector_range.getGpuBuffer());
+            } else {
+                // Copy quantity ranges in from CPU
+                {
+                    {
+                        auto memory = simFrameData.quantityVector_range.mapCPUMemory(*global.context.device);
+                        auto* quantityVector_range = (Shaders::FloatRange*)(*memory);
+                        *quantityVector_range = Shaders::FloatRange{
+                                vizVectorMagnitudeRange.min, vizVectorMagnitudeRange.max
+                        };
+
+                        // Auto unmapped
+                    }
+                    simFrameData.quantityVector_range.scheduleCopyToGPU(computeCmdBuffer);
+                }
+
+            }
+
+            // Make the quantityVector image readable
+            transferImageLayout(
+                    computeCmdBuffer,
+                    *data.sharedFrameData.quantityVector,
+                    vk::ImageLayout::eGeneral,vk::ImageLayout::eShaderReadOnlyOptimal,
+                    vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead,
+                    vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader
+            );
+
+            // Generate vector arrow instances
+            {
+                // Zero-out the vectorArrowInstanceData,
+                computeCmdBuffer.fillBuffer(*data.sharedFrameData.vectorArrowInstanceData, 0, data.sharedFrameData.vectorArrowInstanceData.size, 0);
+                // reset the quantityVectorIndirectDrawData.
+                // The CPU-side buffer already has the correct data, we just need to transfer it in.
+                data.sharedFrameData.quantityVectorIndirectDrawData.scheduleCopyToGPU(computeCmdBuffer);
+
+                // Wait for transfers to finish before starting the compute shader
+                // (the buffer fill also counts as a transfer)
+                fullMemoryBarrier(
+                    computeCmdBuffer,
+                    vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader,
+                    vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead
+                );
+
+                // Run the compute shader
+                auto vectorGenerateParams = Shaders::VectorArrowGenerateParams{
+                    .gridCount_x = (uint32_t)(global.simSize.physical_size.x / vizVectorSpacing[0]) + 1,
+                    .gridCount_y = (uint32_t)(global.simSize.physical_size.y / vizVectorSpacing[1]) + 1,
+                    .baseScale = vizVectorSize,
+                    .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width,
+                    .baseLength = vizVectorLength
+                };
+                computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, *global.pipelines.computeVectorArrowGenerate);
+                computeCmdBuffer.pushConstants(
+                        *global.pipelines.computeVectorArrowGenerate.layout,
+                        vk::ShaderStageFlagBits::eCompute,
+                        0,
+                        vk::ArrayProxy<const Shaders::VectorArrowGenerateParams>{vectorGenerateParams});
+                computeCmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                                    *global.pipelines.computeVectorArrowGenerate.layout,
+                                                    0,
+                                                    vk::ArrayProxy<const vk::DescriptorSet>{
+                                                            *data.sharedFrameData.quantityVectorSampler_comp_ds,
+                                                            *simFrameData.quantityVector_range_comp_ds,
+
+                                                            *data.sharedFrameData.vectorArrowInstanceData_comp_ds,
+                                                            *data.sharedFrameData.quantityVectorIndirectDrawData_comp_ds
+                                                    },
+                                                    {});
+                // Group size of 16 -> group count in each direction is size/16
+                // If size isn't a multiple of 16, get extra group to cover the remainder
+                // i.e. (size + 15) / 16
+                //  because if size % 16 == 0 then (size / 16) === (size + 15)/16
+                //  otherwise (size + 15)/16 === (size / 16) + 1
+                computeCmdBuffer.dispatch((vectorGenerateParams.gridCount_x + 15)/16, (vectorGenerateParams.gridCount_y+15)/16, 1);
+
+            }
+        }
+
         {
             // Transfer the simBuffersImage layout so that the next shaders can read it
             // Make ShaderWrites to a General-layout image in the ComputeShader
@@ -282,7 +552,21 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         // Particle Update
         // If we're not locking the particle sim to the actual sim, always run the particle sim.
         // If we are locking the sims together, only run the particle sim if the input ran the sim.
-        if (simulateParticles && (!lockParticleToSimulation || input.shouldSimParticles)) {
+        if (shouldResetParticles) {
+            // Reset the particles:
+            // Zero out the "to draw list", which is used as a base for the simulation normally
+            computeCmdBuffer.fillBuffer(*data.sharedFrameData.particleIndexDrawList, 0, data.sharedFrameData.particleIndexDrawList.size, 0);
+            // Copy the reset data into the inactiveParticleIndexList
+            auto copy = vk::BufferCopy{};
+            copy.srcOffset = 0;
+            copy.dstOffset = 0;
+            copy.size = data.sharedFrameData.inactiveParticleIndexList.size;
+            computeCmdBuffer.copyBuffer(
+                    data.sharedFrameData.inactiveParticleIndexList_resetData.getGpuBuffer(),
+                    data.sharedFrameData.inactiveParticleIndexList.getGpuBuffer(),
+                    {copy}
+            );
+        } else if (simulateParticles && (!lockParticleToSimulation || input.shouldSimParticles)) {
             // Copy index draw list -> index simulate list for the emit shader to add to
             {
                 auto copy = vk::BufferCopy{};
@@ -296,34 +580,10 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             // Setup the emitter points
             {
                 {
-                    DASSERT(global.props.maxParicleEmitters >= 6);
+                    FATAL_ERROR_IF(emitters.size() > global.props.maxParticleEmitters, "Too many emitters");
                     auto memory = simFrameData.particleEmitters.mapCPUMemory(*global.context.device);
                     auto* emitterData = (Shaders::ParticleEmitter*)(*memory);
-                    emitterData[0] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0, 0.1, 0, 0),
-                        .color = glm::vec4(1, 0, 0, 1)
-                    };
-                    emitterData[1] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0, 0.4, 0, 0),
-                        .color = glm::vec4(0, 1, 0, 1)
-                    };
-                    emitterData[2] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0, 0.6, 0, 0),
-                        .color = glm::vec4(0, 0, 1, 1)
-                    };
-                    emitterData[3] = Shaders::ParticleEmitter {
-                        .position = glm::vec4(0, 0.9, 0, 0),
-                        .color = glm::vec4(1, 1, 1, 1)
-                    };
-                    emitterData[4] = Shaders::ParticleEmitter {
-                            .position = glm::vec4(0, 0.3, 0, 0),
-                            .color = glm::vec4(0, 0, 1, 1)
-                    };
-                    emitterData[5] = Shaders::ParticleEmitter {
-                            .position = glm::vec4(0, 0.7, 0, 0),
-                            .color = glm::vec4(1, 1, 1, 1)
-                    };
-
+                    memcpy(emitterData, emitters.data(), emitters.size() * sizeof(Shaders::ParticleEmitter));
                     // Auto unmapped
                 }
                 simFrameData.particleEmitters.scheduleCopyToGPU(computeCmdBuffer);
@@ -338,7 +598,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 // particleIndirectCommands is an output, we don't care
 
                 auto particleKickoff = Shaders::ParticleKickoffParams{
-                        .emitterCount = (spawnNewParticleThisTick ? 6u : 0u)
+                        .emitterCount = (spawnNewParticleThisTick ? (uint32_t)emitters.size() : 0u)
                 };
                 computeCmdBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
                                               *global.pipelines.computeParticleKickoff);
@@ -375,9 +635,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 fullMemoryBarrier(computeCmdBuffer,
                                   vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eDrawIndirect,
                                   vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eIndirectCommandRead);
-//                fullMemoryBarrier(computeCmdBuffer,
-//                                  vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader,
-//                                  vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead);
                 // Make TransferWrites from the Transfer stage available + visible to the ShaderReads in the ComputeShader phase.
                 fullMemoryBarrier(computeCmdBuffer,
                                   vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eComputeShader,
@@ -454,20 +711,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                 // Don't need to sync writes to the particleIndirectCommands/particleDataArray
                 // because that's done on the graphics pipeline after a semaphore.
             }
-        } else if (shouldResetParticles) {
-            // Reset the particles:
-            // Zero out the "to draw list", which is used as a base for the simulation normally
-            computeCmdBuffer.fillBuffer(*data.sharedFrameData.particleIndexDrawList, 0, data.sharedFrameData.particleIndexDrawList.size, 0);
-            // Copy the reset data into the inactiveParticleIndexList
-            auto copy = vk::BufferCopy{};
-            copy.srcOffset = 0;
-            copy.dstOffset = 0;
-            copy.size = data.sharedFrameData.inactiveParticleIndexList.size;
-            computeCmdBuffer.copyBuffer(
-                data.sharedFrameData.inactiveParticleIndexList_resetData.getGpuBuffer(),
-                data.sharedFrameData.inactiveParticleIndexList.getGpuBuffer(),
-                {copy}
-            );
         }
 
         computeCmdBuffer.end();
@@ -482,17 +725,6 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
         auto beginInfo = vk::CommandBufferBeginInfo();
         graphicsCmdBuffer.begin(beginInfo);
 
-//        {
-//            // Transfer the simBuffersImage layout so that we can read it
-//            transferImageLayout(
-//                    graphicsCmdBuffer,
-//                    *data.sharedFrameData.simDataImage,
-//                    vk::ImageLayout::eShaderReadOnlyOptimal,vk::ImageLayout::eShaderReadOnlyOptimal,
-//                    vk::AccessFlagBits::eShaderRead, vk::AccessFlagBits::eShaderRead,
-//                    vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eFragmentShader
-//            );
-//        }
-
         {
             auto simRenderPassInfo = vk::RenderPassBeginInfo();
             simRenderPassInfo.renderPass = global.vizRenderPass;
@@ -502,27 +734,86 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
             simRenderPassInfo.pClearValues = &clearColor;
             graphicsCmdBuffer.beginRenderPass(simRenderPassInfo, vk::SubpassContents::eInline);
 
-            graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.quantityScalar);
-            graphicsCmdBuffer.bindDescriptorSets(
-                    vk::PipelineBindPoint::eGraphics,
-                    *global.pipelines.quantityScalar.layout,
-                    0,
-                    {*data.sharedFrameData.simDataSampler_frag_ds},
-                    {});
-            graphicsCmdBuffer.draw(4, 1, 0, 0);
+            // Render background
+            {
+                // Colors are ABGR
+                auto quantityScalar_pushConsts = Shaders::QuantityScalarParams{
+                    .colorRange32Bit = {
+                            glm::packUnorm4x8(colorScale[0]),
+                            glm::packUnorm4x8(colorScale[1]),
+                            glm::packUnorm4x8(colorScale[2]),
+                            glm::packUnorm4x8(colorScale[3]),
+                            glm::packUnorm4x8(colorScale[4]),
+                            glm::packUnorm4x8(colorScale[5]),
+                            glm::packUnorm4x8(colorScale[6]),
+                            glm::packUnorm4x8(colorScale[7]),
+                    },
+                    .fluidColor32Bit = glm::packUnorm4x8(fluidBaseColor),
+                    .obstacleColor32Bit = glm::packUnorm4x8(obstacleColor),
+                    .darkener = ((simulateParticles && renderParticleGlyphs) ? particleBGDarkener : 1.0f)
+                };
+
+                const auto &quantityScalar = global.pipelines.quantityScalar[vizScalar];
+                graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *quantityScalar);
+                graphicsCmdBuffer.pushConstants(
+                        *quantityScalar.layout,
+                        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
+                        0,
+                        vk::ArrayProxy<const Shaders::QuantityScalarParams>{quantityScalar_pushConsts}
+                );
+                graphicsCmdBuffer.bindDescriptorSets(
+                        vk::PipelineBindPoint::eGraphics,
+                        *quantityScalar.layout,
+                        0,
+                        {
+                            *data.sharedFrameData.quantityScalarSampler_frag_ds,
+                            *simFrameData.quantityScalar_range_frag_ds,
+                        },
+                        {});
+                graphicsCmdBuffer.draw(4, 1, 0, 0);
+            }
+
+            if (vizVector != VectorQuantity::None) {
+                auto vectorArrowPushConsts = Shaders::InstancedVectorArrowParams{
+                    .color = vectorArrowColor
+                };
+
+                graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.vectorArrow);
+                graphicsCmdBuffer.pushConstants(
+                        *global.pipelines.vectorArrow.layout,
+                        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
+                        0,
+                        vk::ArrayProxy<const Shaders::InstancedVectorArrowParams>{vectorArrowPushConsts}
+                );
+                graphicsCmdBuffer.bindVertexBuffers(0, {data.sharedFrameData.vectorArrowVertexIndexData.getGpuBuffer()}, {0});
+                graphicsCmdBuffer.bindIndexBuffer(data.sharedFrameData.vectorArrowVertexIndexData.getGpuBuffer(), sizeof(Vertex) * 7, vk::IndexType::eUint16);
+                graphicsCmdBuffer.bindDescriptorSets(
+                        vk::PipelineBindPoint::eGraphics,
+                        *global.pipelines.vectorArrow.layout,
+                        0,
+                        {
+                            *data.sharedFrameData.vectorArrowInstanceData_vert_ds
+                        },
+                        {});
+                graphicsCmdBuffer.drawIndexedIndirect(
+                        data.sharedFrameData.quantityVectorIndirectDrawData.getGpuBuffer(),
+                        offsetof(Shaders::VectorArrowIndirectCommands, vectorArrowDrawCmd),
+                        1, 0
+                );
+            }
 
             if (simulateParticles && renderParticleGlyphs){
                 auto particlePushConsts = Shaders::InstancedParticleParams{
-                    .baseScale = particleGlyphSize,
-                    .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
+                        .baseScale = particleGlyphSize,
+                        .render_heightDivWidth = global.vizRect.extent.height * 1.0f / global.vizRect.extent.width
                 };
 
                 graphicsCmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *global.pipelines.particle);
                 graphicsCmdBuffer.pushConstants(
-                    *global.pipelines.particle.layout,
-                    vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
-                    0,
-                    vk::ArrayProxy<const Shaders::InstancedParticleParams>{particlePushConsts}
+                        *global.pipelines.particle.layout,
+                        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
+                        0,
+                        vk::ArrayProxy<const Shaders::InstancedParticleParams>{particlePushConsts}
                 );
                 graphicsCmdBuffer.bindVertexBuffers(0, {data.sharedFrameData.particleVertexData.getGpuBuffer()}, {0});
                 graphicsCmdBuffer.bindDescriptorSets(
@@ -530,14 +821,14 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
                         *global.pipelines.particle.layout,
                         0,
                         {
-                            *data.sharedFrameData.particleIndexDrawList_vert_ds, // particlesToDrawIndexList
-                            *data.sharedFrameData.particleDataArray_vert_ds // particleDatas
+                                *data.sharedFrameData.particleIndexDrawList_vert_ds, // particlesToDrawIndexList
+                                *data.sharedFrameData.particleDataArray_vert_ds // particleDatas
                         },
-                {});
+                        {});
                 graphicsCmdBuffer.drawIndirect(
-                    *data.sharedFrameData.particleIndirectCommands,
-                    offsetof(Shaders::ParticleIndirectCommands, particleDrawCmd),
-                    1, 0
+                        *data.sharedFrameData.particleIndirectCommands,
+                        offsetof(Shaders::ParticleIndirectCommands, particleDrawCmd),
+                        1, 0
                 );
             }
 

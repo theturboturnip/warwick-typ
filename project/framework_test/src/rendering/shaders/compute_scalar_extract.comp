@@ -1,0 +1,60 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
+#include "global_descriptor_sets.glsl"
+#include "global_structures.glsl"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+SPEC_CONST_SCALAR_QUANTITY()
+
+PUSH_CONSTANTS(ScalarExtractParams)
+
+// Declare the descriptor sets
+DS_IMAGE_INPUT(0, rgba32f, simDataImage)
+DS_IMAGE_OUTPUT(1, rg32f, scalarResult)
+layout(set=2, binding=0, std430) writeonly buffer FloatRangeOutputs {
+    FloatRange outputRanges[];
+};
+
+float getScalarQuantity(vec4 data) {
+    switch(scalarQuantity) {
+        case ScalarQuantity_None:
+            return 0;
+        case ScalarQuantity_VelocityX:
+            return data.x;
+        case ScalarQuantity_VelocityY:
+            return data.y;
+        case ScalarQuantity_VelocityMagnitude:
+            return length(data.xy);
+        case ScalarQuantity_Pressure:
+            return data.z;
+        case ScalarQuantity_Vorticity:
+        // TODO Store Vorticity in data.w in compute_sim_data_image?
+        // return data.w;
+        default:
+            return -1;
+    }
+}
+
+void main() {
+    ivec2 pxIdx = ivec2(gl_GlobalInvocationID.xy);
+
+    // Make sure we don't read out of bounds.
+    if (pxIdx.x > pConsts.simDataImage_width || pxIdx.y > pConsts.simDataImage_height)
+        return;
+
+    vec4 data = imageLoad(simDataImage, pxIdx);
+    float quantity = getScalarQuantity(data);
+
+    imageStore(scalarResult, pxIdx, vec4(quantity, data.w, 0, 0));
+
+    // If this is a fluid square...
+    if (data.w >= 1.0) {
+        // Put the quantity in as both min and max
+        outputRanges[pxIdx.x * pConsts.simDataImage_height + pxIdx.y] = FloatRange(quantity, quantity);
+    } else {
+        // Put min=FLT_MAX and max=FLT_MIN so the obstacle-square data doesn't influence results.
+        outputRanges[pxIdx.x * pConsts.simDataImage_height + pxIdx.y] = FloatRange(FLT_MAX, FLT_MIN);
+    }
+}

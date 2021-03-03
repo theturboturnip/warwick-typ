@@ -25,5 +25,6 @@ struct SimAppProperties {
     // Maximum amount of particles that could be rendered
     uint32_t maxParticles = 100000;
     uint32_t maxParticlesEmittedPerFrame = 16;
-    uint32_t maxParicleEmitters = 16;
+    uint32_t maxParticleEmitters = 16;
+    uint32_t maxVectorArrows = 10000;
 };

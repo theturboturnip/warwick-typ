@@ -11,6 +11,7 @@
 #include <rendering/vulkan/helpers/VulkanDeviceMemory.h>
 #include <rendering/vulkan/helpers/VulkanBackedFramebuffer.h>
 #include <rendering/vulkan/VulkanSimAppData.h>
+#include <rendering/vulkan/viz/enums.h>
 
 
 struct SystemWorkerIn {
@@ -58,25 +59,15 @@ class SystemWorker {
     bool showDemoWindow = true;
     bool wantsRunSim = false;
 
-    enum class ScalarQuantity : size_t {
-        None=0,
-        VelocityX=1,
-        VelocityY=2,
-        Pressure=3,
-        Vorticity=4
-    };
-    static std::array<const char*, 5> scalarQuantity;
-    enum class VectorQuantity : size_t {
-        None=0,
-        Velocity=1
-    };
-    static std::array<const char*, 2> vectorQuantity;
     // Stream contour lines with Zeta
     bool overlayStreamlines = false;
-    ScalarQuantity vizScalar = ScalarQuantity::Vorticity;
+    ScalarQuantity vizScalar = ScalarQuantity::Pressure;
     VizValueRange vizScalarRange;
-    VectorQuantity vizVector = VectorQuantity::None;
+    VectorQuantity vizVector = VectorQuantity::Velocity;
     VizValueRange vizVectorMagnitudeRange;
+    float vizVectorSpacing[2] = {0.5, 0.5};
+    float vizVectorSize = 0.04;
+    float vizVectorLength = 0.65;
     // Particle Options
     bool simulateParticles = true;
     bool renderParticleGlyphs = true;
@@ -85,15 +76,22 @@ class SystemWorker {
     float particleUnlockedSimFreq = 120;
     float particleSpawnFreq = 10;
     float particleSpawnTimer = 0;
-    enum class ParticleTrailType : size_t {
-        None=0,
-        Streakline=1,
-        Pathline=2, // < are these different?
-        Ribbon=3    // <
-    };
-    static std::array<const char*, 4> particleTrailType;
+    float particleBGDarkener = 0.6;
+    float particleEmitterX = 0;
     ParticleTrailType trailType = ParticleTrailType::None;
     float trailLength = 0;
+
+    glm::vec4 fluidBaseColor;
+    glm::vec4 obstacleColor;
+    std::array<glm::vec4, 8> colorScale;
+    glm::vec4 vectorArrowColor;
+
+    std::vector<Shaders::ParticleEmitter> emitters;
+
+    void recalculateEmitterPositions();
+    void resizeEmitterCount(size_t newEmitterCount);
+    void setDefaultEmitters();
+    void setDefaultColors();
 
     void transferImageLayout(vk::CommandBuffer cmdBuffer,
                              vk::Image image,
