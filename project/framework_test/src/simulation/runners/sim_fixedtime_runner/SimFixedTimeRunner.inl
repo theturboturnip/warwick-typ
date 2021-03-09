@@ -22,11 +22,11 @@ public:
             float maxTimestep = sim.findMaxTimestep();
             if (currentTime + maxTimestep > timeToRun)
                 maxTimestep = timeToRun - currentTime;
-            fprintf(stdout, "t: %f\tts: %f\r", currentTime, maxTimestep);
+//            fprintf(stdout, "t: %f\tts: %f\r", currentTime, maxTimestep);
             sim.tick(maxTimestep, 0);
             currentTime += maxTimestep;
         }
-        fprintf(stdout, "\n");
+//        fprintf(stdout, "\n");
         return sim.get_snapshot();
     }
 };

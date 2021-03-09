@@ -41,7 +41,9 @@ float CudaReducer<BlockSize>::map_reduce(Sim2DArray<float, MemType>& input, Prep
         curr_input_size = next_output_size;
     }
 
-    CHECKED_CUDA(cudaStreamSynchronize(stream));
+    // Do eventRecord, eventSynchronize instead of streamSynchronize for a better profiler view?
+    CHECKED_CUDA(cudaEventRecord(event,stream));
+    CHECKED_CUDA(cudaEventSynchronize(event));
     // TODO - reduction_out won't have the max value, reduction_in will? have they swapped around at this point?
     // curr_input_size = 1 - we're finished! reduction_out has a single float with the result of the reduction
     float result = -1;

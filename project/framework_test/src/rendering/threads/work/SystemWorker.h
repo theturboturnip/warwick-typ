@@ -81,6 +81,8 @@ class SystemWorker {
     ParticleTrailType trailType = ParticleTrailType::None;
     float trailLength = 0;
 
+    float vizWindowScale = 1.5f;
+
     glm::vec4 fluidBaseColor;
     glm::vec4 obstacleColor;
     std::array<glm::vec4, 8> colorScale;

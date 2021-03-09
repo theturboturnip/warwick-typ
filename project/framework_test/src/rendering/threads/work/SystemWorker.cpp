@@ -123,6 +123,8 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
 
     ImGui::Begin("Visualization", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     {
+        ImGui::SliderFloat("Window Scale", &vizWindowScale, 0.1, 10, "%.3f", 2);
+
         ImGui::Text("Scalar Quantity");
         // From https://github.com/ocornut/imgui/issues/1658
         if (ImGui::BeginCombo("##Scalar Quantity", scalarQuantityStrs[(int)vizScalar])) {
@@ -255,7 +257,7 @@ SystemWorkerOut SystemWorker::work(SystemWorkerIn input) {
     ImGui::Begin("Simulation", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Image(
             (ImTextureID)*data.sharedFrameData.vizFramebufferDescriptorSet,
-            ImVec2(global.simSize.padded_pixel_size.x*2, global.simSize.padded_pixel_size.y*2)
+            ImVec2(global.simSize.padded_pixel_size.x*vizWindowScale, global.simSize.padded_pixel_size.y*vizWindowScale)
     );
     ImGui::End();
     ImGui::Render();

@@ -24,7 +24,7 @@ void FixedTimeSimSubApp::run() {
     std::chrono::duration<double> diff = end - start;
     double timeTaken = diff.count();
 
-
+    fprintf(stdout, "%f\n", timeTaken);
     fprintf(stderr, "performed calc in %f seconds\n", timeTaken);
     //fprintf(stderr, "enddump: %s", pretty_output_json.c_str());
     if (outputFile.has_value()){

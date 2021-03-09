@@ -21,5 +21,7 @@ public:
     std::pair<float, float> physicalSize;
     std::string inputPath;
     std::string outputPath;
+    bool constantVelocity;
+    bool interpolatePressure;
 };
 
