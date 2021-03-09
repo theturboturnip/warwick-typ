@@ -18,7 +18,7 @@ void FixedTimeSimSubApp::run() {
 
     auto start = std::chrono::steady_clock::now();
 
-    auto output = sim->runForTime(fluid_props, initial, timeToRun);
+    auto output = sim->runForTime(fluid_props, initial, timeToRun, 1.0f / maxFrequency);
 
     auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff = end - start;
@@ -42,6 +42,9 @@ void FixedTimeSimSubApp::setupArgumentsForSubcommand(CLI::App *subcommand, const
     subcommand->add_option("time", timeToRun, "Time to run the simulation for")
         ->check(CLI::PositiveNumber)
         ->required(true);
+
+    subcommand->add_option("--max-freq", maxFrequency, "Maximum sim frequency in Hz")
+            ->default_val(-1);
 
     converters.addBackendArgument(subcommand, backend);
 

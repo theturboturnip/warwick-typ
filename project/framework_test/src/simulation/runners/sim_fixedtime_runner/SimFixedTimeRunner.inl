@@ -13,13 +13,15 @@ class SimFixedTimeRunner : public ISimFixedTimeRunner {
 public:
     ~SimFixedTimeRunner() override = default;
 
-    SimSnapshot runForTime(const FluidParams& simParams, const SimSnapshot& start, float timeToRun) override {
+    SimSnapshot runForTime(const FluidParams& simParams, const SimSnapshot& start, float timeToRun, float forcedMaxTimestep) override {
         const size_t frameCount = 1;
         FrameSetAllocator<MemType, typename T::Frame> allocator(start, frameCount);
         auto sim = T(allocator.frames, simParams, start);
         float currentTime = 0;
         while(currentTime < timeToRun) {
             float maxTimestep = sim.findMaxTimestep();
+            if (forcedMaxTimestep > 0 && maxTimestep > forcedMaxTimestep)
+                maxTimestep = forcedMaxTimestep;
             if (currentTime + maxTimestep > timeToRun)
                 maxTimestep = timeToRun - currentTime;
 //            fprintf(stdout, "t: %f\tts: %f\r", currentTime, maxTimestep);

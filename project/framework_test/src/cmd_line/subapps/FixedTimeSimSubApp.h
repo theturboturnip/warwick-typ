@@ -24,6 +24,7 @@ public:
     std::string fluid_properties_file;
     std::string inputFile;
     float timeToRun;
+    float maxFrequency;
     std::optional<std::string> outputFile;
     SimulationBackendEnum backend;
 };
