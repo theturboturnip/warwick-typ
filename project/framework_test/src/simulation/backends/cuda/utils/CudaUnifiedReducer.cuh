@@ -16,26 +16,17 @@ class CudaReducer {
     const uint32_t input_size;
     Sim2DArray<float, MType::Cuda> first;
     Sim2DArray<float, MType::Cuda> second;
-    cudaEvent_t event = nullptr;
 public:
     explicit CudaReducer(FrameAllocator<MType::Cuda>& alloc, uint32_t input_size)
         : input_size(input_size),
           first(alloc, {next_reduction_size(input_size), 1}),
-          second(alloc, {next_reduction_size(first.stats.raw_length), 1}){
+          second(alloc, {next_reduction_size(first.stats.raw_length), 1}){}
 
-        CHECKED_CUDA(cudaEventCreate(&event));
-    }
-    // TODO - we don't destroy the event for convenience, as it requires us to delete the copy-ctor.
-//    ~CudaReducer() {
-//        if (event.has_value()) {
-//            cudaEventDestroy(event.release());
-//        }
-//    }
 
     template<MType MemType, typename Preproc, typename Func>
-    float map_reduce(Sim2DArray<float, MemType>& input, Preproc pre, Func func, cudaStream_t stream);
+    void map_reduce(Sim2DArray<float, MemType>& input, Preproc pre, Func func, cudaStream_t stream, float* output);
     template<MType MemType, typename Func>
-    float reduce(Sim2DArray<float, MemType>& input, Func func, cudaStream_t stream);
+    void reduce(Sim2DArray<float, MemType>& input, Func func, cudaStream_t stream, float* output);
 
     static uint32_t next_reduction_size(uint32_t input_size) {
         return (input_size + BlockSize - 1) / BlockSize;

@@ -36,6 +36,7 @@ public:
         explicit Frame(FrameAllocator<ExportMemType>& exportAlloc,
                        FrameAllocator<MType::Cuda>& cudaAlloc,
                        Size<uint32_t> paddedSize);
+        ~Frame();
 
         // TODO - would really prefer we didn't hold a reference to this after the fact.
         // The FrameAllocator isn't guaranteed to exist in the same place after this.
@@ -55,11 +56,27 @@ public:
         CudaUnifiedRedBlackArray<float, UnifiedMemoryForExport, RedBlackStorage::WithJoined> p;
 
         CudaReducer<128> reducer_fullsize;
+
+//        struct DeltaTReduceData {
+//            float u_max, v_max;
+//        };
+//        DeltaTReduceData* deltaTReducePtr = nullptr;
+
+        float* pinned_u_max;
+        float* pinned_v_max;
     };
 
     explicit CudaBackendV1(std::vector<Frame> frames, const FluidParams& params, const SimSnapshot& s);
-
+    // TODO - we don't destroy the event for convenience, as it requires us to delete the copy-ctor.
+//    ~CudaReducer() {
+//        if (event.has_value()) {
+//            cudaEventDestroy(event.release());
+//        }
+//    }
 private:
+    cudaEvent_t event = nullptr;
+
+
     std::vector<Frame> frames;
     int lastWrittenFrame;
 

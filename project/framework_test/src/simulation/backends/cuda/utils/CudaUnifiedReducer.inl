@@ -6,7 +6,7 @@
 
 template<size_t BlockSize>
 template<MType MemType, typename Preproc, typename Func>
-float CudaReducer<BlockSize>::map_reduce(Sim2DArray<float, MemType>& input, Preproc pre, Func func, cudaStream_t stream) {
+void CudaReducer<BlockSize>::map_reduce(Sim2DArray<float, MemType>& input, Preproc pre, Func func, cudaStream_t stream, float* output) {
     FATAL_ERROR_UNLESS(input.stats.raw_length == input_size, "Got input of length %zu, expected %u", input.stats.raw_length, input_size);
 
     dim3 blocksize(BlockSize);
@@ -41,18 +41,15 @@ float CudaReducer<BlockSize>::map_reduce(Sim2DArray<float, MemType>& input, Prep
         curr_input_size = next_output_size;
     }
 
-    // Do eventRecord, eventSynchronize instead of streamSynchronize for a better profiler view?
-    CHECKED_CUDA(cudaEventRecord(event,stream));
-    CHECKED_CUDA(cudaEventSynchronize(event));
     // TODO - reduction_out won't have the max value, reduction_in will? have they swapped around at this point?
     // curr_input_size = 1 - we're finished! reduction_out has a single float with the result of the reduction
-    float result = -1;
-    CHECKED_CUDA(cudaMemcpy(&result, reduction_out, sizeof(float), cudaMemcpyDefault));
-    return result;
+    CHECKED_CUDA(cudaMemcpyAsync(output, reduction_out, sizeof(float), cudaMemcpyDefault, stream));
+
+//    return result;
 }
 template<size_t BlockSize>
 template<MType MemType, typename Func>
-float CudaReducer<BlockSize>::reduce(Sim2DArray<float, MemType>& input, Func func, cudaStream_t stream) {
+void CudaReducer<BlockSize>::reduce(Sim2DArray<float, MemType>& input, Func func, cudaStream_t stream, float* output) {
     // Run a reduction with an identity preprocess
-    return get_reduction(input, [](float x) { return x; }, func, stream);
+    get_reduction(input, [](float x) { return x; }, func, stream, output);
 }

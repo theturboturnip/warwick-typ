@@ -57,6 +57,8 @@ CudaBackendV1<UnifiedMemoryForExport>::CudaBackendV1(std::vector<Frame> frames, 
 {
     DASSERT(!this->frames.empty());
 
+    CHECKED_CUDA(cudaEventCreate(&event));
+
     // Use this->frames because `frames` on it's own is the newly-removed argument
     for (auto& frame : this->frames) {
         resetFrame(frame, s);
@@ -72,10 +74,16 @@ float CudaBackendV1<UnifiedMemoryForExport>::findMaxTimestep() {
     auto fabsf_lambda = [] __device__ (float x) { return fabsf(x); };
     auto max_lambda = [] __device__ (float x, float y) { return max(x, y); };
     // TODO - having multiple reducers here would be more efficient - could dispatch both, and then wait for one then the other?
-    float u_max = frameWithVelocity.reducer_fullsize.map_reduce(frameWithVelocity.u, fabsf_lambda, max_lambda, stream);
-    u_max = host_max(u_max, 1.0e-10);
-    float v_max = frameWithVelocity.reducer_fullsize.map_reduce(frameWithVelocity.v, fabsf_lambda, max_lambda, stream);
-    v_max = host_max(v_max, 1.0e-10);
+    // Enqueue a copy to host-pinned memory
+    frameWithVelocity.reducer_fullsize.map_reduce(frameWithVelocity.u, fabsf_lambda, max_lambda, stream, frameWithVelocity.pinned_u_max);
+    frameWithVelocity.reducer_fullsize.map_reduce(frameWithVelocity.v, fabsf_lambda, max_lambda, stream, frameWithVelocity.pinned_v_max);
+
+    // Do eventRecord, eventSynchronize instead of streamSynchronize for a better profiler view?
+    CHECKED_CUDA(cudaEventRecord(event,stream));
+    CHECKED_CUDA(cudaEventSynchronize(event));
+
+    float u_max = host_max(*frameWithVelocity.pinned_u_max, 1.0e-10);
+    float v_max = host_max(*frameWithVelocity.pinned_v_max, 1.0e-10);
 
     float delt_u = del_x/u_max;
     float delt_v = del_y/v_max;
@@ -451,7 +459,15 @@ CudaBackendV1<UnifiedMemoryForExport>::Frame::Frame(FrameAllocator<ExportMemType
       surroundmask(cudaAlloc, paddedSize),
 
       reducer_fullsize(cudaAlloc, paddedSize.area())
-{}
+{
+    CHECKED_CUDA(cudaMallocHost(&pinned_u_max, sizeof(float)));
+    CHECKED_CUDA(cudaMallocHost(&pinned_v_max, sizeof(float)));
+}
+
+template<bool UnifiedMemoryForExport>
+CudaBackendV1<UnifiedMemoryForExport>::Frame::~Frame() {
+//    cudaFreeHost(deltaTReducePtr);
+}
 
 template class CudaBackendV1<true>;
 template class CudaBackendV1<false>;
