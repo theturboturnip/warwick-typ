@@ -42,25 +42,19 @@ public:
         // The FrameAllocator isn't guaranteed to exist in the same place after this.
         FrameAllocator<MType::Cuda>& cudaAllocator;
 
-        CudaUnified2DArray<uint, UnifiedMemoryForExport> fluidmask;
+        CudaUnified2DArray<float> f, g;
+        CudaUnifiedRedBlackArray<float, RedBlackStorage::RedBlackOnly> p_redblack_buffered;
+        CudaUnified2DArray<float> p_sum_squares;
+        CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined> p_beta;
+        CudaUnifiedRedBlackArray<float, RedBlackStorage::WithJoined> rhs;
+        CudaUnified2DArray<char> flag;
+        CudaUnifiedRedBlackArray<uint, RedBlackStorage::RedBlackOnly> surroundmask;
 
-        CudaUnified2DArray<float, true> f, g;
-        CudaUnifiedRedBlackArray<float, true, RedBlackStorage::RedBlackOnly> p_redblack_buffered;
-        CudaUnified2DArray<float, true> p_sum_squares;
-        CudaUnifiedRedBlackArray<float, true, RedBlackStorage::WithJoined> p_beta;
-        CudaUnifiedRedBlackArray<float, true, RedBlackStorage::WithJoined> rhs;
-        CudaUnified2DArray<char, true> flag;
-        CudaUnifiedRedBlackArray<uint, true, RedBlackStorage::RedBlackOnly> surroundmask;
-
-        CudaUnified2DArray<float, UnifiedMemoryForExport> u, v;
-        CudaUnifiedRedBlackArray<float, UnifiedMemoryForExport, RedBlackStorage::WithJoined> p;
+        Sim2DArray<float, ExportMemType> u, v;
+        SimRedBlackArray<float, ExportMemType, RedBlackStorage::WithJoined> p;
+        Sim2DArray<uint, ExportMemType> fluidmask;
 
         CudaReducer<128> reducer_fullsize;
-
-//        struct DeltaTReduceData {
-//            float u_max, v_max;
-//        };
-//        DeltaTReduceData* deltaTReducePtr = nullptr;
 
         float* pinned_u_max;
         float* pinned_v_max;

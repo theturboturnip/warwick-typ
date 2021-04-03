@@ -75,10 +75,10 @@ protected:
 template<class TFrame>
 class FrameSetAllocator<MType::VulkanCuda, TFrame> : public VulkanFrameSetAllocator {
     // Check TFrame is a correct Vulkan-enabled Frame
-    static_assert(decltype(TFrame::u)::MemType == MType::VulkanCuda);
-    static_assert(decltype(TFrame::v)::MemType == MType::VulkanCuda);
-    static_assert(decltype(TFrame::p)::MemType == MType::VulkanCuda);
-    static_assert(decltype(TFrame::fluidmask)::MemType == MType::VulkanCuda);
+    static_assert(decltype(TFrame::u)::MemType == MType::VulkanCuda, "TFrame should implement u in Vulkan memory");
+    static_assert(decltype(TFrame::v)::MemType == MType::VulkanCuda, "TFrame should implement v in Vulkan memory");
+    static_assert(decltype(TFrame::p)::MemType == MType::VulkanCuda, "TFrame should implement p in Vulkan memory");
+    static_assert(decltype(TFrame::fluidmask)::MemType == MType::VulkanCuda, "TFrame should implement fluidmask in Vulkan memory");
 
 public:
 

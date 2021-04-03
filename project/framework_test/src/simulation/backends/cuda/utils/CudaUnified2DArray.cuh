@@ -13,5 +13,5 @@
 #include "util/fatal_error.h"
 #include "util/check_cuda_error.cuh"
 
-template<typename T, bool UnifiedMemory>
-using CudaUnified2DArray = Sim2DArray<T, (UnifiedMemory ? MType::Cuda : MType::VulkanCuda)>;
+template<typename T>
+using CudaUnified2DArray = Sim2DArray<T, MType::Cuda>;

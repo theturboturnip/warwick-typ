@@ -6,6 +6,6 @@
 
 #include "memory/FrameAllocator.h"
 
-template<typename T, bool UnifiedMemory, RedBlackStorage Storage=RedBlackStorage::WithJoined>
-using CudaUnifiedRedBlackArray = SimRedBlackArray<T, (UnifiedMemory ? MType::Cuda : MType::VulkanCuda), Storage>;
+template<typename T, RedBlackStorage Storage=RedBlackStorage::WithJoined>
+using CudaUnifiedRedBlackArray = SimRedBlackArray<T, MType::Cuda, Storage>;
 

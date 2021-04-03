@@ -277,7 +277,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::resetFrame(CudaBackendV1::Frame &fra
                                                           (int **) frame.surroundmask.red.as_cpu(), (int **) frame.surroundmask.black.as_cpu(),
                                                           imax, jmax);
     } else {
-        CudaUnified2DArray<uint32_t, true> fluidmask_unified(frame.cudaAllocator, matrix_size);
+        CudaUnified2DArray<uint32_t> fluidmask_unified(frame.cudaAllocator, matrix_size);
         fluidmask_unified.memcpy_in(frame.fluidmask);
         OriginalOptimized::splitFluidmaskToSurroundedMask((const int **) (fluidmask_unified.as_cpu()),
                                                           (int **) frame.surroundmask.red.as_cpu(), (int **) frame.surroundmask.black.as_cpu(),
