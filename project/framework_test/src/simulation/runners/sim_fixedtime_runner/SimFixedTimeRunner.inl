@@ -10,6 +10,7 @@
 
 template<typename T, MType MemType>
 class SimFixedTimeRunner : public ISimFixedTimeRunner {
+    int ticks = 0;
 public:
     ~SimFixedTimeRunner() override = default;
 
@@ -18,6 +19,7 @@ public:
         FrameSetAllocator<MemType, typename T::Frame> allocator(start, frameCount);
         auto sim = T(allocator.frames, simParams, start);
         float currentTime = 0;
+        ticks = 0;
         while(currentTime < timeToRun) {
             float maxTimestep = sim.findMaxTimestep();
             if (forcedMaxTimestep > 0 && maxTimestep > forcedMaxTimestep)
@@ -27,8 +29,13 @@ public:
 //            fprintf(stdout, "t: %f\tts: %f\r", currentTime, maxTimestep);
             sim.tick(maxTimestep, 0);
             currentTime += maxTimestep;
+            ticks++;
         }
 //        fprintf(stdout, "\n");
         return sim.get_snapshot();
+    }
+
+    int requiredTicks() override {
+        return ticks;
     }
 };

@@ -23,7 +23,7 @@ function(compile_glsl out_var)
         set(out_f "${PROJECT_SHADER_DIR}/${out_f}.spv")
         add_custom_command(OUTPUT ${out_f}
                 COMMAND ${GLSLC} -o ${out_f} ${in_f_abs}
-                DEPENDS ${in_f_abs} ${CMAKE_CURRENT_SOURCE_DIR}/global_structures.glsl ${CMAKE_CURRENT_SOURCE_DIR}/global_descriptor_sets.glsl
+                DEPENDS ${in_f_abs} ${CMAKE_CURRENT_SOURCE_DIR}/global_structures.glsl ${CMAKE_CURRENT_SOURCE_DIR}/global_descriptor_sets.glsl ${PROJECT_SHADER_DIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                 COMMENT "Creating SPIR-V file ${out_f} from ${in_f}"
                 VERBATIM

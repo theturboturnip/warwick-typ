@@ -8,7 +8,7 @@
 
 #include "cmd_line/subapps/InteractiveSubApp.h"
 #include "cmd_line/subapps/CompareSubApp.h"
-#include "cmd_line/subapps/ConvertOldBinaryToNewBinarySubApp.h"
+#include "cmd_line/subapps/ResidualSubApp.h"
 #include "cmd_line/subapps/FixedTimeSimSubApp.h"
 #include "cmd_line/subapps/LegacyRenderPPMSubApp.h"
 #include "cmd_line/subapps/MakeInputSubApp.h"
@@ -28,7 +28,7 @@ int CommandLineParser::parseArguments(int argc, const char *argv[]) {
                      std::make_shared<FixedTimeSimSubApp>(),
                      std::make_shared<CompareSubApp>(),
                      std::make_shared<LegacyRenderPPMSubApp>(),
-                     std::make_shared<ConvertOldBinaryToNewBinarySubApp>(),
+                     std::make_shared<ResidualSubApp>(),
 #if CUDA_ENABLED
                      std::make_shared<InteractiveSubApp>(),
 #endif

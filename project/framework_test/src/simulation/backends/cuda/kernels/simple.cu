@@ -64,7 +64,6 @@ __global__ void computeTentativeVelocity_apply(
 //    for (i=1; i<=imax-1; i++) { <- we should reject i >= imax == params.size.x - 2
 //        for (j=1; j<=jmax; j++) {
     if ((i < params.size.x - 2) && is_fluid[idx_east]) {
-        // TODO Fix floating point issues - use single only?
         float du2dx = ((u[idx]+u[idx_east])*(u[idx]+u[idx_east])+
                        gamma*fabsf(u[idx]+u[idx_east])*(u[idx]-u[idx_east])-
                        (u[idx_west]+u[idx])*(u[idx_west]+u[idx])-
@@ -102,7 +101,6 @@ __global__ void computeTentativeVelocity_apply(
 //    for (i=1; i<=imax; i++) {
 //        for (j=1; j<=jmax-1; j++) { <- we should reject j >= jmax == params.size.y - 2
     if ((j < params.size.y - 2) && is_fluid[idx_north]) {
-        // TODO Fix floating point issues as above
         float duvdx = ((u[idx]+u[idx_north])*(v[idx]+v[idx_east])+
                        gamma*fabsf(u[idx]+u[idx_north])*(v[idx]-v[idx_east])-
                        (u[idx_west]+u[idx_north_west])*(v[idx_west]+v[idx])-
@@ -362,21 +360,21 @@ __global__ void boundaryConditions_preproc_vertical(out_matrix<float> u, out_mat
     if (j >= params.size.y) return;
 
     const uint idx = params.flatten_4byte(0, j);
-    const uint idx_west = params.flatten_4byte(1, j);
+    const uint idx_east = params.flatten_4byte(1, j);
 
     // Fluid freely flows in from the west
-    u[idx] = u[idx_west];
-    v[idx] = v[idx_west];
+    u[idx] = u[idx_east];
+    v[idx] = v[idx_east];
 
     // Fluid freely flows out to the east
     // TODO - this is weird - why not use imax+1, imax for u?
 //    u[imax][j] = u[imax-1][j];
 //    v[imax+1][j] = v[imax][j];
-    const uint idx_imax_west = params.flatten_4byte(params.size.x-1, j);
+    const uint idx_imax_west = params.flatten_4byte(params.size.x-3, j);
     const uint idx_imax = params.flatten_4byte(params.size.x-2, j);
-    const uint idx_imax_east = params.flatten_4byte(params.size.x-3, j);
-    u[idx_imax] = u[idx_imax_east];
-    v[idx_imax_west] = v[idx_imax];
+    const uint idx_imax_east = params.flatten_4byte(params.size.x-1, j);
+    u[idx_imax] = u[idx_imax_west];
+    v[idx_imax_east] = v[idx_imax];
 }
 __global__ void boundaryConditions_preproc_horizontal(out_matrix<float> u, out_matrix<float> v, const CommonParams params){
     const uint i = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -495,7 +493,7 @@ __global__ void boundaryConditions_inputflow_west_vertical(out_matrix<float> u, 
 
     const uint j = (blockIdx.x * blockDim.x) + threadIdx.x;
 
-    if (j >= params.size.y) return;
+    if (j >= params.size.y - 1) return;
 
     const uint idx_0_j = params.flatten_4byte(0, j);
     const uint idx_1_j = params.flatten_4byte(1, j);

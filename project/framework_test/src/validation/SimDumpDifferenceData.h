@@ -24,13 +24,14 @@ struct SingleDataDifference {
     bool isAccurate;
     bool isPrecise;
 
-    SingleDataDifference(const std::vector<float>& a, const std::vector<float>& b);
+    SingleDataDifference(const std::vector<uint32_t>& fluid, const std::vector<float>& a, const std::vector<float>& b, bool subtractMean);
     double varianceOf(std::vector<double> values, double mean);
     void print_details();
 };
 
 struct SimDumpDifferenceData {
-    SingleDataDifference u, v, p;
+    std::vector<uint32_t> fluidmask;
+    SingleDataDifference u, v, p, p_meanadj;
 
     SimDumpDifferenceData(const LegacySimDump& a, const LegacySimDump& b);
     SimDumpDifferenceData(const SimSnapshot& a, const SimSnapshot& b);

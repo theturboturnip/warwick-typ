@@ -48,6 +48,10 @@ void MakeInputSubApp::run() {
     // For every pixel in the actual image (which doesn't include padding), set the values
     // stb coordinates are top-left (0,0), bottom-right (width-1, height-1)
     // our coordinates are top-left (0, height-1), bottom-right (width-1,0)
+    std::vector<int> occluded(height,0);
+    // As we're going from left(0) to right(width), we can tell if there's something between us and the left by storing a column of "occluded" values
+    // then when we encounter an occluder, set it to true for that row.
+    // if occluded[y] == 1 then there was for some x < current_x a pixel[x,y] which was an occluder.
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             // Get image data from STB coordinates
@@ -68,7 +72,10 @@ void MakeInputSubApp::run() {
                     simSnapshot.velocity_x[idx] = 1;
                     simSnapshot.velocity_y[idx] = 0;
                 } else {
-                    simSnapshot.velocity_x[idx] = 0;
+                    if (occluded[y])
+                        simSnapshot.velocity_x[idx] = 0;
+                    else
+                        simSnapshot.velocity_x[idx] = 1;
                     simSnapshot.velocity_y[idx] = 0;
                 }
                 if (interpolatePressure) {
@@ -85,6 +92,8 @@ void MakeInputSubApp::run() {
                 simSnapshot.velocity_x[idx] = 0;
                 simSnapshot.velocity_y[idx] = 0;
                 simSnapshot.pressure[idx] = 0;
+
+                occluded[y] = 1;
             }
         }
     }

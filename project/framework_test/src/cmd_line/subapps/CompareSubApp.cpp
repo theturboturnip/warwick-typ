@@ -17,6 +17,8 @@ void CompareSubApp::run() {
     diff.v.print_details();
     printf("Pressure:\n");
     diff.p.print_details();
+    printf("Pressure (Mean Adjusted):\n");
+    diff.p_meanadj.print_details();
     //fprintf(stderr, "u:\n\tmean: \t%g\n\tvariance: \t%g\n\tstddev: \t%g\n", diff.u.errorMean, diff.u.errorVariance, diff.u.errorStdDev);
     //fprintf(stderr, "v:\n\tmean: \t%g\n\tvariance: \t%g\n\tstddev: \t%g\n", diff.v.errorMean, diff.v.errorVariance, diff.v.errorStdDev);
     //fprintf(stderr, "p:\n\tmean: \t%g\n\tvariance: \t%g\n\tstddev: \t%g\n", diff.p.errorMean, diff.p.errorVariance, diff.p.errorStdDev);

@@ -17,6 +17,7 @@ protected:
 public:
     virtual ~ISimFixedTimeRunner() = default;
     virtual SimSnapshot runForTime(const FluidParams & simParams, const SimSnapshot& start, float timeToRun, float forcedMaxTimestep) = 0;
+    virtual int requiredTicks() = 0;
 
     static std::unique_ptr<ISimFixedTimeRunner> getForBackend(SimulationBackendEnum backendType);
 };

@@ -7,8 +7,8 @@ target_sources(generic_sources INTERFACE
         cmd_line/subapps/ISubApp.h
         cmd_line/subapps/MakeInputSubApp.cpp
         cmd_line/subapps/MakeInputSubApp.h
-        cmd_line/subapps/ConvertOldBinaryToNewBinarySubApp.cpp
-        cmd_line/subapps/ConvertOldBinaryToNewBinarySubApp.h
+        cmd_line/subapps/ResidualSubApp.cpp
+        cmd_line/subapps/ResidualSubApp.h
         cmd_line/subapps/FixedTimeSimSubApp.cpp
         cmd_line/subapps/FixedTimeSimSubApp.h
         cmd_line/subapps/CompareSubApp.cpp
@@ -106,10 +106,6 @@ target_sources(generic_sources INTERFACE
         simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.cpp
         simulation/runners/sim_fixedtime_runner/ISimFixedTimeRunner.h
         simulation/runners/sim_fixedtime_runner/SimFixedTimeRunner.inl
-        simulation/runners/sim_ticked_runner
-        simulation/runners/sim_ticked_runner/ISimTickedRunner.cpp
-        simulation/runners/sim_ticked_runner/ISimTickedRunner.h
-        simulation/runners/sim_ticked_runner/SimTickedRunner.inl
         simulation/runners/sim_vulkan_ticked_runner
         simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.cpp
         simulation/runners/sim_vulkan_ticked_runner/ISimVulkanTickedRunner.h

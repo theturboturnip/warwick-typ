@@ -318,6 +318,7 @@ int poissonSolver(float ** const p, float ** const p_red, float ** const p_black
 #define VECTOR_LENGTH 4
                 const int total_vectors_processed = total_elements_processed / VECTOR_LENGTH;
                 const int last_vector_end = j_start + total_vectors_processed * VECTOR_LENGTH;
+                const int j_end = j_start + total_elements_processed;
 
                 // If we're doing the black side, and we aren't sure if we're within the error range, try adding to the residual.
                 if (ErrorCheck && rb == 1 && threadlocal_res < partial_res_sqr_thresh) {
@@ -449,28 +450,28 @@ res_stack += add * add;
                     }  // end of j
                     // This is a cleanup loop.
                     // Including this is unnecessary for the given input data, as jmax is divisible by 4
-                    /*for(;j < j_end; j++){
-                      float north = updown_col[j+north_offset];
-                      float south = updown_col[j+north_offset+1];
-                      float east = right_col[j];
-                      float west = left_col[j];
-                      float centre = mid_col[j];
-                      float beta_mod = mid_beta[j];
-                      float m_rhs = -mid_rhs[j];
+                    for(;j < j_end; j++){
+                        float north = updown_col[j+north_offset];
+                        float south = updown_col[j+north_offset+1];
+                        float east = right_col[j];
+                        float west = left_col[j];
+                        float centre = mid_col[j];
+                        float beta_mod = mid_beta[j];
+                        float m_rhs = -mid_rhs[j];
 
-                      float horiz = east + west;
-                      float vert = north + south;
+                        float horiz = east + west;
+                        float vert = north + south;
 
-                      // rdx2, rdy2 are in the range of 500-1000, but rhs is <0.1.
-                      // The beta_half of the equation is calculated at single precision
-                      // which means the order of operations is delicate due to rounding.
-                      // In the original, horiz*rdx2 + vert * rdy2 are summed first, then rhs is subtracted.
-                      // Even without FMAs or any other tricks, performing those in any other order results in an "incorrect" simulation.
-                      // Adding parentheses anywhere other than (horiz*rdx2+vert*rdy2) results in an incorrect sim.
-                      // Similarly, if any FMA is used to calculate (horiz*rdx2+vert*rdy2) the simulation is "incorrect".
-                      float beta_half = -beta_mod * ((horiz * rdx2 + vert * rdy2) + m_rhs);
-                      mid_col[j] = fmaf(inv_omega, centre, beta_half);
-                      } */ // end of j cleanup loop
+                        // rdx2, rdy2 are in the range of 500-1000, but rhs is <0.1.
+                        // The beta_half of the equation is calculated at single precision
+                        // which means the order of operations is delicate due to rounding.
+                        // In the original, horiz*rdx2 + vert * rdy2 are summed first, then rhs is subtracted.
+                        // Even without FMAs or any other tricks, performing those in any other order results in an "incorrect" simulation.
+                        // Adding parentheses anywhere other than (horiz*rdx2+vert*rdy2) results in an incorrect sim.
+                        // Similarly, if any FMA is used to calculate (horiz*rdx2+vert*rdy2) the simulation is "incorrect".
+                        float beta_half = -beta_mod * ((horiz * rdx2 + vert * rdy2) + m_rhs);
+                        mid_col[j] = fmaf(inv_omega, centre, beta_half);
+                    } // end of j cleanup loop
                 }
 
             } // end of i
@@ -749,7 +750,7 @@ void applyBoundaryConditions(float **u, float **v, char **flag,
         }
     }
 
-    /* Finally, fix the horizontal velocity at the  western edge to have
+    /* Finally, fix the horizontal velocity at the western edge to have
      * a continual flow of fluid into the simulation.
      */
     v[0][0] = 2*vi-v[1][0];

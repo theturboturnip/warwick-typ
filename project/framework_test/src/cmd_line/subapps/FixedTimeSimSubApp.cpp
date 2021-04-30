@@ -25,7 +25,8 @@ void FixedTimeSimSubApp::run() {
     double timeTaken = diff.count();
 
     fprintf(stdout, "%f\n", timeTaken);
-    fprintf(stderr, "performed calc in %f seconds\n", timeTaken);
+    fprintf(stdout, "%d\n", sim->requiredTicks());
+    fprintf(stderr, "performed calc in %f seconds, %d ticks\n", timeTaken, sim->requiredTicks());
     //fprintf(stderr, "enddump: %s", pretty_output_json.c_str());
     if (outputFile.has_value()){
         output.to_file(outputFile.value());

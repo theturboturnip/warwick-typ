@@ -7,6 +7,9 @@
 template<typename T>
 using in_matrix = const T* const __restrict__;
 
+// output matrix.
+// The const in "T* const" is to denote that the pointer itself is constant, not that the data it points to is constant.
+// i.e. it's a constant pointer to mutable data.
 template<typename T>
 using out_matrix = T* const __restrict__;
 
