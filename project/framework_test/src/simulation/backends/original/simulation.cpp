@@ -40,7 +40,7 @@ void computeTentativeVelocity<double>(const float ** const u, const float ** con
     const double _4delx = 1.0/(4.0*delx);
     const double _4dely = 1.0/(4.0*dely);
 
-#pragma omp parallel for schedule(static) private(j) default(none)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax-1; i++) {
         for (j=1; j<=jmax; j++) {
             // only if both adjacent cells are fluid cells
@@ -67,7 +67,7 @@ void computeTentativeVelocity<double>(const float ** const u, const float ** con
         }
     }
 
-#pragma omp parallel for schedule(static) private(j) default(none)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax-1; j++) {
             // only if both adjacent cells are fluid cells
@@ -120,7 +120,7 @@ void computeTentativeVelocity<float>(const float ** const u, const float ** cons
     const float _4delx = 1.0f/(4.0f*delx);
     const float _4dely = 1.0f/(4.0f*dely);
 
-#pragma omp parallel for schedule(static) private(j) default(none)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax-1; i++) {
         for (j=1; j<=jmax; j++) {
             // only if both adjacent cells are fluid cells
@@ -163,7 +163,7 @@ void computeTentativeVelocity<float>(const float ** const u, const float ** cons
         }
     }
 
-#pragma omp parallel for schedule(static) private(j) default(none)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax-1; j++) {
             // only if both adjacent cells are fluid cells
@@ -214,7 +214,7 @@ void computeRhs(float ** const f, float ** const g, float ** const rhs, char ** 
 {
     int i, j;
 
-#pragma omp parallel for schedule(static) private(j) default(none)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1;i<=imax;i++) {
         for (j=1;j<=jmax;j++) {
             if (flag[i][j] & C_F) {
@@ -297,7 +297,7 @@ int poissonSolver(float ** const p, float ** const p_red, float ** const p_black
             float ** const other_color = rb ? p_red : p_black;
 
             // This breaks res_stack - presumably the reduction keeps some internal variable which isn't reset
-#pragma omp parallel for schedule(static) private(j) shared(rb, iter) firstprivate(threadlocal_res) default(none)// reduction(+:res_stack)
+#pragma omp parallel for schedule(static) private(j) shared(rb, iter) firstprivate(threadlocal_res) default(shared)// reduction(+:res_stack)
             for (i = 1; i <= imax; i++) {
                 const float *const left_col = other_color[i-1];
                 const float *const right_col = other_color[i+1];
@@ -490,7 +490,7 @@ res_stack += add * add;
             // The rest of the code does not operate on split P matrices, so join them back up
             joinRedBlack(p, p_red, p_black, imax, jmax);
 
-#pragma omp parallel for private(j) default(none) reduction(+: res_stack)
+#pragma omp parallel for private(j) default(shared) reduction(+: res_stack)
             for (i = 1; i <= imax; i++) {
                 for (j = 1; j <= jmax; j++) {
                     //if ((i+j)%2 != 0) continue;
@@ -553,7 +553,7 @@ void calculatePBeta(float ** const p_beta,
     const float rdy2 = 1.0/(dely*dely);
     const float beta_2 = -omega/(2.0*(rdx2+rdy2));
 
-#pragma omp parallel for schedule(static) private(j) default(none)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i = 1; i <= imax; i++) {
         for (j = 1; j <= jmax; j++) {
             if (flag[i][j] == (C_F | B_NSEW)) {
@@ -574,7 +574,7 @@ void splitToRedBlack(float ** const joined, float ** const red, float ** const b
                      const int imax, const int jmax){
     int i,j;
 
-#pragma omp parallel for schedule(static) private(j) default(none)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i = 0; i < imax+2; i++) {
         for (j = 0; j < jmax+2; j++) {
             if ((i+j) % 2 == 0)
@@ -589,7 +589,7 @@ void joinRedBlack(float ** const joined, float ** const red, float ** const blac
                   const int imax, const int jmax) {
     int i,j;
 
-#pragma omp parallel for schedule(static) private(j) default(none)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i = 0; i < imax+2; i++) {
         for (j = 0; j < jmax+2; j++) {
             if ((i+j) % 2 == 0)
@@ -609,7 +609,7 @@ void updateVelocity(float ** const u, float ** const v, float ** const f, float 
     int i, j;
 
     // Loop was fused and parallelized
-#pragma omp parallel for schedule(static) private(j) default(none)
+#pragma omp parallel for schedule(static) private(j) default(shared)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax; j++) {
             // only if both adjacent cells are fluid cells
@@ -642,7 +642,7 @@ void setTimestepInterval(float *del_t, int imax, int jmax, float delx,
         vmax = 1.0e-10;
 
         // Loop was fused and parallelized
-#pragma omp parallel for schedule(static) private(j) shared(imax, jmax, u, v) default(none) reduction(max:umax) reduction(max:vmax)
+#pragma omp parallel for schedule(static) private(j) shared(imax, jmax, u, v) default(shared) reduction(max:umax) reduction(max:vmax)
         for (i=0; i<=imax+1; i++) {
             // TODO - check if j=1 is right here?
             for (j=1; j<=jmax+1; j++) {
@@ -696,7 +696,7 @@ void applyBoundaryConditions(float **u, float **v, char **flag,
      * internal obstacle cells. This forces the u and v velocity to
      * tend towards zero in these cells.
      */
-#pragma omp parallel for schedule(static) private(j) shared(u, v, flag, imax, jmax) default(none)
+#pragma omp parallel for schedule(static) private(j) shared(u, v, flag, imax, jmax) default(shared)
     for (i=1; i<=imax; i++) {
         for (j=1; j<=jmax; j++) {
             if (flag[i][j] & B_NSEW) {
