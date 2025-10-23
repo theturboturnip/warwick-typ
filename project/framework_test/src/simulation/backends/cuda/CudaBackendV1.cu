@@ -155,7 +155,7 @@ void CudaBackendV1<UnifiedMemoryForExport>::dispatch_poissonRedBlackCUDA(int ite
     //  3. Because of template specializations, the C++ compiler can't know ahead of time if p.get will be a template function or a data member.
     //  4. This means the C++ compiler can't tell what p.get(Kind) means - is it (p.get) < Kind > ()? or is it a template function invocation?
     //  5. Using the '.template' syntax tells the C++ compiler to explicitly expect a template function here. It's ugly as hell, but it works.
-    // The way to fix this is to stop using shitty languages like C++. However, given the state of CUDA on better languages like Rust is kinda poor,
+    // The way to fix this is to stop using languages like C++. However, given the state of CUDA on better languages like Rust is kinda poor,
     // this isn't feasible right now.
 
     constexpr bool DoubleBuffer = false;
