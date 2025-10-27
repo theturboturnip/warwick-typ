@@ -4,7 +4,7 @@
 
 #pragma once
 
-#define VULKAN_CHECK_IN_RELEASE 1
+#define VULKAN_CHECK_IN_RELEASE 0
 #if !NDEBUG
 #define VULKAN_CHECK_ENABLED 1
 #elif VULKAN_CHECK_IN_RELEASE
@@ -22,3 +22,11 @@
 #define CHECK_VULKAN_ERROR(error)
 #define CHECKED_VULKAN(X) (X)
 #endif
+
+#include <vulkan/vulkan.hpp>
+
+template<typename T>
+T&& check_vulkan_result(vk::ResultValue<T>&& r) {
+    CHECK_VULKAN_ERROR(r.result);
+    return std::move(r.value);
+}

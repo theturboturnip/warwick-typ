@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 struct LegacySimSize {
     // Simulation block resolution
     uint32_t imax, jmax;

@@ -9,14 +9,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA17_STANDARD_COMPILE_OPTION "-std=c++17")
 set(CMAKE_CUDA_STANDARD_REQUIRED FALSE)
 
-include(CheckLanguage)
-check_language(CUDA)
-if(CMAKE_CUDA_COMPILER)
-    enable_language(CUDA)
-    set(CUDA_PROPAGATE_HOST_FLAGS FALSE)
-else()
-    message(WARNING "CUDA not found, disabling...")
-endif()
+enable_language(CUDA)
+set(CUDA_PROPAGATE_HOST_FLAGS FALSE)
 
 if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(FATAL_ERROR "This project must be compiled with GCC for correct results")
@@ -95,15 +89,15 @@ if (CMAKE_CUDA_COMPILER)
     target_compile_options(sim_cuda PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${CXX_OVERALL_OPT}> $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_OVERALL_OPT}>)
     add_dependencies(sim_cuda copy_assets)
     add_dependencies(all_sims sim_cuda)
-endif()
 
-#if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    # using Clang
-    # set(CXX_WARNING_OPT -Wall -Werror -Wno-error-unused)
-#elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # using GCC
-#elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    # using Intel C++
-#elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # using Visual Studio C++
-#end()
+    if(CMAKE_VERSION VERSION_LESS "3.23.0")
+        if (CMAKE_CUDA_ARCHITECTURES)
+        set_target_properties(sim_cuda PROPERTIES CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES})
+        else()
+        # Generate compiled CUDA for GPU architectures from latest available
+        set_target_properties(sim_cuda PROPERTIES CUDA_ARCHITECTURES "75;80;86;87;88;89;90;100;110;103;120;121")
+        endif()
+    else()
+        set_target_properties(sim_cuda PROPERTIES CUDA_ARCHITECTURES all)
+    endif()
+endif()

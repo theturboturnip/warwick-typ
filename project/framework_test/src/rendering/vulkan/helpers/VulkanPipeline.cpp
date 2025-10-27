@@ -4,6 +4,7 @@
 
 #include "VulkanPipeline.h"
 
+#include "util/check_vulkan_error.h"
 
 VulkanPipeline::VulkanPipeline(
         vk::Device device, vk::RenderPass renderPass,
@@ -121,7 +122,7 @@ VulkanPipeline::VulkanPipeline(
     pipelineInfo.basePipelineHandle = nullptr; // Optional
     pipelineInfo.basePipelineIndex = -1; // Optional
 
-    pipeline = device.createGraphicsPipelineUnique(nullptr, {pipelineInfo});
+    pipeline = check_vulkan_result(device.createGraphicsPipelineUnique(nullptr, {pipelineInfo}));
 }
 
 VulkanPipeline::VulkanPipeline(
@@ -154,5 +155,5 @@ VulkanPipeline::VulkanPipeline(
     pipelineInfo.basePipelineHandle = nullptr; // Optional
     pipelineInfo.basePipelineIndex = -1; // Optional
 
-    pipeline = device.createComputePipelineUnique(nullptr, {pipelineInfo});
+    pipeline = check_vulkan_result(device.createComputePipelineUnique(nullptr, {pipelineInfo}));
 }
